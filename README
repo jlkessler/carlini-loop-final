@@ -1,3 +1,39 @@
+# Carlini Loop Evaluation of Open-Weight Language Models
+
+This repository contains the code and experimental results for a study evaluating the vulnerability-discovery capabilities of open-weight language models using the **Carlini Loop**.
+
+The experiment uses historical vulnerabilities from the [DiverseVul dataset](https://drive.google.com/file/d/12IWKhmLhq7qn5B_iXgn5YerOQtkH-6RG/view?usp=sharing) and historical snapshots of open-source repositories corresponding to vulnerability-fixing commits.
+
+## Overview
+
+The experiment follows the pipeline below:
+
+```text
+Download DiverseVul Dataset
+    │
+    ├── Select vulnerability-fixing commits from metadata
+    │
+    ├── Identify parent commits
+    │
+    ├── Download historical repository snapshots
+    │
+    ├── Construct ground truth
+    │
+    ▼
+Load Model and Historical Repository Snapshot 
+    │
+    ▼
+Model follows Carlini Loop Prompt through all source-code files in Snapshot
+    │
+    ▼
+Model-Generates a report on vulnerabilities found 
+    │
+    ▼
+Compare Model-reported functions with the ground truth
+    │
+    ▼
+Calculate Evaluation Statistics
+
 INSTRUCTIONS
 
 Packages to install:
@@ -20,8 +56,12 @@ Steps to reproduce this work:
  - corosync: https://github.com/corosync/corosync/commit/6127be18062e129a74f66449f1ef3c465af58168
 6. After clicking on the parent link, select "Browse files", then "Code", and finally "Download ZIP". You will want to unzip and save these historical snapshots of the selected repositories into [PROJECT_REPO]/snapshots
 7. Now you will want to create a file [PROJECT_REPO]/data/processed/ground_truth.json, and then you can go ahead and use build_ground_truth.py to fill that file with the example functions from the DiverseVul dataset. 
- - Example usage: scripts\build_ground_truth.py --project libass --target 1
+ - Example usage: $python scripts\build_ground_truth.py --project libass --target 1
  - Note: You may need to do some manual formatting to allow the function's output to fit nicely into the JSON file
 8. Now that you have your snapshots for the models to analyze and the ground_truth file to evaluate the responses, it is time for you to start the experiments! 
- - General usage: run_carlini_loop.py --model [MODEL_NAME] --snapshot [SNAPSHOT_PATH] 
+ - General usage: $python run_carlini_loop.py --model [MODEL_NAME] --snapshot [SNAPSHOT_PATH] 
  - Note: You may need to initialize the models you plan on running with the command "ollama pull [MODEL_NAME]"
+9. The model should automatically generate an evaluation report for you. If you would like to manually evaluate a model's report you can specify:
+    - desired report with the flag --report results/[MODEL_NAME]/[SNAPSHOT_NAME]/report.txt
+    - the historical repository snapshot with the flag --repo-name [REPO_NAME]
+    - the total number of vulnerabilities reported (only printed in the terminal, value is not saved [patch this]) --reported-vulnerable-count [INTEGER]
