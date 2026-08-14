@@ -1,0 +1,43 @@
+1. File: notifier\mailto.c
+2. Name of the function containing the vulnerability: `pipe_sendmail`
+3. Vulnerability type / CWE: CWE-78 - Command Injection
+4. The relevant vulnerable code snippet:
+```c
+/*
+ * First break the mailtoSendmail string into arguments...
+ */
+
+strlcpy(line, mailtoSendmail, sizeof(line));
+argv[0] = line;
+argc    = 1;
+
+for (lineptr = strchr(line, ' '); lineptr; lineptr = strchr(lineptr, ' '))
+{
+  while (*lineptr == ' ')
+    *lineptr++ = '\0';
+
+  if (*lineptr)
+  {
+   /*
+    * Point to the next argument...
+    */
+
+    argv[argc ++] = lineptr;
+
+   /*
+    * Stop if we have too many...
+    */
+
+    if (argc >= (int)(sizeof(argv) / sizeof(argv[0]) - 2))
+      break;
+  }
+}
+
+argv[argc ++] = (char *)to;
+argv[argc]    = NULL;
+```
+5. This code is vulnerable because it parses the `mailtoSendmail` configuration value by splitting on spaces to create command arguments. If an attacker can control the `mailtoSendmail` configuration value through a compromised `mailto.conf` file or environment variable, they can inject malicious commands. The parsing logic does not properly sanitize or validate the input, allowing for command injection attacks where additional commands can be executed via shell metacharacters like `;`, `&`, `|`, etc.
+
+6. Severity rating: critical
+
+The vulnerability allows for arbitrary command execution as the mailto notifier runs with elevated privileges (typically root) when invoked by CUPS. An attacker who can modify the configuration file or environment variables could execute arbitrary commands on the system, making this a critical security issue.

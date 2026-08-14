@@ -1,0 +1,39 @@
+1. File: tools\corosync-notifyd.c
+
+2. Name of the function containing the vulnerability: `_cs_ip_to_hostname`
+
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+static int32_t _cs_ip_to_hostname(char* ip, char* name_out)
+{
+    struct sockaddr_in sa;
+    int rc;
+
+    if (strchr(ip, ':') == NULL) {
+        sa.sin_family = AF_INET;
+    } else {
+        sa.sin_family = AF_INET6;
+    }
+
+    rc = inet_pton(sa.sin_family, ip, &sa.sin_addr);
+    if (rc == 0) {
+        return -EINVAL;
+    }
+
+    rc = getnameinfo((struct sockaddr*)&sa, sizeof(sa),
+            name_out, CS_MAX_NAME_LENGTH, NULL, 0, 0);
+    if (rc != 0) {
+        qb_log(LOG_ERR, 0, "error looking up %s : %s", ip, gai_strerror(rc));
+        return -EINVAL;
+    }
+    return 0;
+}
+```
+
+5. A concise explanation of why it is vulnerable: The function `_cs_ip_to_hostname` takes an IP address string as input and attempts to resolve it to a hostname using `getnameinfo()`. However, the function does not properly validate that the `ip` parameter is non-NULL before passing it to `inet_pton()` or `getnameinfo()`. If `ip` is NULL, this leads to undefined behavior and can result in a buffer overflow or crash. Additionally, while `CS_MAX_NAME_LENGTH` is used as the buffer size for `name_out`, there's no explicit validation that the IP string being processed won't cause `getnameinfo()` to write beyond the bounds of the buffer.
+
+6. Severity rating: high
+
+Note: The vulnerability is primarily due to lack of NULL pointer checks on input parameters, which can lead to crashes or potentially exploitable conditions when the program receives malformed input. While the code does use `CS_MAX_NAME_LENGTH` for buffer sizing, there's insufficient validation around the IP string handling that could lead to buffer overflows in certain edge cases.

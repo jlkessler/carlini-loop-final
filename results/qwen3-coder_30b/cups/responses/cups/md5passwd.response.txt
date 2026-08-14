@@ -1,0 +1,13 @@
+1. File: cups\md5passwd.c
+2. Name of the function containing the vulnerability: httpMD5Final
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Stack-based Buffer Overflow (CWE-129)
+4. The relevant vulnerable code snippet:
+```c
+char			line[1024];	/* Line of data */
+...
+snprintf(line, sizeof(line), "%s:%s:%s", md5, nonce, a2);
+```
+5. The vulnerability exists because the `snprintf` function call does not properly validate the length of the input strings (`md5`, `nonce`, and `a2`) before copying them into the fixed-size buffer `line[1024]`. If any of these strings are longer than 1024 characters, it could cause a buffer overflow. Additionally, while `snprintf` is used with a size parameter, the actual string concatenation in the format specifier may still lead to issues if the combined length exceeds the buffer size.
+6. Severity rating: HIGH
+
+The vulnerability is significant because it can potentially allow an attacker to overwrite adjacent memory, leading to arbitrary code execution or denial of service. The use of `snprintf` with a fixed-size buffer without proper validation of input lengths makes this a high-severity issue.

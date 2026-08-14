@@ -1,0 +1,13 @@
+1. File: include\corosync\cpg.h
+2. Name of the function containing the vulnerability: `struct cpg_name` (Data Structure)
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+#define CPG_MAX_NAME_LENGTH 128
+struct cpg_name {
+	uint32_t length;
+	char value[CPG_MAX_NAME_LENGTH];
+};
+```
+5. A concise explanation of why it is vulnerable: The `struct cpg_name` contains a fixed-size buffer `value` of 128 bytes, but it also includes a `length` field. If the implementation of functions that process this structure (such as `cpg_join` or `cpg_leave`) trusts the `length` field provided in the structure when copying data into `value` or when processing it, it can lead to a heap or stack-based buffer overflow. Because the `length` is a `uint32_t`, it can be set to a value much larger than `CPG_MAX_NAME_LENGTH`, causing memory corruption during copy operations.
+6. Severity rating: High

@@ -1,0 +1,16 @@
+1. File: test\testcpgzc.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+	if (argc > optind) {
+		strcpy(group_name.value, argv[optind]);
+		group_name.length = strlen(argv[optind])+1;
+	}
+	else {
+		strcpy(group_name.value, DEFAULT_GROUP_NAME);
+		group_name.length = strlen(DEFAULT_GROUP_NAME) + 1;
+	}
+```
+5. A concise explanation of why it is vulnerable: The code uses `strcpy` to copy a command-line argument (`argv[optind]`) into `group_name.value` without checking the length of the input. Since `group_name` is a static global structure, if a user provides a string longer than the allocated size of the `value` array in `struct cpg_name`, it will result in a stack or data segment buffer overflow, potentially allowing for arbitrary code execution or crashing the program.
+6. Severity rating: High

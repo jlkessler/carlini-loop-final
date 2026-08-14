@@ -1,0 +1,15 @@
+1. File: scheduler\testmime.c
+2. Name of the function containing the vulnerability: `add_ppd_filter`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120) / Out-of-bounds Write
+4. The relevant vulnerable code snippet:
+```c
+    ptr ++;
+    while (_cups_isspace(*ptr))
+      ptr ++;
+
+    _cups_strcpy(program, ptr);
+```
+5. A concise explanation of why it is vulnerable:
+The function `add_ppd_filter` uses `sscanf` to parse a filter string into a fixed-size buffer `program[1024]`. After parsing, if the program string starts with `"maxsize("`, the code calculates the position of the actual program name using a pointer `ptr`. It then uses `_cups_strcpy(program, ptr)` to copy the remaining part of the string back into the `program` buffer. However, `_cups_strcpy` (which typically behaves like `strcpy`) does not perform bounds checking. If the input `filter` string is crafted such that the portion following `maxsize(...)` is longer than 1024 bytes, it will cause a stack-based buffer overflow.
+
+6. Severity rating: High

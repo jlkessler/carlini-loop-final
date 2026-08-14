@@ -1,0 +1,28 @@
+1. File: scheduler\auth.c
+2. Name of the function containing the vulnerability: `cupsdAddNameMask`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+  else if (!_cups_strncasecmp(name, "@IF(", 4))
+  {
+   /*
+    * Deny *interface*...
+    */
+
+    strlcpy(ifname, name + 4, sizeof(ifname));
+
+    ifptr = ifname + strlen(ifname) - 1;
+
+    if (ifptr >= ifname && *ifptr == ')')
+    {
+      *ifptr = '\0';
+    }
+
+    temp.type             = CUPSD_AUTH_INTERFACE;
+    temp.mask.name.name   = ifname;
+  }
+```
+5. A concise explanation of why it is vulnerable:
+The function uses `strlcpy` to copy the interface name into a fixed-size stack buffer `ifname[32]`. While `strlcpy` prevents a direct overflow during the copy, the resulting `temp.mask.name.name` pointer is assigned to the address of this local stack buffer (`ifname`). The `temp` structure is then added to a global array via `cupsArrayAdd`. Once `cupsdAddNameMask` returns, the stack frame is destroyed, and the global array now contains a dangling pointer to a stale stack location. Any subsequent access to this mask (e.g., in `cupsdCheckAuth` via `strcmp`) will result in a Use-After-Free (UAF) / Invalid Memory Access, which can lead to a crash or potential arbitrary code execution.
+
+6. Severity rating: High

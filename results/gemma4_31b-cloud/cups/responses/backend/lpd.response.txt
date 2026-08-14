@@ -1,0 +1,17 @@
+1. File: backend\lpd.c
+2. Name of the function containing the vulnerability: lpd_queue
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+    while (copies > 0)
+    {
+      snprintf(cptr, sizeof(control) - (size_t)(cptr - control), "%cdfA%03d%.15s\n",
+               format, (int)getpid() % 1000, localhost);
+      cptr   += strlen(cptr);
+      copies --;
+    }
+```
+5. A concise explanation of why it is vulnerable:
+The code uses `snprintf` to append copy information to the `control` buffer. However, it calculates the remaining space using `sizeof(control) - (size_t)(cptr - control)`. While `snprintf` prevents a buffer overflow on a *single* call, the line `cptr += strlen(cptr);` is critical. If the previous `snprintf` call truncated the output because the buffer was full, `strlen(cptr)` will return the length of the truncated string currently at the end of the buffer. If the buffer is completely filled to the brim (no null terminator at the end or `cptr` reaches the end), subsequent calls may cause `cptr` to move beyond the bounds of the `control` array. More importantly, if `copies` is very large, the `snprintf` call will continue to write to the very end of the buffer, and the logic for updating `cptr` can lead to an out-of-bounds write or read in the subsequent `snprintf` calls because the remaining size calculation becomes invalid once `cptr` is pushed past the buffer boundary.
+
+6. Severity rating: High

@@ -1,0 +1,20 @@
+1. File: filter\rastertohp.c
+2. Name of the function containing the vulnerability: `StartPage`
+3. Vulnerability type / CWE: Heap-based Buffer Overflow (CWE-122) / Incorrect Calculation of Buffer Size
+4. The relevant vulnerable code snippet:
+```c
+  if ((Planes[0] = malloc(header->cupsBytesPerLine + NumPlanes)) == NULL)
+  {
+    fputs("ERROR: Unable to allocate memory\n", stderr);
+    exit(1);
+  }
+
+  for (plane = 1; plane < NumPlanes; plane ++)
+    Planes[plane] = Planes[0] + plane * header->cupsBytesPerLine / NumPlanes;
+```
+5. A concise explanation of why it is vulnerable:
+The code allocates a buffer for `Planes[0]` with a size of `header->cupsBytesPerLine + NumPlanes`. However, it then calculates the pointers for subsequent planes (`Planes[1]` through `Planes[NumPlanes-1]`) based on the assumption that the total buffer is large enough to hold `NumPlanes` copies of a specific size. 
+
+Specifically, if `NumPlanes` is greater than 1, the loop assigns `Planes[plane]` to offsets within the same allocated block. While the calculation `plane * header->cupsBytesPerLine / NumPlanes` seems to attempt to partition the buffer, the original `malloc` only allocated `header->cupsBytesPerLine + NumPlanes` bytes total. If `NumPlanes` is 4 (KCMY), it only allocates roughly one line's worth of data plus 4 bytes, but subsequent logic (like in `OutputLine`) treats `Planes[plane]` as the start of a buffer of size `header->cupsBytesPerLine / NumPlanes`. When `OutputLine` or `CompressData` accesses these pointers, it will read/write far beyond the end of the allocated heap block, leading to a heap buffer overflow.
+
+6. Severity rating: Critical

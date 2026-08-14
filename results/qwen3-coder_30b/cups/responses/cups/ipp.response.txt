@@ -1,0 +1,24 @@
+1. File: cups\ipp.c
+2. Name of the function containing the vulnerability: `ippReadIO`
+3. Vulnerability type / CWE: CWE-129 - Improper Validation of Array Index
+4. The relevant vulnerable code snippet:
+```c
+if (n >= IPP_BUF_SIZE)
+{
+  _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("IPP name larger than 32767 bytes."), 1);
+  DEBUG_printf(("1ippReadIO: bad name length %d.", n));
+  goto rollback;
+}
+...
+if ((*cb)(src, buffer, (size_t)n) < n)
+{
+  DEBUG_puts("1ippReadIO: unable to read name.");
+  goto rollback;
+}
+buffer[n] = '\0';
+```
+5. The vulnerability occurs in the `ippReadIO` function where it reads attribute names from IPP messages. While there's a check for `n >= IPP_BUF_SIZE`, the code continues execution and later uses `buffer[n] = '\0'` without ensuring that `n` is actually valid or within bounds, potentially allowing an attacker to cause buffer overflows by crafting malicious IPP requests with oversized attribute names.
+
+6. Severity rating: high
+
+The vulnerability allows for potential buffer overflow when handling oversized attribute names in IPP messages, which could lead to arbitrary code execution if exploited properly. The check for `IPP_BUF_SIZE` is present but not sufficient to prevent all possible buffer overflows in this context.

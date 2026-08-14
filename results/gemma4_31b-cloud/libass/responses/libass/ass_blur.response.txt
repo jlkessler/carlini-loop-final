@@ -1,0 +1,25 @@
+1. File: libass\ass_blur.c
+2. Name of the function containing the vulnerability: `ass_stripe_unpack_c`
+3. Vulnerability type / CWE: Out-of-bounds Read (CWE-125)
+4. The relevant vulnerable code snippet:
+```c
+void ass_stripe_unpack_c(int16_t *dst, const uint8_t *src, ptrdiff_t src_stride,
+                         uintptr_t width, uintptr_t height)
+{
+    for (uintptr_t y = 0; y < height; ++y) {
+        int16_t *ptr = dst;
+        for (uintptr_t x = 0; x < width; x += STRIPE_WIDTH) {
+            for (int k = 0; k < STRIPE_WIDTH; ++k)
+                ptr[k] = (uint16_t)(((src[x + k] << 7) | (src[x + k] >> 1)) + 1) >> 1;
+                //ptr[k] = (0x4000 * src[x + k] + 127) / 255;
+            ptr += STRIPE_WIDTH * height;
+        }
+        dst += STRIPE_WIDTH;
+        src += src_stride;
+    }
+}
+```
+5. A concise explanation of why it is vulnerable:
+The function `ass_stripe_unpack_c` iterates through the source buffer `src` using the loop `for (uintptr_t x = 0; x < width; x += STRIPE_WIDTH)`. Inside this loop, there is a nested loop `for (int k = 0; k < STRIPE_WIDTH; ++k)` that accesses `src[x + k]`. If `width` is not a multiple of `STRIPE_WIDTH`, the expression `x + k` will exceed the bounds of the row (reaching up to `width + STRIPE_WIDTH - 1`) on the final iteration of the `x` loop, leading to an out-of-bounds read from the `src` buffer.
+
+6. Severity rating: High

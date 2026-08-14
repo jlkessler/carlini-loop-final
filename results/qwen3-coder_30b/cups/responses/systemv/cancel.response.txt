@@ -1,0 +1,15 @@
+1. File: systemv\cancel.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-121 Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+char		uri[1024];		/* Printer or job URI */
+...
+httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), "ipp", NULL,
+                 "localhost", 0, "/printers/%s", dest);
+```
+5. The vulnerability exists because the `dest` parameter is directly passed to `httpAssembleURIf` without any validation or length checking. If `dest` contains a string longer than (1024 - 23) characters (where 23 accounts for "ipp://localhost/printers/" prefix), it will overflow the fixed-size `uri` buffer, causing a stack-based buffer overflow.
+
+6. Severity rating: critical
+
+The vulnerability allows an attacker to potentially execute arbitrary code by overflowing the stack buffer, which could be exploited to gain unauthorized access or cause a denial of service. This is particularly serious because the `dest` variable is populated from command-line arguments without proper bounds checking, making it directly exploitable through crafted input.

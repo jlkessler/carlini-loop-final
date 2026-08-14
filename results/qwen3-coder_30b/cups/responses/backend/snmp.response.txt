@@ -1,0 +1,95 @@
+1. File: backend\snmp.c
+2. Name of the function containing the vulnerability: `add_device_uri`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static device_uri_t *			/* O - Device URI */
+add_device_uri(char *value)		/* I - Value from snmp.conf */
+{
+  device_uri_t	*device_uri;		/* Device URI */
+  char		*start;			/* Start of value */
+
+
+ /*
+  * Allocate memory as needed...
+  */
+
+  if (!DeviceURIs)
+    DeviceURIs = cupsArrayNew(NULL, NULL);
+
+  if (!DeviceURIs)
+    return (NULL);
+
+  if ((device_uri = calloc(1, sizeof(device_uri_t))) == NULL)
+    return (NULL);
+
+  if ((device_uri->uris = cupsArrayNew(NULL, NULL)) == NULL)
+  {
+    free(device_uri);
+    return (NULL);
+  }
+
+ /*
+  * Scan the value string for the regular expression and URI(s)...
+  */
+
+  value ++; /* Skip leading " */
+
+  for (start = value; *value && *value != '\"'; value ++)
+    if (*value == '\\' && value[1])
+      _cups_strcpy(value, value + 1);
+
+  if (!*value)
+  {
+    fputs("ERROR: Missing end quote for DeviceURI!\n", stderr);
+
+    cupsArrayDelete(device_uri->uris);
+    free(device_uri);
+
+    return (NULL);
+  }
+
+  *value++ = '\0';
+
+  if (regcomp(&(device_uri->re), start, REG_EXTENDED | REG_ICASE))
+  {
+    fputs("ERROR: Bad regular expression for DeviceURI!\n", stderr);
+
+    cupsArrayDelete(device_uri->uris);
+    free(device_uri);
+
+    return (NULL);
+  }
+
+  while (*value)
+  {
+    while (isspace(*value & 255))
+      value ++;
+
+    if (!*value)
+      break;
+
+    for (start = value; *value && !isspace(*value & 255); value ++);
+
+    if (*value)
+      *value++ = '\0';
+
+    cupsArrayAdd(device_uri->uris, strdup(start));
+  }
+
+ /*
+  * Add the device URI to the list and return it...
+  */
+
+  cupsArrayAdd(DeviceURIs, device_uri);
+
+  return (device_uri);
+}
+```
+
+5. A concise explanation of why it is vulnerable:
+The vulnerability occurs in the `add_device_uri` function when processing the DeviceURI configuration directive. The code attempts to parse a quoted string from the configuration file but fails to properly validate or limit the size of strings being copied, leading to potential buffer overflows. Specifically, there's no check on the length of `start` before copying it into the regex pattern, which could allow an attacker to provide a maliciously long regular expression that overflows the internal buffers.
+
+6. Severity rating: high
+
+The vulnerability is a stack-based buffer overflow that could potentially be exploited to execute arbitrary code, especially since this code is part of a system service (CUPS backend) that runs with elevated privileges. The function processes untrusted input from configuration files without adequate bounds checking.

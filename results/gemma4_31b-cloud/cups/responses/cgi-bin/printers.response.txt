@@ -1,0 +1,29 @@
+1. File: cgi-bin\printers.c
+2. Name of the function containing the vulnerability: `main`
+3. Vulnerability type / CWE: CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')
+4. The relevant vulnerable code snippet:
+```c
+  if ((printer = getenv("PATH_INFO")) != NULL)
+  {
+    printer ++;
+
+    if (!*printer)
+      printer = NULL;
+
+    if (printer)
+      cgiSetVariable("PRINTER_NAME", printer);
+  }
+...
+    else
+    {
+     /*
+      * Unknown/bad operation...
+      */
+
+      cgiStartHTML(printer);
+      cgiCopyTemplateLang("error-op.tmpl");
+      cgiEndHTML();
+    }
+```
+5. A concise explanation of why it is vulnerable: The program retrieves the `printer` name directly from the `PATH_INFO` environment variable (which is derived from the URL path). This value is passed to `cgiStartHTML(printer)` without any validation or HTML encoding. If an attacker provides a crafted path (e.g., `/printers/<script>alert(1)</script>`), the script will be reflected in the HTML response, leading to a Reflected Cross-Site Scripting (XSS) vulnerability.
+6. Severity rating: High

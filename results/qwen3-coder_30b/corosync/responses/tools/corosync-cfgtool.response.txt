@@ -1,0 +1,33 @@
+1. File: tools\corosync-cfgtool.c
+
+2. Name of the function containing the vulnerability: ringstatusget_do
+
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+static int ringstatusget_do (char *interface_name)
+{
+    // ... other code ...
+    char interface_name[128] = "";
+    // ... other code ...
+    while ( (opt = getopt(argc, argv, options)) != -1 ) {
+        switch (opt) {
+        case 'i':
+            strncpy(interface_name, optarg, sizeof(interface_name));
+            break;
+        // ... other cases ...
+        }
+    }
+```
+
+5. A concise explanation of why it is vulnerable:
+The code declares a local variable `interface_name[128]` within the `ringstatusget_do` function, which shadows the `interface_name` parameter passed to the function. This creates a buffer overflow vulnerability because:
+- The `optarg` from `getopt` can be longer than 127 characters (excluding null terminator)
+- `strncpy(interface_name, optarg, sizeof(interface_name))` only copies up to 128 bytes but doesn't guarantee null termination if the input is exactly 127+ characters
+- The local variable `interface_name[128]` shadows the parameter and can overflow when `optarg` exceeds 127 characters
+- This allows an attacker to overwrite adjacent stack memory, potentially leading to arbitrary code execution
+
+6. Severity rating: HIGH
+
+The vulnerability is a classic buffer overflow that can lead to privilege escalation or denial of service, making it HIGH severity.

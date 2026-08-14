@@ -1,0 +1,17 @@
+1. File: systemv\cupsaccept.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+  char		*command,		/* Command to do */
+		*opt,			/* Option pointer */
+		uri[1024],		/* Printer URI */
+		*reason;		/* Reason for reject/disable */
+// ...
+      httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), "ipp", NULL,
+                       "localhost", 0, "/printers/%s", argv[i]);
+```
+5. A concise explanation of why it is vulnerable:
+The program uses `httpAssembleURIf` to construct a printer URI. While the function is provided with the size of the `uri` buffer (`sizeof(uri)`), the format string `/printers/%s` takes `argv[i]` (user-supplied input from the command line) and appends it to a prefix. If a user provides a very long string as the destination argument, and if `httpAssembleURIf` does not strictly enforce the bound relative to the formatted output or if the internal implementation of the assembly fails to account for the prefix length correctly, it can lead to a buffer overflow. However, more critically, the logic relies on `httpAssembleURIf` to prevent the overflow. In many legacy CUPS implementations, if the resulting URI exceeds the 1024-byte buffer, it can lead to memory corruption depending on the specific version of the library function. Given the fixed-size stack buffer and direct use of `argv` in a formatting function, this is the primary attack vector.
+
+6. Severity rating: High

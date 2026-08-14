@@ -1,0 +1,11 @@
+1. File: cgi-bin\jobs.c
+2. Name of the function containing the vulnerability: do_job_op
+3. Vulnerability type / CWE: Cross-Site Scripting (XSS) / CWE-79
+4. The relevant vulnerable code snippet:
+```c
+    strlcpy(url, "5;URL=", sizeof(url));
+    cgiFormEncode(url + 6, getenv("HTTP_REFERER"), sizeof(url) - 6);
+    cgiSetVariable("refresh_page", url);
+```
+5. A concise explanation of why it is vulnerable: The code retrieves the `HTTP_REFERER` environment variable (which is user-controlled) and incorporates it into a refresh URL. While `cgiFormEncode` is used, the resulting `url` is passed to `cgiSetVariable("refresh_page", url)`. If the CGI framework renders the `refresh_page` variable directly into the HTML output (e.g., in a `<meta http-equiv="refresh" content="...">` tag) without further output encoding, an attacker can inject malicious payloads via the `Referer` header to execute arbitrary JavaScript in the context of the user's browser.
+6. Severity rating: medium

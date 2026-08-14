@@ -1,0 +1,18 @@
+1. File: systemv\cancel.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-120 (Buffer Copy without Checking Size of Input / Buffer Overflow)
+4. The relevant vulnerable code snippet:
+```c
+      if (dest)
+      {
+	httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), "ipp", NULL,
+	                 "localhost", 0, "/printers/%s", dest);
+	ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI,
+	             "printer-uri", NULL, uri);
+	ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "job-id",
+	              job_id);
+      }
+```
+5. A concise explanation of why it is vulnerable: The `dest` variable is assigned directly from `argv[i]` when a destination printer is provided as a command-line argument. This `dest` string is then passed to `httpAssembleURIf` to be formatted into the `uri` buffer (which has a fixed size of 1024 bytes). If a user provides an exceptionally long printer name in the command-line arguments, and if `httpAssembleURIf` does not internally enforce strict bounds checking against the provided `sizeof(uri)` during the `%s` expansion, it could lead to a stack-based buffer overflow. Even if `httpAssembleURIf` prevents the overflow, the logic relies on `argv` inputs to construct a URI, which can lead to unexpected behavior if the input contains formatting characters or exceeds expected lengths.
+
+6. Severity rating: medium

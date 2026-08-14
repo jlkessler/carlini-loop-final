@@ -1,0 +1,31 @@
+1. File: test\testcpg.c
+2. Name of the function containing the vulnerability: print_time()
+3. Vulnerability type / CWE: CWE-121 Stack Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static void
+print_time(void)
+{
+#define     MAXLEN (256)
+	char buf[MAXLEN];
+	char hostname[HOST_NAME_MAX];
+	struct timeval tnow;
+	time_t t;
+	size_t len;
+	char *s = buf;
+
+	len = sizeof(hostname);
+	if(gethostname(hostname, len) == 0) {
+		char *longName;
+		hostname[len-1] = '\0';
+		longName = hostname;
+		if( (longName = strstr( hostname, "." )) != NULL )
+		*longName = '\0';
+	}
+
+	strcpy(s, hostname);
+	s += strlen(hostname);
+	s += snprintf(s, sizeof(buf)-(s-buf), ":%d", getpid());
+```
+5. The vulnerability exists because `gethostname()` is called with `len` set to `sizeof(hostname)`, but `hostname` is declared as `char hostname[HOST_NAME_MAX]`. When `HOST_NAME_MAX` is greater than the actual buffer size, `gethostname()` can write beyond the bounds of the `hostname` buffer. Furthermore, `snprintf` can potentially overflow the `buf` array when calculating the offset for `s` and appending data to it, especially if `gethostname()` returns a long hostname that gets truncated or if the offset calculation fails.
+6. Severity rating: high

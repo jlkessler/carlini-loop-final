@@ -1,0 +1,29 @@
+1. File: cups\tls-darwin.c
+2. Name of the function containing the vulnerability: cupsMakeServerCredentials
+3. Vulnerability type / CWE: CWE-78 - Command Injection
+4. The relevant vulnerable code snippet:
+```c
+if (!cupsFileFind("certtool", getenv("PATH"), 1, command, sizeof(command)))
+    return (-1);
+
+// ... code that builds argv array ...
+
+posix_spawn_file_actions_t actions;	/* File actions */
+posix_spawn_file_actions_init(&actions);
+posix_spawn_file_actions_addclose(&actions, 0);
+posix_spawn_file_actions_addopen(&actions, 0, infofile, O_RDONLY, 0);
+posix_spawn_file_actions_addclose(&actions, 1);
+posix_spawn_file_actions_addopen(&actions, 1, "/dev/null", O_WRONLY, 0);
+posix_spawn_file_actions_addclose(&actions, 2);
+posix_spawn_file_actions_addopen(&actions, 2, "/dev/null", O_WRONLY, 0);
+
+if (posix_spawn(&pid, command, &actions, NULL, argv, envp))
+{
+  unlink(infofile);
+  return (-1);
+}
+```
+
+5. The vulnerability exists because the `certtool` command path is determined by `cupsFileFind("certtool", getenv("PATH"), 1, command, sizeof(command))` which uses the PATH environment variable. An attacker can manipulate the PATH to point to a malicious `certtool` binary, and since the code doesn't validate that the found binary is actually the expected system utility, it will execute arbitrary commands with the privileges of the process running cupsMakeServerCredentials.
+
+6. Severity rating: HIGH

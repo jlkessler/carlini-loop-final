@@ -1,0 +1,12 @@
+1. File: cups\tls-sspi.c
+2. Name of the function containing the vulnerability: `http_sspi_verify`
+3. Vulnerability type / CWE: CWE-295 - Improper Certificate Validation
+4. The relevant vulnerable code snippet:
+```c
+if (!cg->validate_certs)
+  certFlags |= SECURITY_FLAG_IGNORE_CERT_CN_INVALID;
+```
+5. This vulnerability exists because when `cg->validate_certs` is set to false (which can be controlled by the user or default behavior), the code ignores certificate common name validation (`SECURITY_FLAG_IGNORE_CERT_CN_INVALID`). This allows for certificate spoofing where an attacker can present a certificate with a different common name and the system will still accept it as valid, effectively disabling hostname verification.
+6. Severity rating: HIGH
+
+The vulnerability is in the `http_sspi_verify` function where it checks the global flag `cg->validate_certs`. If this flag is false (which can be set via `_cupsSetDefaults()` or user configuration), it ignores certificate common name validation flags, allowing for man-in-the-middle attacks by accepting certificates with mismatched hostnames. This is a critical security flaw in TLS verification.

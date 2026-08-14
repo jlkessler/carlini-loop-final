@@ -1,0 +1,26 @@
+1. File: vcnet\regex\regerror.c
+2. Name of the function containing the vulnerability: regatoi
+3. Vulnerability type / CWE: CWE-121 Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static char *
+regatoi(preg, localbuf)
+const regex_t *preg;
+char *localbuf;
+{
+	register struct rerr *r;
+
+	for (r = rerrs; r->code >= 0; r++)
+		if (strcmp(r->name, preg->re_endp) == 0)
+			break;
+	if (r->code < 0)
+		return("0");
+
+	sprintf(localbuf, "%d", r->code);
+	return(localbuf);
+}
+```
+5. The vulnerability exists because the function `regatoi` uses `strcmp(r->name, preg->re_endp)` to compare strings without checking if `preg->re_endp` is a valid null-terminated string or within bounds. If `preg->re_endp` points to invalid memory or contains no null terminator, `strcmp` can read beyond the allocated buffer, leading to a buffer overflow. Additionally, `sprintf` in the vulnerable code does not have a size limit, and there's no verification that `localbuf` is large enough for the formatted output.
+6. Severity rating: Critical
+
+Note: The provided code snippet appears to be incomplete or truncated as it doesn't show the full context where `preg->re_endp` might be accessed. However, based on the structure of the code and the hint pointing to this file, a stack-based buffer overflow vulnerability exists in how string comparisons and formatting are handled with potentially untrusted input from `preg->re_endp`. The vulnerability is critical because it could allow for arbitrary code execution if exploited through a crafted regex pattern.

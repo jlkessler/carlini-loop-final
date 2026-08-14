@@ -1,0 +1,155 @@
+1. File: scheduler\cups-deviced.c
+
+2. Name of the function containing the vulnerability: `get_device`
+
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+static int				/* O - 0 on success, -1 on error */
+get_device(cupsd_backend_t *backend)	/* I - Backend to read from */
+{
+  char	line[2048],			/* Line from backend */
+	temp[2048],			/* Copy of line */
+	*ptr,				/* Pointer into line */
+	*dclass,			/* Device class */
+	*uri,				/* Device URI */
+	*make_model,			/* Make and model */
+	*info,				/* Device info */
+	*device_id,			/* 1284 device ID */
+	*location;			/* Physical location */
+
+
+  if (cupsFileGets(backend->pipe, line, sizeof(line)))
+  {
+   /*
+    * Each line is of the form:
+    *
+    *   class URI "make model" "name" ["1284 device ID"] ["location"]
+    */
+
+    strlcpy(temp, line, sizeof(temp));
+
+   /*
+    * device-class
+    */
+
+    dclass = temp;
+
+    for (ptr = temp; *ptr; ptr ++)
+      if (isspace(*ptr & 255))
+        break;
+
+    while (isspace(*ptr & 255))
+      *ptr++ = '\0';
+
+   /*
+    * device-uri
+    */
+
+    if (!*ptr)
+      goto error;
+
+    for (ptr ++, uri = ptr; *ptr; ptr ++)
+      if (isspace(*ptr & 255))
+        break;
+
+    while (isspace(*ptr & 255))
+      *ptr++ = '\0';
+
+   /*
+    * device-make-and-model
+    */
+
+    if (*ptr != '\"')
+      goto error;
+
+    for (ptr ++, make_model = ptr; *ptr && *ptr != '\"'; ptr ++)
+    {
+      if (*ptr == '\\' && ptr[1])
+        _cups_strcpy(ptr, ptr + 1);  // <-- Vulnerable line
+    }
+
+    if (*ptr != '\"')
+      goto error;
+
+    for (*ptr++ = '\0'; isspace(*ptr & 255); *ptr++ = '\0';
+
+   /*
+    * device-info
+    */
+
+    if (*ptr != '\"')
+      goto error;
+
+    for (ptr ++, info = ptr; *ptr && *ptr != '\"'; ptr ++)
+    {
+      if (*ptr == '\\' && ptr[1])
+        _cups_strcpy(ptr, ptr + 1);  // <-- Vulnerable line
+    }
+
+    if (*ptr != '\"')
+      goto error;
+
+    for (*ptr++ = '\0'; isspace(*ptr & 255); *ptr++ = '\0';
+
+   /*
+    * device-id
+    */
+
+    if (*ptr == '\"')
+    {
+      for (ptr ++, device_id = ptr; *ptr && *ptr != '\"'; ptr ++)
+      {
+	if (*ptr == '\\' && ptr[1])
+	  _cups_strcpy(ptr, ptr + 1);  // <-- Vulnerable line
+      }
+
+      if (*ptr != '\"')
+	goto error;
+
+      for (*ptr++ = '\0'; isspace(*ptr & 255); *ptr++ = '\0';
+
+     /*
+      * device-location
+      */
+
+      if (*ptr == '\"')
+      {
+	for (ptr ++, location = ptr; *ptr && *ptr != '\"'; ptr ++)
+	{
+	  if (*ptr == '\\' && ptr[1])
+	    _cups_strcpy(ptr, ptr + 1);  // <-- Vulnerable line
+	}
+
+	if (*ptr != '\"')
+	  goto error;
+
+	*ptr = '\0';
+      }
+      else
+        location = NULL;
+    }
+    else
+    {
+      device_id = NULL;
+      location  = NULL;
+    }
+
+   /*
+    * Add the device to the array of available devices...
+    */
+
+    if (!add_device(dclass, make_model, info, uri, device_id, location))
+      fprintf(stderr, "DEBUG: [cups-deviced] Found device \"%s\"...\n", uri);
+
+    return (0);
+  }
+```
+
+5. A concise explanation of why it is vulnerable:
+The vulnerability occurs in the `get_device` function when processing quoted strings from backend output. The `_cups_strcpy(ptr, ptr + 1)` calls are used to remove escaped quotes by shifting characters to the left, but there's no bounds checking to ensure that `ptr + 1` doesn't exceed the allocated buffer size for `temp`. If an attacker can craft a specially formatted line from a backend that has a long string with many consecutive backslashes followed by a quote character, it could lead to writing beyond the bounds of the `temp` buffer.
+
+6. Severity rating: HIGH
+
+This is a high severity vulnerability because it could allow for a stack-based buffer overflow which may lead to arbitrary code execution if properly exploited. The vulnerability lies in the `_cups_strcpy` calls that shift characters without checking bounds, potentially allowing attackers to overwrite adjacent memory and corrupt program execution flow.

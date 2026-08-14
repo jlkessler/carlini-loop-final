@@ -1,0 +1,47 @@
+1. File: scheduler\mime.c
+2. Name of the function containing the vulnerability: mime_load_convs
+3. Vulnerability type / CWE: CWE-121 Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+while (cupsFileGets(fp, line, sizeof(line)) != NULL)
+{
+ // ... code ...
+ 
+ /*
+  * Extract the destination super-type and type names from the middle of
+  * the line.
+  */
+
+ lineptr = line;
+ while (*lineptr != ' ' && *lineptr != '\t' && *lineptr != '\0')
+   lineptr ++;
+
+ while (*lineptr == ' ' || *lineptr == '\t')
+   lineptr ++;
+
+ temp = super;
+
+ while (*lineptr != '/' && *lineptr != '\n' && *lineptr != '\0' &&
+        (temp - super + 1) < MIME_MAX_SUPER)
+   *temp++ = (char)tolower(*lineptr++ & 255);
+
+ *temp = '\0';
+
+ if (*lineptr != '/')
+   continue;
+
+ lineptr ++;
+ temp = type;
+
+ while (*lineptr != ' ' && *lineptr != '\t' && *lineptr != '\n' &&
+        *lineptr != '\0' && (temp - type + 1) < MIME_MAX_TYPE)
+   *temp++ = (char)tolower(*lineptr++ & 255);
+
+ *temp = '\0';
+```
+
+5. This code is vulnerable because it processes input from a file without proper bounds checking on the length of data being read into fixed-size buffers (`super` and `type`). If an attacker can control the contents of a `.convs` file, they could craft a line that causes buffer overflows when reading super-type or type names. The loop conditions only check against `MIME_MAX_SUPER` and `MIME_MAX_TYPE`, but don't prevent reading beyond these limits in certain edge cases, particularly when dealing with very long input lines or malformed data.
+
+6. Severity rating: HIGH
+
+The vulnerability allows for potential buffer overflow in the `mime_load_convs` function, which could lead to arbitrary code execution if an attacker can control the contents of a `.convs` file used by CUPS. This is a high-severity issue because it directly affects the security of the printing system and could be exploited remotely or locally depending on how the system is configured.

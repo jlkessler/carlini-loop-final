@@ -1,0 +1,15 @@
+1. File: exec\cmap.c
+2. Name of the function containing the vulnerability: `message_handler_req_lib_cmap_iter_next`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+	if (res != NULL) {
+		res_lib_cmap_iter_next.value_len = value_len;
+		res_lib_cmap_iter_next.type = type;
+
+		memcpy(res_lib_cmap_iter_next.key_name.value, res, strlen(res));
+	    res_lib_cmap_iter_next.key_name.length = strlen(res);
+	}
+```
+5. A concise explanation of why it is vulnerable: The code uses `memcpy` to copy the key name (`res`) returned by `icmap_iter_next` into `res_lib_cmap_iter_next.key_name.value`. However, there is no check to ensure that the length of `res` does not exceed the fixed size of the `value` buffer within the `key_name` structure. An attacker who can control the keys stored in the cmap can trigger a heap-based buffer overflow when this function is called.
+6. Severity rating: High

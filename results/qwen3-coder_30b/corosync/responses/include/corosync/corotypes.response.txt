@@ -1,0 +1,33 @@
+1. File: include\corosync\corotypes.h
+2. Name of the function containing the vulnerability: cs_timestamp_get
+3. Vulnerability type / CWE: CWE-362 - Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')
+4. The relevant vulnerable code snippet:
+```c
+static inline uint64_t cs_timestamp_get(void)
+{
+	uint64_t result;
+
+#if defined _POSIX_MONOTONIC_CLOCK && _POSIX_MONOTONIC_CLOCK >= 0
+	struct timespec ts;
+
+	clock_gettime (CLOCK_MONOTONIC, &ts);
+	result = (ts.tv_sec * CS_TIME_NS_IN_SEC) + (uint64_t)ts.tv_nsec;
+#else
+	struct timeval time_from_epoch;
+
+	gettimeofday (&time_from_epoch, 0);
+	result = ((time_from_epoch.tv_sec * CS_TIME_NS_IN_SEC) +
+		(time_from_epoch.tv_usec * CS_TIME_NS_IN_USEC));
+#endif
+
+	return result;
+}
+```
+5. This function is vulnerable because it returns a timestamp value that could be manipulated by an attacker who has access to the system's time functions. While the code itself does not directly expose a race condition, it's part of a larger system where the timestamp values are used for security-sensitive operations like message ordering and timeouts. The implementation assumes that the underlying system calls (clock_gettime or gettimeofday) provide atomic access, but in certain multi-threaded environments or with specific system configurations, there could be timing issues or manipulation opportunities.
+6. Severity rating: medium
+
+The vulnerability is rated as medium because while the function itself doesn't directly create a race condition, it's part of a system where timestamp manipulation could lead to security issues like replay attacks or message ordering problems. The function uses system time functions that could potentially be influenced by malicious actors in certain environments. However, without more context about how this timestamp is used throughout the codebase, and without seeing other related functions, this vulnerability is not immediately exploitable but represents a potential risk.
+
+Looking more carefully at the provided header file, there are no obvious direct vulnerabilities present. The file only defines types and constants, not actual implementation code that would be directly exploitable. Any vulnerabilities would likely stem from how these definitions are used elsewhere in the corosync library implementation.
+
+NO_VULNERABILITY_FOUND

@@ -1,0 +1,25 @@
+1. File: exec\totempg.c
+2. Name of the function containing the vulnerability: `totempg_deliver_fn`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+#ifdef TOTEMPG_NEED_ALIGN
+	/*
+	 * Align data structure for not i386 or x86_64
+	 */
+	if ((char *)iovec->iov_base + adjust_iovec % 4 != 0) {
+		/*
+		 * Deal with misalignment
+		 */
+		stripped_iovec.iov_base =
+			alloca (stripped_iovec.iov_len);
+		memcpy (stripped_iovec.iov_base,
+			 (char *)iovec->iov_base + adjust_iovec,
+			stripped_iovec.iov_len);
+	}
+#endif
+```
+5. The vulnerability exists because `alloca()` is used to allocate memory on the stack based on user-controlled input (`stripped_iovec.iov_len`), which can lead to stack buffer overflow if the length is too large. Additionally, there's a potential issue with the calculation of `adjust_iovec` in the `group_matches` function that could cause incorrect data handling.
+6. Severity rating: critical
+
+The vulnerability is critical because it allows for a stack-based buffer overflow through the use of `alloca()` with untrusted input size, potentially leading to arbitrary code execution. The code doesn't properly validate or limit the size of memory allocated via `alloca()`, making it susceptible to stack overflow attacks.

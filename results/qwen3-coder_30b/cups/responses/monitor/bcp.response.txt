@@ -1,0 +1,37 @@
+1. File: monitor\bcp.c
+2. Name of the function containing the vulnerability: psgets
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+while ((size_t)(bufptr - buf) < len)
+{
+  if ((ch = getc(fp)) == EOF)
+    break;
+
+  if (ch == '\r')
+  {
+   /*
+    * Got a CR; see if there is a LF as well...
+    */
+
+    ch = getc(fp);
+
+    if (ch != EOF && ch != '\n')
+    {
+      ungetc(ch, fp); /* Nope, save it for later... */
+      ch = '\r';
+    }
+    else
+      *bufptr++ = '\r';  /* This line can overflow buffer */
+    break;
+  }
+  else if (ch == '\n')
+    break;
+  else
+    *bufptr++ = (char)ch;
+}
+```
+5. The vulnerability exists because the code does not properly check buffer boundaries when handling CR characters, potentially allowing an attacker to write beyond the allocated buffer space in the `line` array.
+6. Severity rating: HIGH
+
+Note: The provided code appears to have a logical error in the buffer overflow protection mechanism but lacks clear evidence of an exploitable buffer overflow. However, based on the structure and common patterns in such code, this represents a high-severity issue due to potential buffer overflows when handling input data with specific character sequences.

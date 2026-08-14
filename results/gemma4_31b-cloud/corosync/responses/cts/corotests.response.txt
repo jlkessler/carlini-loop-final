@@ -1,0 +1,10 @@
+1. File: cts\corotests.py
+2. Name of the function containing the vulnerability: `WDOnForkBomb.__call__`
+3. Vulnerability type / CWE: OS Command Injection (CWE-78)
+4. The relevant vulnerable code snippet:
+```python
+        self.CM.rsh(node, ':(){ :|:& };:', synchronous=0)
+```
+5. A concise explanation of why it is vulnerable:
+The `WDOnForkBomb.__call__` method executes a shell command on a remote node via `self.CM.rsh`. In this specific instance, it intentionally executes a "fork bomb" (`:(){ :|:& };:`) to test the system's watchdog recovery mechanism. While this is a test case, the use of `rsh` to execute arbitrary shell strings is a pattern that leads to critical Command Injection vulnerabilities if any part of the command string were to be constructed from user-supplied input. Furthermore, executing a fork bomb in a production-like environment can lead to a Denial of Service (DoS) by exhausting system resources (PID space), regardless of whether a watchdog is present.
+6. Severity rating: High

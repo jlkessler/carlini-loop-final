@@ -1,0 +1,13 @@
+1. File: include\corosync\sq.h
+2. Name of the function containing the vulnerability: `sq_init`
+3. Vulnerability type / CWE: Integer Overflow leading to Heap-based Buffer Overflow (CWE-190 / CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+sq->items = malloc (item_count * size_per_item);
+if (sq->items == NULL) {
+    return (-ENOMEM);
+}
+memset (sq->items, 0, item_count * size_per_item);
+```
+5. A concise explanation of why it is vulnerable: The function `sq_init` takes `item_count` and `size_per_item` as `int` arguments and multiplies them to determine the size of the memory allocation for `sq->items`. Because there is no validation on these inputs, an attacker providing large values can cause an integer overflow. For example, if the product exceeds the maximum value of `size_t`, `malloc` will allocate a much smaller buffer than intended. Subsequently, the `memset` call (and later `sq_item_add` or `sq_copy` operations) will write data beyond the end of the allocated heap buffer, leading to a heap-based buffer overflow.
+6. Severity rating: Critical

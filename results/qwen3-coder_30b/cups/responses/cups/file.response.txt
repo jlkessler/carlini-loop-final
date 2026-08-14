@@ -1,0 +1,23 @@
+1. File: cups\file.c
+2. Name of the function containing the vulnerability: `_cupsFileCheck`
+3. Vulnerability type / CWE: CWE-22 - Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')
+4. The relevant vulnerable code snippet:
+```c
+/*
+ * Does the filename contain a relative path ("../")?
+ */
+
+if (strstr(filename, "../"))
+{
+ /*
+  * Yes, fail it!
+  */
+
+  result = _CUPS_FILE_CHECK_RELATIVE_PATH;
+  goto finishup;
+}
+```
+5. This code checks for `../` in the filename and rejects it, but this check is easily bypassed by using other relative path sequences like `./../`, multiple slashes like `///`, or encoding techniques (like URL encoding). The check is not comprehensive and can be circumvented.
+6. Severity rating: HIGH
+
+The vulnerability is a Path Traversal weakness where the code only checks for direct `../` patterns but doesn't prevent all forms of relative path traversal attacks, allowing attackers to potentially access files outside intended directories. This could lead to unauthorized file access or information disclosure.

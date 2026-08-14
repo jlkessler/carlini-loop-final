@@ -1,0 +1,27 @@
+1. File: filter\common.c
+2. Name of the function containing the vulnerability: `WriteLabelProlog`
+3. Vulnerability type / CWE: PostScript Injection (CWE-74 / CWE-78)
+4. The relevant vulnerable code snippet:
+```c
+  else
+  {
+    printf("/ESPpl(");
+
+    for (ptr = classification; *ptr; ptr ++)
+      if (*ptr < 32 || *ptr > 126)
+        printf("\\%03o", *ptr);
+      else if (*ptr == '_')
+        putchar(' ');
+      else
+      {
+	if (*ptr == '(' || *ptr == ')' || *ptr == '\\')
+	  putchar('\\');
+
+	putchar(*ptr);
+      }
+  }
+```
+5. A concise explanation of why it is vulnerable: 
+The function `WriteLabelProlog` reads the `CLASSIFICATION` environment variable and attempts to sanitize it before printing it into a PostScript file. While it escapes parentheses and backslashes, it does not account for the fact that the output is being placed inside a PostScript string definition (`/ESPpl(...)`). An attacker who can control the `CLASSIFICATION` environment variable can potentially inject PostScript commands by manipulating the string or utilizing the logic to break out of the intended data structure, leading to arbitrary PostScript code execution on the printer or the rendering engine.
+
+6. Severity rating: High

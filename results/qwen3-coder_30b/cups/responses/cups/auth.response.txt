@@ -1,0 +1,18 @@
+1. File: cups\auth.c
+2. Name of the function containing the vulnerability: cups_local_auth
+3. Vulnerability type / CWE: CWE-200 - Information Exposure Through Temporary Files
+4. The relevant vulnerable code snippet:
+```c
+snprintf(filename, sizeof(filename), "%s/certs/%d", cg->cups_statedir, pid);
+if ((fp = fopen(filename, "r")) == NULL && pid > 0)
+{
+ // ...
+ snprintf(filename, sizeof(filename), "%s/certs/0", cg->cups_statedir);
+ if ((fp = fopen(filename, "r")) == NULL)
+   DEBUG_printf(("9cups_local_auth: Unable to open file \"%s\": %s", filename, strerror(errno)));
+}
+```
+5. The vulnerability exists because the code attempts to read certificate files from a directory that is based on the process ID (pid) in the cups_statedir/certs/ directory. If an attacker can predict or manipulate the PID, they may be able to access certificate files belonging to other processes or even the root certificate if permissions allow it. The code does not properly validate or sanitize the path construction, potentially leading to information exposure.
+6. Severity rating: medium
+
+The vulnerability stems from improper handling of file paths in a directory that contains process-specific certificates, which could allow unauthorized access to sensitive authentication data if proper access controls are not in place.

@@ -1,0 +1,25 @@
+1. File: scheduler\testlpd.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+  char	*cupslpd_argv[1000];		/* Arguments for cups-lpd */
+  // ...
+  for (i = 1; i < argc; i ++)
+    if (!strncmp(argv[i], "-o", 2))
+    {
+      cupslpd_argv[cupslpd_argc++] = argv[i];
+
+      if (!argv[i][2])
+      {
+        i ++;
+
+	if (i >= argc)
+	  usage();
+
+	cupslpd_argv[cupslpd_argc++] = argv[i];
+      }
+    }
+```
+5. A concise explanation of why it is vulnerable: The program declares a fixed-size array `cupslpd_argv` capable of holding 1000 pointers. However, the loop iterating through `argc` (the number of command-line arguments) increments `cupslpd_argc` without checking if it exceeds the 1000-element limit. An attacker can provide more than 1000 arguments starting with `-o`, causing a stack-based buffer overflow when writing pointers into the `cupslpd_argv` array.
+6. Severity rating: High

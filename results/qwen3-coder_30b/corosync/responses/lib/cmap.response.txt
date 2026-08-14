@@ -1,0 +1,55 @@
+1. File: lib\cmap.c
+2. Name of the function containing the vulnerability: cmap_dispatch
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+dispatch_data = (struct qb_ipc_response_header *)dispatch_buf;
+do {
+    error = qb_to_cs_error(qb_ipcc_event_recv (
+        cmap_inst->c,
+        dispatch_buf,
+        IPC_DISPATCH_SIZE,
+        timeout));
+
+    if (error == CS_ERR_BAD_HANDLE) {
+        error = CS_OK;
+        goto error_put;
+    }
+    if (error == CS_ERR_TRY_AGAIN) {
+        // ... handling
+    }
+
+    if (error != CS_OK) {
+        goto error_put;
+    }
+
+    /*
+     * Dispatch incoming message
+     */
+    switch (dispatch_data->id) {
+    case MESSAGE_RES_CMAP_NOTIFY_CALLBACK:
+        res_lib_cmap_notify_callback = (struct res_lib_cmap_notify_callback *)dispatch_data;
+
+        error = hdb_error_to_cs(hdb_handle_get(&cmap_track_handle_t_db,
+                res_lib_cmap_notify_callback->track_inst_handle,
+                (void *)&cmap_track_inst));
+        if (error == CS_ERR_BAD_HANDLE) {
+            /*
+             * User deleted tracker -> ignore error
+             */
+             break;
+        }
+        if (error != CS_OK) {
+            goto error_put;
+        }
+
+        new_val.type = res_lib_cmap_notify_callback->new_value_type;
+        old_val.type = res_lib_cmap_notify_callback->old_value_type;
+        new_val.len = res_lib_cmap_notify_callback->new_value_len;
+        old_val.len = res_lib_cmap_notify_callback->old_value_len;
+        new_val.data = res_lib_cmap_notify_callback->new_value;
+        old_val.data = (((const char *)res_lib_cmap_notify_callback->new_value) + new_val.len);
+```
+5. The vulnerability exists because the code does not validate that `new_value_len` and `old_value_len` are within reasonable bounds before using them to calculate buffer offsets. An attacker could craft a malicious message with extremely large length values, causing an integer overflow when computing `old_val.data = (((const char *)res_lib_cmap_notify_callback->new_value) + new_val.len)` which would then lead to a buffer overflow when accessing memory beyond the allocated `dispatch_buf`.
+
+6. Severity rating: Critical

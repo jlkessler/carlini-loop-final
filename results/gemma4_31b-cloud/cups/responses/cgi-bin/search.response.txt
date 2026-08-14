@@ -1,0 +1,14 @@
+1. File: cgi-bin\search.c
+2. Name of the function containing the vulnerability: `cgiCompileSearch`
+3. Vulnerability type / CWE: Heap-based Buffer Overflow (CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+      memcpy(sptr, prefix, strlen(prefix) + 1);
+      sptr += strlen(sptr);
+```
+5. A concise explanation of why it is vulnerable:
+The code uses `memcpy` to copy the `prefix` string into the buffer `s` at the location `sptr`. However, the line `sptr += strlen(sptr);` is critically flawed. `strlen(sptr)` calculates the length of the string *currently* at the pointer `sptr` (which may be empty or contain remnants of previous operations), rather than adding the length of the `prefix` just copied. This leads to an incorrect pointer increment. 
+
+Furthermore, the logic used to calculate `wlen` for `realloc` is imprecise. When `memcpy(sptr, prefix, strlen(prefix) + 1)` is called, it writes the null terminator of the prefix into the buffer. Subsequent writes to `sptr` occur based on the faulty increment, and the logic that handles "AND" (the reciprocal word addition) uses multiple `memcpy` calls and `strlen(sptr)` increments. Because `sptr` is not advanced by the actual length of the data written, subsequent `memcpy` operations and the final `regcomp` call will encounter memory corruption or overflow the allocated heap buffer `s` when processing complex queries.
+
+6. Severity rating: High

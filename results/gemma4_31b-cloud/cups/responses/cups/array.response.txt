@@ -1,0 +1,25 @@
+1. File: cups\array.c
+2. Name of the function containing the vulnerability: `cups_array_find`
+3. Vulnerability type / CWE: Integer Overflow / Out-of-bounds Read (CWE-190 / CWE-125)
+4. The relevant vulnerable code snippet:
+```c
+    do
+    {
+      current = (left + right) / 2;
+      diff    = (*(a->compare))(e, a->elements[current], a->data);
+
+      DEBUG_printf(("9cups_array_find: left=%d, right=%d, current=%d, diff=%d",
+                    left, right, current, diff));
+
+      if (diff == 0)
+	break;
+      else if (diff < 0)
+	right = current;
+      else
+	left = current;
+    }
+    while ((right - left) > 1);
+```
+5. A concise explanation of why it is vulnerable: In the binary search implementation, the line `current = (left + right) / 2;` is susceptible to an integer overflow if the sum of `left` and `right` exceeds the maximum value of a signed 32-bit integer. If `left + right` overflows, `current` can become a negative value. This negative index is then used to access the `a->elements` array (`a->elements[current]`), leading to an out-of-bounds memory read, which can cause a crash (DoS) or potentially lead to information disclosure.
+
+6. Severity rating: High

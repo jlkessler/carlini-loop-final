@@ -1,0 +1,20 @@
+1. File: vcnet\regex\regfree.c
+2. Name of the function containing the vulnerability: regfree
+3. Vulnerability type / CWE: Double Free (CWE-415)
+4. The relevant vulnerable code snippet:
+```c
+	preg->re_magic = 0;		/* mark it invalid */
+	g->magic = 0;			/* mark it invalid */
+
+	if (g->strip != NULL)
+		free((char *)g->strip);
+	if (g->sets != NULL)
+		free((char *)g->sets);
+	if (g->setbits != NULL)
+		free((char *)g->setbits);
+	if (g->must != NULL)
+		free(g->must);
+	free((char *)g);
+```
+5. A concise explanation of why it is vulnerable: The function checks if the magic numbers are correct before freeing the memory, but it does not set the pointers within the `regex_t` structure (`preg->re_g`) or the `re_guts` structure (`g->strip`, etc.) to `NULL` after calling `free()`. While it clears the magic numbers, if a programmer accidentally calls `regfree` twice on the same `regex_t` object, and that object has been partially overwritten or if the magic number check is bypassed/fails to stop the execution, the function will attempt to free the same pointers again. More critically, if the `regex_t` structure is reused or managed poorly in a multi-threaded environment, this leads to a double-free vulnerability, which can be exploited for heap corruption or arbitrary code execution.
+6. Severity rating: High

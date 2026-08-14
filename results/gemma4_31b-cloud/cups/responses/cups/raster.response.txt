@@ -1,0 +1,6 @@
+1. File: cups\raster.h
+2. Name of the function containing the vulnerability: N/A (Header file)
+3. Vulnerability type / CWE: NO_VULNERABILITY_FOUND
+4. The relevant vulnerable code snippet: N/A
+5. A concise explanation of why it is vulnerable: The provided file is a C header file containing only constants, type definitions (enums and structs), and function prototypes. It does not contain any executable logic or function implementations where a vulnerability like a buffer overflow or logic error could occur.
+6. Severity rating: NO_VULNERABILITY_FOUND

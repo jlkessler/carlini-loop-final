@@ -1,0 +1,19 @@
+1. File: cups\testcreds.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-129 - Improper Validation of Array Index
+4. The relevant vulnerable code snippet:
+```c
+static const char *trusts[] =		/* Trust strings */
+  { "OK", "Invalid", "Expired", "Renewed", "Unknown" };
+
+...
+
+if (trust == HTTP_TRUST_OK)
+  puts("    Trust: OK");
+else
+  printf("    Trust: %s (%s)\n", trusts[trust], cupsLastErrorString());
+```
+5. The vulnerability occurs because the `trust` variable, which is of type `http_trust_t`, can take on values that exceed the bounds of the `trusts` array. The array only has 5 elements (indices 0-4), but `http_trust_t` enum may have more values (like HTTP_TRUST_CHANGED = 2, etc.). When `trust` is a value that maps to an index beyond the array bounds, it results in undefined behavior, potentially causing buffer overread or other memory corruption issues.
+6. Severity rating: high
+
+The vulnerability lies in the assumption that the `http_trust_t` enum values directly map to valid indices in the `trusts` array, which is not guaranteed and can lead to memory corruption when the trust value exceeds the array bounds.

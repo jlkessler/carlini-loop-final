@@ -1,0 +1,27 @@
+1. File: include\corosync\sq.h
+2. Name of the function containing the vulnerability: sq_item_add
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+static inline void *sq_item_add (
+	struct sq *sq,
+	void *item,
+	unsigned int seqid)
+{
+	char *sq_item;
+	unsigned int sq_position;
+
+	sq_position = (sq->head + seqid - sq->head_seqid) % sq->size;
+	if (sq_position > sq->pos_max) {
+		sq->pos_max = sq_position;
+	}
+
+	sq_item = sq->items;
+	sq_item += sq_position * sq->size_per_item;
+	assert(sq->items_inuse[sq_position] == 0);
+	memcpy (sq_item, item, sq->size_per_item);
+```
+5. The vulnerability exists because `sq_position` is calculated using modular arithmetic but can exceed the bounds of the allocated memory. If `seqid` is large enough such that `(sq->head + seqid - sq->head_seqid)` exceeds `sq->size`, then `sq_position` could be computed incorrectly, potentially causing a buffer overflow when accessing `sq_item`. The `assert` statement only checks if `sq->items_inuse[sq_position] == 0`, but does not validate that `sq_position` is within valid bounds before dereferencing.
+6. Severity rating: Critical
+
+The vulnerability allows for potential arbitrary code execution or denial of service through buffer overflow caused by improper handling of sequence ID values in the sorting queue implementation.

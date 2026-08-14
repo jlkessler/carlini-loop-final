@@ -1,0 +1,16 @@
+1. File: profile\profile.c
+2. Name of the function containing the vulnerability: msg_callback
+3. Vulnerability type / CWE: Format String Vulnerability (CWE-134)
+4. The relevant vulnerable code snippet:
+```c
+void msg_callback(int level, const char *fmt, va_list va, void *data)
+{
+    if (level > 6)
+        return;
+    printf("libass: ");
+    vprintf(fmt, va);
+    printf("\n");
+}
+```
+5. A concise explanation of why it is vulnerable: The `msg_callback` function passes the `fmt` parameter directly to `vprintf`. Since `fmt` is provided by the `libass` library (which processes external subtitle files), an attacker can craft a malicious subtitle file containing format specifiers (e.g., `%s`, `%x`, `%n`) in the messages sent to the callback. This allows the attacker to leak sensitive information from the stack or potentially execute arbitrary code by writing to memory.
+6. Severity rating: High

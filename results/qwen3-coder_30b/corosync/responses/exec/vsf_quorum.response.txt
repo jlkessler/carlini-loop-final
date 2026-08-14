@@ -1,0 +1,78 @@
+1. File: exec\vsf_quorum.c
+
+2. Name of the function containing the vulnerability: `quorum_exec_init_fn`
+
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+static char *quorum_exec_init_fn (struct corosync_api_v1 *api)
+{
+    char *quorum_module = NULL;
+    char *error;
+
+    // ... earlier code ...
+
+    /*
+     * Look for a quorum provider
+     */
+    if (icmap_get_string("quorum.provider", &quorum_module) == CS_OK) {
+        log_printf (LOGSYS_LEVEL_NOTICE,
+                    "Using quorum provider %s", quorum_module);
+
+        error = (char *)"Invalid quorum provider";
+
+        if (strcmp (quorum_module, "corosync_votequorum") == 0) {
+            error = votequorum_init (api, quorum_api_set_quorum);
+            quorum_type = 1;
+        }
+        if (strcmp (quorum_module, "corosync_ykd") == 0) {
+            error = ykd_init (api, quorum_api_set_quorum);
+            quorum_type = 1;
+        }
+        if (error) {
+            log_printf (LOGSYS_LEVEL_CRIT, 
+                "Quorum provider: %s failed to initialize.",
+                 quorum_module);
+            free(quorum_module);
+            return (error);
+        }
+    }
+
+    // ... later code ...
+}
+```
+
+5. The vulnerability exists because `icmap_get_string("quorum.provider", &quorum_module)` can return a string of arbitrary length that is then passed directly to `strcmp()` and used in `log_printf()`. While the code does free `quorum_module` before returning, there's no limit on how long the string from `icmap_get_string()` can be. If an attacker can control the configuration value for "quorum.provider", they could potentially cause a buffer overflow or other memory corruption issues depending on how `icmap_get_string()` and related functions handle large inputs.
+
+However, looking more carefully at the code, the most critical vulnerability is actually in the `log_view_list` function which uses `snprintf` without proper bounds checking for the view_buf, but that's not directly exploitable from this file alone. The primary issue is that `quorum_module` can be arbitrarily long and there's no validation or truncation before use.
+
+6. Severity rating: high
+
+Actually, re-evaluating more carefully, looking at the code more closely:
+
+The most serious vulnerability is in how `quorum_module` is handled when passed to `icmap_get_string()`. The function `icmap_get_string()` can return a string of arbitrary length without bounds checking. If this string is then used in functions like `strcmp()` or directly in `log_printf()` with format specifiers, it could lead to buffer overflows.
+
+However, the most direct vulnerability that stands out from the code provided is in `send_library_notification` function's use of a fixed-size buffer without proper bounds checking:
+
+```c
+char buf[size];
+// ...
+for (i=0; i<quorum_view_list_entries; i++) {
+    res_lib_quorum_notification->view_list[i] = quorum_view_list[i];
+}
+```
+
+But that is still not directly exploitable. The most serious vulnerability in the file appears to be a logic error where `error` is set to a static string but then reassigned by function calls, and if those functions return NULL (indicating success), we have a logic flaw.
+
+Actually, looking more carefully at this code, there's no direct exploitable buffer overflow in the shown functions. The most concerning aspect is that `quorum_module` can be arbitrarily long and passed to `strcmp()` without bounds checking.
+
+However, if we must identify the single most serious vulnerability based on what's actually shown and can be exploited:
+
+The actual vulnerability is a potential integer overflow or memory corruption possibility in how `size` is calculated for `buf[]` in `send_library_notification`, but that would require specific conditions.
+
+Re-reading the code more carefully, there's no direct exploitable buffer overflow. The most serious issue is the potential for unbounded string handling via `quorum_module`.
+
+NO_VULNERABILITY_FOUND
+
+No direct exploitable vulnerability found in the provided code snippet.

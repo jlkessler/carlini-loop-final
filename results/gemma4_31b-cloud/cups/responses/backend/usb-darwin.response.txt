@@ -1,0 +1,15 @@
+1. File: backend\usb-darwin.c
+2. Name of the function containing the vulnerability: `parse_pserror`
+3. Vulnerability type / CWE: Out-of-bounds Write (CWE-787)
+4. The relevant vulnerable code snippet:
+```c
+  memcpy(gErrorBufferPtr, (const void *)sockBuffer, len);
+  gErrorBufferPtr += len;
+  *(gErrorBufferPtr + 1) = '\0';
+```
+5. A concise explanation of why it is vulnerable: 
+The function uses a static buffer `gErrorBuffer` of size 1024. It tracks the current write position with `gErrorBufferPtr`. While there is a check to reset `gErrorBufferPtr` to the start if `gErrorBufferPtr + len > gErrorBufferEndPtr - 1`, the line `*(gErrorBufferPtr + 1) = '\0';` writes a null terminator one byte *past* the updated `gErrorBufferPtr`. 
+
+If `len` is exactly `sizeof(gErrorBuffer) - 1` (1023) and `gErrorBufferPtr` was reset to the start (0), `gErrorBufferPtr` becomes 1023 after the `memcpy`. The subsequent line `*(gErrorBufferPtr + 1) = '\0'` writes to index 1024, which is one byte outside the bounds of the 1024-byte `gErrorBuffer` array.
+
+6. Severity rating: Medium

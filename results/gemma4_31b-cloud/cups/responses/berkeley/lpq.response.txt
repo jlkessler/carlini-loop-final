@@ -1,0 +1,11 @@
+1. File: berkeley\lpq.c
+2. Name of the function containing the vulnerability: `main`
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow') / Memory Corruption
+4. The relevant vulnerable code snippet:
+```c
+	      if ((instance = strchr(dest, '/')) != NULL)
+		*instance++ = '\0';
+```
+5. A concise explanation of why it is vulnerable: The program takes a destination string `dest` from the command-line arguments (via `-P`). If the string contains a `/`, the code attempts to split the string by replacing the `/` with a null terminator (`\0`). However, if the `dest` pointer points to a read-only memory segment (which occurs when `dest` is assigned directly from `argv[i]` or `opt + 1`), attempting to write `\0` to that memory location will result in a segmentation fault (crash). While not a remote code execution vulnerability in this specific snippet, it allows a local user to crash the utility via invalid input.
+
+6. Severity rating: low

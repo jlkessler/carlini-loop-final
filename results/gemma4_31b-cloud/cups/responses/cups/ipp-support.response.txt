@@ -1,0 +1,45 @@
+1. File: cups\ipp-support.c
+2. Name of the function containing the vulnerability: ippAttributeString
+3. Vulnerability type / CWE: Out-of-bounds Write (CWE-787)
+4. The relevant vulnerable code snippet:
+```c
+      case IPP_TAG_TEXT :
+      case IPP_TAG_NAME :
+      case IPP_TAG_KEYWORD :
+      case IPP_TAG_CHARSET :
+      case IPP_TAG_URI :
+      case IPP_TAG_URISCHEME :
+      case IPP_TAG_MIMETYPE :
+      case IPP_TAG_LANGUAGE :
+      case IPP_TAG_TEXTLANG :
+      case IPP_TAG_NAMELANG :
+	  if (!val->string.text)
+	    break;
+
+          for (ptr = val->string.text; *ptr; ptr ++)
+          {
+            if (*ptr == '\\' || *ptr == '\"' || *ptr == '[')
+            {
+              if (buffer && bufptr < bufend)
+                *bufptr = '\\';
+              bufptr ++;
+            }
+
+            if (buffer && bufptr < bufend)
+              *bufptr = *ptr;
+            bufptr ++;
+          }
+```
+5. A concise explanation of why it is vulnerable:
+In the loop processing string tags (like `IPP_TAG_TEXT`), the code checks if `bufptr < bufend` before writing a character to the buffer. However, it increments `bufptr` regardless of whether the write occurred or whether the boundary was reached. Once `bufptr` exceeds `bufend`, the condition `bufptr < bufend` remains false, and no further writes occur. 
+
+The critical failure happens at the end of the function:
+```c
+  if (buffer && bufptr < bufend)
+    *bufptr = '\0';
+  else if (bufend)
+    *bufend = '\0';
+```
+If the loop caused `bufptr` to overshoot `bufend` significantly (which happens for every character in the input string after the buffer is full), and `bufptr` happens to wrap around or be manipulated, it might seem safe. However, the logic `bufptr += strlen(ptr)` or `bufptr++` in various cases without bounds checking on the increment itself leads to `bufptr` pointing far beyond the allocated buffer. While the writes are guarded, the final null-termination logic and the return value `(size_t)(bufptr - buffer)` can be used to trigger heap overflows or provide incorrect length information to callers, potentially leading to subsequent memory corruption. Specifically, in the `IPP_TAG_TEXT` block, `bufptr` is incremented twice for escaped characters and once for normal characters without any check to stop the pointer from advancing beyond the memory region.
+
+6. Severity rating: High

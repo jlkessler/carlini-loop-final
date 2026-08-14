@@ -1,0 +1,17 @@
+1. File: cups\adminutil.c
+2. Name of the function containing the vulnerability: `get_cupsd_conf`
+3. Vulnerability type / CWE: CWE-22 - Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')
+4. The relevant vulnerable code snippet:
+```c
+snprintf(name, namesize, "%s/cupsd.conf", cg->cups_serverroot);
+*remote = 0;
+
+#ifndef _WIN32
+if (!_cups_strcasecmp(host, "localhost") && !access(name, R_OK))
+{
+ // Read the local file rather than using HTTP...
+```
+5. The vulnerability exists because `cg->cups_serverroot` is directly used in `snprintf()` to construct a file path without proper validation or sanitization. If an attacker can control the value of `cg->cups_serverroot`, they could craft a malicious path that traverses directories outside the intended scope, potentially allowing arbitrary file read access on the system.
+6. Severity rating: HIGH
+
+This is a high severity vulnerability because it allows for potential path traversal attacks that could enable attackers to read arbitrary files on the server filesystem when CUPS is running with elevated privileges, especially if `cg->cups_serverroot` can be manipulated through other attack vectors or misconfigurations.

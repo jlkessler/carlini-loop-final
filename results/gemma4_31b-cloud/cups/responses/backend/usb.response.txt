@@ -1,0 +1,12 @@
+1. File: backend\usb.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+  if (httpSeparateURI(HTTP_URI_CODING_ALL, uri,
+                      method, sizeof(method), username, sizeof(username),
+		      hostname, sizeof(hostname), &port,
+		      resource, sizeof(resource)) < HTTP_URI_OK)
+```
+5. A concise explanation of why it is vulnerable: The code uses `httpSeparateURI` to parse a URI provided via command-line arguments (`argv`). While the `sizeof` buffers are passed to the function, if the `httpSeparateURI` implementation (defined in `backend-private.h` or associated libraries) does not strictly respect those limits or if it incorrectly calculates the remaining space when copying components of the URI (like `method`, `username`, `hostname`, or `resource`) into the fixed-size stack buffers, a stack-based buffer overflow can occur. Given the common patterns in older CUPS backends, providing an excessively long URI can lead to overwriting the stack frame.
+6. Severity rating: High

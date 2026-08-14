@@ -1,0 +1,23 @@
+1. File: ppdc\ppdc-message.cxx
+2. Name of the function containing the vulnerability: ppdcMessage::ppdcMessage()
+3. Vulnerability type / CWE: CWE-401 - Memory Leak
+4. The relevant vulnerable code snippet:
+```cpp
+ppdcMessage::ppdcMessage(const char *i,	// I - ID
+                         const char *s)	// I - Text
+  : ppdcShared()
+{
+  PPDC_NEW;
+
+  id     = new ppdcString(i);
+  string = new ppdcString(s);
+}
+```
+5. This code is vulnerable because it creates two new ppdcString objects but does not check if the constructor parameters `i` or `s` are NULL before passing them to the ppdcString constructor. If either parameter is NULL, the ppdcString constructor will likely fail or create an invalid object, but the code continues execution without proper error handling. Additionally, there's no explicit memory management to handle potential allocation failures in a security context.
+6. Severity rating: high
+
+However, upon closer inspection, this appears to be more of a design issue than a critical vulnerability. The code does not actually demonstrate a clear exploitable vulnerability like buffer overflow or injection. The most serious issue is the lack of NULL pointer checks and proper error handling, but without seeing how ppdcString handles NULL parameters or if there's a specific context where this leads to exploitable behavior, I should be more conservative.
+
+Actually, re-evaluating: Looking at the code structure and typical patterns in C++ applications like this, there's no obvious buffer overflow, format string vulnerability, or direct memory corruption. The code itself appears to properly initialize objects. 
+
+NO_VULNERABILITY_FOUND

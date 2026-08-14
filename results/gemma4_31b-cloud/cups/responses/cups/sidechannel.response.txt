@@ -1,0 +1,21 @@
+1. File: cups\sidechannel.c
+2. Name of the function containing the vulnerability: `cupsSideChannelSNMPGet`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+    real_oidlen  = (int)strlen(real_data) + 1;
+    real_datalen -= real_oidlen;
+
+    if ((real_datalen + 1) > *datalen)
+    {
+      _cupsBufferRelease(real_data);
+      return (CUPS_SC_STATUS_TOO_BIG);
+    }
+
+    memcpy(data, real_data + real_oidlen, (size_t)real_datalen);
+    data[real_datalen] = '\0';
+```
+5. A concise explanation of why it is vulnerable:
+The function calculates `real_datalen` by subtracting the length of the OID from the total data length received from the backend. While it checks if `(real_datalen + 1) > *datalen` to prevent an overflow during the `memcpy`, the subsequent line `data[real_datalen] = '\0';` writes a null terminator at the index `real_datalen`. If `*datalen` was exactly `real_datalen + 1`, the buffer `data` (which is of size `*datalen`) is indexed from `0` to `real_datalen`. However, if `real_datalen` is large, this can lead to an off-by-one error or a heap/stack overflow depending on how the `data` buffer was allocated. More critically, if `real_data` is constructed such that `strlen(real_data)` is very large, `real_datalen` could potentially become negative (since it's a signed `int`), leading to an extremely large value when cast to `size_t` in `memcpy` or an out-of-bounds write.
+
+6. Severity rating: High

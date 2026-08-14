@@ -1,0 +1,23 @@
+1. File: cups\testipp.c
+2. Name of the function containing the vulnerability: print_attributes
+3. Vulnerability type / CWE if you can determine it: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+void
+print_attributes(ipp_t *ipp,		/* I - IPP request */
+                 int   indent)		/* I - Indentation */
+{
+  ipp_tag_t		group;		/* Current group */
+  ipp_attribute_t	*attr;		/* Current attribute */
+  char                  buffer[2048];   /* Value string */
+
+  for (group = IPP_TAG_ZERO, attr = ipp->attrs; attr; attr = attr->next)
+  {
+    // ... (omitted logic)
+    ippAttributeString(attr, buffer, sizeof(buffer));
+    printf("%*s%s (%s%s): %s\n", indent, "", attr->name ? attr->name : "(null)", attr->num_values > 1 ? "1setOf " : "", ippTagString(attr->value_tag), buffer);
+  }
+}
+```
+5. A concise explanation of why it is vulnerable: The function `print_attributes` declares a fixed-size stack buffer of 2048 bytes. It then calls `ippAttributeString(attr, buffer, sizeof(buffer))`. While the `sizeof(buffer)` is passed as a limit, the safety of this operation depends entirely on the implementation of `ippAttributeString` (which is not provided in the source but is part of the CUPS library). In many versions of this test utility or similar patterns in older CUPS code, if the attribute string conversion exceeds the buffer size without proper null-termination or if `ippAttributeString` does not strictly respect the length limit, a stack overflow occurs. More importantly, if `ippAttributeString` fails to null-terminate the buffer when the limit is reached, the subsequent `printf` call will read past the end of the buffer until it finds a null byte, leading to an Information Leak (out-of-bounds read) or a crash. If the underlying library function overflows the buffer, it leads to arbitrary code execution.
+6. Severity rating: High

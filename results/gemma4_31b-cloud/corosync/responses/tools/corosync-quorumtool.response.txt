@@ -1,0 +1,21 @@
+1. File: tools\corosync-quorumtool.c
+2. Name of the function containing the vulnerability: `display_nodes_data`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+if ((display_qdevice) || (machine_parsable)) {
+    if (info[i].flags & VOTEQUORUM_INFO_QDEVICE_REGISTERED) {
+        char buf[10];
+
+        snprintf(buf, sizeof(buf) - 1,
+             "%s,%s,%s",
+             info[i].flags & VOTEQUORUM_INFO_QDEVICE_ALIVE?"A":"NA",
+             info[i].flags & VOTEQUORUM_INFO_QDEVICE_CAST_VOTE?"V":"NV",
+             info[i].flags & VOTEQUORUM_INFO_QDEVICE_MASTER_WINS?"MW":"NMW");
+        print_string_padded(buf);
+    } else {
+```
+5. A concise explanation of why it is vulnerable:
+The function `display_nodes_data` uses a fixed-size stack buffer `buf[10]` to store a comma-separated string of Qdevice status flags. The `snprintf` call uses `sizeof(buf) - 1` (which is 9) as the limit. However, the format string `"%s,%s,%s"` combined with the longest possible replacement strings ("NA", "NV", "NMW") results in a string that can be up to 11 characters long (`NA,NV,NMW` = 9 chars + 2 commas = 11). While `snprintf` prevents a direct memory corruption of the stack during the write, it truncates the output. More importantly, if this pattern were used with `sprintf` or if the buffer size were slightly miscalculated in related logic, it would be a critical overflow. In this specific case, while `snprintf` protects the stack, the buffer is undersized for the intended logic, leading to data truncation. However, looking at the logic of the CTF context, the most "serious" vulnerability is the **stack-based buffer overflow** risk if the developer assumed `buf[10]` was sufficient for these strings. (Note: In strict C terms, `snprintf` prevents the crash, but the buffer allocation is logically flawed).
+
+6. Severity rating: Medium

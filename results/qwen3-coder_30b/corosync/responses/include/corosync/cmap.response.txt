@@ -1,0 +1,8 @@
+1. File: include\corosync\cmap.h
+2. Name of the function containing the vulnerability: NONE (No vulnerable functions in header file)
+3. Vulnerability type / CWE: NONE
+4. The relevant vulnerable code snippet: NONE (Header file contains only declarations, no implementation)
+5. A concise explanation of why it is vulnerable: The provided header file contains only function declarations and macro definitions, not actual implementation code where vulnerabilities would typically exist. All functions are declared as external with no body provided in this header file.
+6. Severity rating: NO_VULNERABILITY_FOUND
+
+The file examined is a header file containing only declarations, typedefs, and macros. While the header defines the API for the cmap service, it does not contain any implementation code that could harbor vulnerabilities. The vulnerability would need to be in the corresponding source files (cmap.c, etc.) where the actual function implementations reside.

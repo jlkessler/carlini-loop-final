@@ -1,0 +1,37 @@
+1. File: cups\dest-localization.c
+2. Name of the function containing the vulnerability: cupsLocalizeDestMedia
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+  if (!lsource && !ltype)
+  {
+    if (!size->bottom && !size->left && !size->right && !size->top)
+      snprintf(lstr, sizeof(lstr), _cupsLangString(lang, _("%s (Borderless)")), lsize);
+    else
+      strlcpy(lstr, lsize, sizeof(lstr));
+  }
+  else if (!lsource)
+  {
+    if (!size->bottom && !size->left && !size->right && !size->top)
+      snprintf(lstr, sizeof(lstr), _cupsLangString(lang, _("%s (Borderless, %s)")), lsize, ltype);
+    else
+      snprintf(lstr, sizeof(lstr), _cupsLangString(lang, _("%s (%s)")), lsize, ltype);
+  }
+  else if (!ltype)
+  {
+    if (!size->bottom && !size->left && !size->right && !size->top)
+      snprintf(lstr, sizeof(lstr), _cupsLangString(lang, _("%s (Borderless, %s)")), lsize, lsource);
+    else
+      snprintf(lstr, sizeof(lstr), _cupsLangString(lang, _("%s (%s)")), lsize, lsource);
+  }
+  else
+  {
+    if (!size->bottom && !size->left && !size->right && !size->top)
+      snprintf(lstr, sizeof(lstr), _cupsLangString(lang, _("%s (Borderless, %s, %s)")), lsize, ltype, lsource);
+    else
+      snprintf(lstr, sizeof(lstr), _cupsLangString(lang, _("%s (%s, %s)")), lsize, ltype, lsource);
+  }
+```
+5. A concise explanation of why it is vulnerable: The function uses `snprintf` to write into `lstr` (size 1024). However, it uses `_cupsLangString` to retrieve a format string. If an attacker can control the localization strings (e.g., via a malicious `printer-strings-uri` loaded in `cups_create_localizations`), they can provide a format string containing multiple `%s` specifiers or width modifiers. While `snprintf` prevents a direct buffer overflow of `lstr`, the vulnerability lies in the fact that the format string itself is sourced from an untrusted external file. More critically, the logic assumes `lsize`, `ltype`, and `lsource` are safe; if the format string retrieved via `_cupsLangString` contains unexpected format specifiers that don't match the provided arguments, it leads to an Information Leak (reading from the stack) or a crash. Additionally, if the format string is manipulated to be very large or contains specific sequences, it can lead to memory corruption depending on the `snprintf` implementation.
+
+6. Severity rating: High

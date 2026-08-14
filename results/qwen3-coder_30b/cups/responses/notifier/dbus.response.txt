@@ -1,0 +1,17 @@
+1. File: notifier\dbus.c
+2. Name of the function containing the vulnerability: `main`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+if (attr)
+{
+  const char *val = ippGetString(attr, 0, NULL);
+  if (!dbus_message_iter_append_string(&iter, &val))
+    goto bail;
+}
+```
+5. The vulnerability exists because `ippGetString()` returns a pointer to a string that is not guaranteed to be null-terminated or properly validated. When this string is passed to `dbus_message_iter_append_string()`, the D-Bus library may attempt to read beyond the allocated buffer boundaries, leading to a stack-based buffer overflow if the input data is crafted maliciously.
+
+6. Severity rating: Critical
+
+Note: The vulnerability is actually more subtle and relates to how the `ippGetString()` function can return malformed or untrusted data that gets directly passed to D-Bus functions without proper bounds checking or sanitization, potentially leading to memory corruption when the D-Bus library processes these strings. This is a critical vulnerability as it could allow remote code execution if an attacker can control the IPP event data being processed.

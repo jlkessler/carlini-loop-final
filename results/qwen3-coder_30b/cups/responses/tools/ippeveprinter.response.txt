@@ -1,0 +1,19 @@
+1. File: tools\ippeveprinter.c
+2. Name of the function containing the vulnerability: `process_job`
+3. Vulnerability type / CWE: CWE-78 - Command Injection
+4. The relevant vulnerable code snippet:
+```c
+myargv[0] = job->printer->command;
+myargv[1] = job->filename;
+myargv[2] = NULL;
+
+// ... later in the function ...
+
+execve(job->printer->command, myargv, myenvp);
+```
+
+5. The vulnerability exists because `job->printer->command` is directly used as the first argument to `execve()` without any sanitization or validation. If an attacker can control the command through the `--command` option when starting ippeveprinter, they can inject arbitrary commands that will be executed with the privileges of the running service.
+
+6. Severity rating: critical
+
+This is a critical command injection vulnerability because it allows arbitrary command execution as the user running ippeveprinter, which could be root if run with elevated privileges. The vulnerability is in how the `--command` option is processed and used directly in `execve()` without proper sanitization.

@@ -1,0 +1,26 @@
+1. File: scheduler\mime.c
+2. Name of the function containing the vulnerability: `_mimeError`
+3. Vulnerability type / CWE: Format String Vulnerability (CWE-134)
+4. The relevant vulnerable code snippet:
+```c
+void
+_mimeError(mime_t     *mime,		/* I - MIME database */
+           const char *message,		/* I - Printf-style message string */
+	   ...)				/* I - Additional arguments as needed */
+{
+  va_list	ap;			/* Argument pointer */
+  char		buffer[8192];		/* Message buffer */
+
+
+  if (mime->error_cb)
+  {
+    va_start(ap, message);
+    vsnprintf(buffer, sizeof(buffer), message, ap);
+    va_end(ap);
+
+    (*mime->error_cb)(mime->error_ctx, buffer);
+  }
+}
+```
+5. A concise explanation of why it is vulnerable: The `_mimeError` function takes a `message` string and a variable argument list, then uses `vsnprintf` to format a buffer. This is called by other functions (like `mimeLoadFilters` and `mimeLoadTypes`) passing data read directly from files on disk (e.g., `strerror(errno)` or pathnames). If an attacker can control the contents of the files being loaded or the directory names, they can inject format specifiers (like `%s`, `%x`, or `%n`) into the `message` argument. Since `vsnprintf` treats the `message` as a format string, this leads to a classic format string vulnerability, allowing for information disclosure (leaking stack data) or potentially arbitrary code execution.
+6. Severity rating: High

@@ -1,0 +1,26 @@
+1. File: exec\fsm.h
+2. Name of the function containing the vulnerability: cs_fsm_process
+3. Vulnerability type / CWE: CWE-121 Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static inline void cs_fsm_process (struct cs_fsm *fsm, int32_t new_event, void * data, cs_fsm_cb cb)
+{
+	int32_t i;
+
+	for (i = 0; i < fsm->entries; i++) {
+		if (fsm->table[i].event == new_event &&
+		    fsm->table[i].curr_state == fsm->curr_state) {
+
+			assert (fsm->table[i].handler_fn != NULL);
+			/* set current entry */
+			fsm->curr_entry = i;
+			fsm->table[i].handler_fn (fsm, new_event, data);
+			return;
+		}
+	}
+```
+5. The vulnerability exists because the function does not validate the `fsm->entries` value against the actual size of the `fsm->table`. If an attacker can control or manipulate `fsm->entries` to be larger than the allocated size of `fsm->table`, then the loop `for (i = 0; i < fsm->entries; i++)` will access memory beyond the bounds of the `fsm->table` array, leading to a buffer overflow. This occurs because there is no check that `fsm->entries` does not exceed the actual number of entries allocated for `fsm->table`.
+
+6. Severity rating: HIGH
+
+This vulnerability can lead to arbitrary code execution if an attacker can control the size of the FSM table and force out-of-bounds memory access, potentially allowing for stack smashing or heap corruption.

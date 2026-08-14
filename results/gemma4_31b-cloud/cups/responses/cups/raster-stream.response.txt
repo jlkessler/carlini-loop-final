@@ -1,0 +1,46 @@
+1. File: cups\raster-stream.c
+2. Name of the function containing the vulnerability: _cupsRasterReadPixels
+3. Vulnerability type / CWE: CWE-122: Heap-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+      while (bytes > 0)
+      {
+        /*
+	* Get a new repeat count...
+	*/
+
+        if (!cups_raster_read(r, &byte, 1))
+	{
+	  DEBUG_puts("1_cupsRasterReadPixels: Read error, returning 0.");
+	  return (0);
+	}
+
+        if (byte == 128)
+        {
+         /*
+          * Clear to end of line...
+          */
+
+          switch (r->header.cupsColorSpace)
+          {
+            case CUPS_CSPACE_W :
+            case CUPS_CSPACE_RGB :
+            case CUPS_CSPACE_SW :
+            case CUPS_CSPACE_SRGB :
+            case CUPS_CSPACE_RGBW :
+            case CUPS_CSPACE_ADOBERGB :
+                memset(temp, 0xff, (size_t)bytes);
+                break;
+            default :
+                memset(temp, 0x00, (size_t)bytes);
+                break;
+          }
+
+          temp += bytes;
+          bytes = 0;
+        }
+```
+5. A concise explanation of why it is vulnerable:
+In the compressed data reading logic, the code uses a temporary pointer `ptr` which is either set to the destination buffer `p` (if `remaining == cupsBytesPerLine`) or to the internal `r->pixels` buffer. The `bytes` variable is initialized to `cupsBytesPerLine`. However, there is a path where `ptr` is set to `r->pixels`, but the logic following it (the PackBits decompression) can write up to `cupsBytesPerLine` bytes into `ptr`. If `remaining` was less than `cupsBytesPerLine`, `ptr` is correctly set to `r->pixels`, but if a `memset` or `memcpy` is triggered using the full `bytes` (which is `cupsBytesPerLine`), and the `r->pixels` buffer was not allocated with sufficient space or the offset calculations are skewed, it can lead to an overflow. More critically, if `ptr` is set to `p` but `len` (the requested read length) is smaller than `cupsBytesPerLine`, the code still attempts to process a full line (`bytes = (ssize_t)cupsBytesPerLine`), leading to a heap buffer overflow in the destination buffer `p`.
+
+6. Severity rating: High

@@ -1,0 +1,35 @@
+1. File: include\corosync\coroapi.h
+2. Name of the function containing the vulnerability: `swab_mar_message_source_t`
+3. Vulnerability type / CWE: CWE-121 Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static inline void swab_mar_message_source_t (mar_message_source_t *to_swab)
+{
+	swab32 (to_swab->nodeid);
+	/*
+	 * if it is from a byteswapped machine, then we can safely
+	 * ignore its conn info data structure since this is only
+	 * local to the machine
+	 */
+	to_swab->conn = NULL;
+}
+```
+5. The vulnerability exists because `to_swab` is passed as a pointer to a structure that may not be properly aligned or validated. If an attacker can control the contents of `to_swab`, they could potentially manipulate the `conn` field in a way that leads to memory corruption, especially when combined with other functions that use this structure.
+
+However, upon closer inspection, there doesn't appear to be a direct buffer overflow vulnerability in this specific function itself. The function appears to be performing byte-swapping on a nodeid and then setting conn to NULL. 
+
+Actually, re-evaluating this more carefully:
+
+The real issue is with the `struct mar_message_source_t` definition and how it's used in the context of network communication. If an attacker can control the input data that gets parsed into this structure, they could potentially cause a buffer overflow when the structure is processed by other functions in the system.
+
+But strictly speaking, looking at this file alone, there is no direct vulnerability present in `swab_mar_message_source_t` function itself.
+
+However, considering the context of corosync and the fact that this is likely used for network message handling, a critical issue could be:
+
+6. Severity rating: **HIGH**
+
+The structure definition and related APIs suggest potential issues with memory layout and network parsing where untrusted data from network messages can lead to buffer overflows or memory corruption when processed by other components in the system that use these structures.
+
+However, the specific vulnerability is not clearly visible in this header file alone - it would require analysis of implementation files and usage patterns. Given the nature of corosync and its use in cluster communication systems, this could be a critical issue, but without seeing how the structure is used in implementations, I cannot definitively identify a clear vulnerability.
+
+NO_VULNERABILITY_FOUND

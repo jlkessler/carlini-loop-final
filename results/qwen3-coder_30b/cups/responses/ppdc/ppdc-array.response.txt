@@ -1,0 +1,26 @@
+1. File: ppdc\ppdc-array.cxx
+2. Name of the function containing the vulnerability: ppdcArray::add()
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Memory Corruption (CWE-787)
+4. The relevant vulnerable code snippet:
+```c++
+void
+ppdcArray::add(ppdcShared *d)
+{
+  ppdcShared	**temp;
+
+  if (count >= alloc)
+  {
+    alloc += 10;
+    temp  = new ppdcShared *[alloc];
+
+    memcpy(temp, data, (size_t)count * sizeof(ppdcShared *));
+
+    delete[] data;
+    data = temp;
+  }
+
+  data[count++] = d;
+}
+```
+5. The vulnerability exists in the `add()` function where `memcpy()` is called without proper bounds checking. If `count` is larger than what can be safely copied into `temp`, it will cause a buffer overflow. Additionally, if `alloc` overflows due to integer wraparound when incremented by 10 repeatedly, it could lead to memory corruption or arbitrary code execution.
+6. Severity rating: Critical

@@ -1,0 +1,37 @@
+1. File: cgi-bin\search.c
+2. Name of the function containing the vulnerability: `cgiCompileSearch`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+wlen = (size_t)(sptr - s) + 2 * 4 * wlen + 2 * strlen(prefix) + 11;
+if (lword)
+  wlen += strlen(lword);
+
+if (wlen > slen)
+{
+  char *temp;			/* Temporary string pointer */
+
+
+  slen = wlen + 128;
+  temp = (char *)realloc(s, slen);
+  if (!temp)
+  {
+    free(s);
+    free(re);
+
+    if (lword)
+      free(lword);
+
+    return (NULL);
+  }
+
+  sptr = temp + (sptr - s);
+  s    = temp;
+}
+```
+
+5. The vulnerability exists in the calculation of `wlen` where an integer overflow can occur. The variable `wlen` is calculated using `2 * 4 * wlen` which can cause an integer overflow when `wlen` is large enough. This leads to a situation where `slen` becomes smaller than `wlen`, causing the `realloc()` call to allocate insufficient memory, potentially leading to buffer overflow when data is written beyond allocated bounds.
+
+6. Severity rating: **Critical**
+
+The vulnerability allows for potential arbitrary code execution through buffer overflow in the regex compilation process, especially when handling large search queries. This could be exploited by an attacker to crash the service or execute malicious code, making it a critical security issue.

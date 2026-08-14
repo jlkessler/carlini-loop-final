@@ -1,0 +1,53 @@
+1. File: scheduler\classes.c
+2. Name of the function containing the vulnerability: cupsdAddPrinterToClass
+3. Vulnerability type / CWE: CWE-476 NULL Pointer Dereference
+4. The relevant vulnerable code snippet:
+```c
+void
+cupsdAddPrinterToClass(
+    cupsd_printer_t *c,			/* I - Class to add to */
+    cupsd_printer_t *p)			/* I - Printer to add */
+{
+  int			i;		/* Looping var */
+  cupsd_printer_t	**temp;		/* Pointer to printer array */
+
+
+ /*
+  * See if this printer is already a member of the class...
+  */
+
+  for (i = 0; i < c->num_printers; i ++)
+    if (c->printers[i] == p)
+      return;
+
+ /*
+  * Allocate memory as needed...
+  */
+
+  if (c->num_printers == 0)
+    temp = malloc(sizeof(cupsd_printer_t *));
+  else
+    temp = realloc(c->printers, sizeof(cupsd_printer_t *) * (size_t)(c->num_printers + 1));
+
+  if (temp == NULL)
+  {
+    cupsdLogMessage(CUPSD_LOG_ERROR, "Unable to add printer %s to class %s!",
+                    p->name, c->name);
+    return;
+  }
+
+ /*
+  * Add the printer to the end of the array and update the number of printers.
+  */
+
+  c->printers = temp;
+  temp        += c->num_printers;
+  c->num_printers ++;
+
+  *temp = p;
+}
+```
+5. A concise explanation of why it is vulnerable: The function does not validate that the input parameters `c` (class) and `p` (printer) are non-NULL before using them. If either parameter is NULL, dereferencing `c->num_printers` or `p->name` will cause a segmentation fault. Additionally, while memory allocation failure is handled, there's no check for NULL `c` or `p` which could lead to crashes when accessing these pointers.
+6. Severity rating: high
+
+The vulnerability is a NULL pointer dereference that can crash the CUPS scheduler when invalid parameters are passed to cupsdAddPrinterToClass, potentially allowing an attacker to cause a denial of service or, in some cases, execute arbitrary code if the crash leads to exploitable memory corruption.

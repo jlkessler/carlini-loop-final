@@ -1,0 +1,38 @@
+1. File: exec\pload.c
+
+2. Name of the function containing the vulnerability: `message_handler_req_exec_pload_start`
+
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+static void message_handler_req_exec_pload_start (
+	const void *msg,
+	unsigned int nodeid)
+{
+	const struct req_exec_pload_start *req_exec_pload_start = msg;
+
+	/*
+	 * don't start multiple instances
+	 */
+	if (pload_started) {
+		return;
+	}
+
+	pload_started = 1;
+
+	msgs_wanted = req_exec_pload_start->msg_count;
+	msg_size = req_exec_pload_start->msg_size;
+
+	api->schedwrk_create (
+		&start_mcasting_handle,
+		pload_send_message,
+		&start_mcasting_handle);
+}
+```
+
+5. The vulnerability exists because the `req_exec_pload_start` structure is directly cast from the network message without proper validation of message size or content. If an attacker sends a malformed message with incorrect sizes, it could lead to buffer overflows when the values are used in subsequent operations. Additionally, the code does not validate that `msg_size` and `msgs_wanted` are within reasonable bounds before being used in `pload_send_message()`, which can result in excessive memory allocation or integer overflow.
+
+6. Severity rating: HIGH
+
+Note: The vulnerability is primarily due to lack of input validation on network messages, which could lead to memory corruption and potentially arbitrary code execution when the system attempts to allocate buffers based on untrusted input values.

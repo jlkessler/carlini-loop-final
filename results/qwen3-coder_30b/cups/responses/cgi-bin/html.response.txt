@@ -1,0 +1,37 @@
+1. File: cgi-bin\html.c
+2. Name of the function containing the vulnerability: cgiFormEncode
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-189)
+4. The relevant vulnerable code snippet:
+```c
+for (dstptr = dst; *src && dstptr < dstend;)
+{
+  switch (*src)
+  {
+    case ' ' :
+      *dstptr++ = '+';
+      src ++;
+      break;
+
+    case '&' :
+    case '%' :
+    case '+' :
+      if (dstptr < (dstend - 2))  // <-- Vulnerable check
+      {
+        *dstptr++ = '%';
+        *dstptr++ = hex[(*src & 255) >> 4];
+        *dstptr++ = hex[*src & 15];
+        src ++;
+      }
+      break;
+
+    default :
+      *dstptr++ = *src++;
+      break;
+  }
+}
+```
+5. The vulnerability exists because the check `dstptr < (dstend - 2)` only ensures there's space for three characters (the % and two hex digits) but doesn't account for the fact that `dstptr` is incremented multiple times within the loop body. This can lead to writing beyond the allocated buffer when processing special characters, resulting in a potential buffer overflow.
+
+6. Severity rating: HIGH
+
+The vulnerability allows for a buffer overflow when encoding form variables, which could potentially be exploited to execute arbitrary code or cause a denial of service if an attacker can control the input being encoded.

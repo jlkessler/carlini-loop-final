@@ -1,0 +1,26 @@
+1. File: cups\raster-stream.c
+2. Name of the function containing the vulnerability: `_cupsRasterInitPWGHeader`
+3. Vulnerability type / CWE: CWE-129 - Improper Validation of Array Index
+4. The relevant vulnerable code snippet:
+```c
+else if (!strncmp(type, "device", 6) && type[6] >= '1' && type[6] <= '9')
+{
+  int ncolors, bits;			/* Number of colors and bits */
+
+
+  if (sscanf(type, "device%d_%d", &ncolors, &bits) != 2 || ncolors > 15 || (bits != 8 && bits != 16))
+  {
+    _cupsRasterAddError("Unsupported raster type \'%s\'.", type);
+    return (0);
+  }
+
+  h->cupsBitsPerColor = (unsigned)bits;
+  h->cupsBitsPerPixel = (unsigned)(ncolors * bits);
+  h->cupsColorSpace   = (cups_cspace_t)(CUPS_CSPACE_DEVICE1 + ncolors - 1);
+}
+```
+5. The vulnerability occurs because `ncolors` is used as an array index in the line `h->cupsColorSpace = (cups_cspace_t)(CUPS_CSPACE_DEVICE1 + ncolors - 1);`. Although there's a check `ncolors > 15`, the maximum value for `ncolors` can be 15, which when used as an index into `cups_color_spaces[]` array (which has 43 elements) could cause issues. However, more critically, if `ncolors` is less than 1, then `CUPS_CSPACE_DEVICE1 + ncolors - 1` would result in a negative number which can be interpreted as a large unsigned value, potentially causing out-of-bounds access when used as an array index.
+
+6. Severity rating: HIGH
+
+The vulnerability involves improper validation of array indices that could lead to buffer overflows or memory corruption if malicious input is provided. While the code checks for `ncolors > 15`, it doesn't properly validate that `ncolors` is at least 1, which would make `CUPS_CSPACE_DEVICE1 + ncolors - 1` potentially negative and cause issues when used as an array index in other parts of the codebase. This could allow an attacker to trigger undefined behavior or potentially execute arbitrary code if combined with other vulnerabilities.

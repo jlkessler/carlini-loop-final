@@ -1,0 +1,32 @@
+1. File: scheduler\auth.c
+2. Name of the function containing the vulnerability: cupsdAuthorize
+3. Vulnerability type / CWE: CWE-287 - Improper Authentication
+4. The relevant vulnerable code snippet:
+```c
+else if (!strncmp(authorization, "PeerCred ", 9) &&
+         con->http->hostaddr->addr.sa_family == AF_LOCAL && con->best)
+{
+    // ... code ...
+    if ((pwd = getpwnam(authorization + 9)) == NULL)
+    {
+      cupsdLogClient(con, CUPSD_LOG_ERROR, "User \"%s\" does not exist.", authorization + 9);
+      return;
+    }
+
+    // ... code ...
+    if (pwd->pw_uid != CUPSD_UCRED_UID(peercred))
+    {
+      cupsdLogClient(con, CUPSD_LOG_ERROR, "Invalid peer credentials for \"%s\" - got %d, expected %d.", authorization + 9, CUPSD_UCRED_UID(peercred), pwd->pw_uid);
+      return;
+    }
+    
+    strlcpy(username, authorization + 9, sizeof(username));
+    // ... code ...
+}
+```
+
+5. This vulnerability occurs in the PeerCred authentication handling where an attacker can specify any username in the "PeerCred " prefix (e.g., "PeerCred eviluser") but the actual user validation only checks if the UID from peer credentials matches what's expected for that username, without ensuring the username itself is valid or properly authenticated. The system accepts the username provided in the authorization string regardless of whether it corresponds to a real user account or not.
+
+6. Severity rating: HIGH
+
+The vulnerability allows an attacker to potentially bypass authentication by specifying any username in the PeerCred authentication scheme. While the system validates that the UID matches what's expected for that username, it doesn't validate that the username actually exists or is legitimate, allowing potential privilege escalation or unauthorized access if the UID corresponds to a valid but unauthorized user account. This represents a significant authentication bypass vulnerability.

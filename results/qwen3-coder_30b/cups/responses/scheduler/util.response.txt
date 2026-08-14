@@ -1,0 +1,41 @@
+1. File: scheduler\util.c
+2. Name of the function containing the vulnerability: cupsdExec
+3. Vulnerability type / CWE: CWE-78 - OS Command Injection
+4. The relevant vulnerable code snippet:
+```c
+int					/* O - exec() status */
+cupsdExec(const char *command,		/* I - Full path to program */
+          char       **argv)		/* I - Command-line arguments */
+{
+#ifdef __APPLE__
+  // ... code ...
+  envp[0] = cfprocesspath;
+
+ /*
+  * Copy the rest of the environment except for any CFProcessPath that may
+  * already be there...
+  */
+
+  for (i = 1, j = 0;
+       environ[j] && i < (int)(sizeof(envp) / sizeof(envp[0]) - 1);
+       j ++)
+    if (strncmp(environ[j], "CFProcessPath=", 14))
+      envp[i ++] = environ[j];
+
+  envp[i] = NULL;
+
+ /*
+  * Use execve() to run the program...
+  */
+
+  return (execve(command, argv, envp));
+#else
+ // ... code ...
+  return (execv(command, argv));
+#endif /* __APPLE__ */
+}
+```
+5. This function is vulnerable because it passes user-supplied `command` parameter directly to `execve()` or `execv()` without any validation or sanitization. The `command` argument comes from the IPP request and can contain malicious input that gets executed as a shell command. Even though the code tries to construct environment variables, it doesn't validate or sanitize the `command` path itself.
+6. Severity rating: high
+
+The vulnerability allows an attacker to inject arbitrary commands through the command parameter, which will be executed with the privileges of the cupsd process, potentially leading to privilege escalation or remote code execution.

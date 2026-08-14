@@ -1,0 +1,13 @@
+1. File: test\cpgbenchzc.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-20 (Improper Input Validation / Logic Error - Unchecked Return Value) leading to potential Out-of-Bounds Write/Read.
+4. The relevant vulnerable code snippet:
+```c
+	cpg_zcb_alloc (handle, 500000, &data);
+	if (res != CS_OK) {
+		printf ("cpg_zcb_alloc couldn't allocate zero copy buffer %d\n", res);
+		exit (1);
+	}
+```
+5. A concise explanation of why it is vulnerable: The code calls `cpg_zcb_alloc` to allocate a zero-copy buffer and stores the return value in the CPU registers/stack, but it does **not** assign that return value to the variable `res`. Instead, it checks the value of `res` from the previous call (`cpg_initialize`). If `cpg_zcb_alloc` fails and returns an error, the program will not exit; it will proceed to call `cpg_benchmark` using an uninitialized or NULL `data` pointer, and it will attempt to write up to `size` bytes into that buffer via `cpg_zcb_mcast_joined`. This leads to a null pointer dereference or memory corruption.
+6. Severity rating: High

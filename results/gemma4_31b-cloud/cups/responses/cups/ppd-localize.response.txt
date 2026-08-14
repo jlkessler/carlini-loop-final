@@ -1,0 +1,52 @@
+1. File: cups\ppd-localize.c
+2. Name of the function containing the vulnerability: `ppdLocalizeIPPReason`
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+    for (valptr = locattr->value, bufptr = buffer; *valptr && bufptr < bufend;)
+    {
+      if (!strncmp(valptr, "text:", 5))
+      {
+       /*
+        * Decode text: URI and add to the buffer...
+	*/
+
+	valptr += 5;
+
+        while (*valptr && !_cups_isspace(*valptr) && bufptr < bufend)
+	{
+	  if (*valptr == '%' && isxdigit(valptr[1] & 255) &&
+	      isxdigit(valptr[2] & 255))
+	  {
+	   /*
+	    * Pull a hex-encoded character from the URI...
+	    */
+
+            valptr ++;
+
+	    if (isdigit(*valptr & 255))
+	      ch = (*valptr - '0') << 4;
+	    else
+	      ch = (tolower(*valptr) - 'a' + 10) << 4;
+	    valptr ++;
+
+	    if (isdigit(*valptr & 255))
+	      *bufptr++ = (char)(ch | (*valptr - '0'));
+	    else
+	      *bufptr++ = (char)(ch | (tolower(*valptr) - 'a' + 10));
+	    valptr ++;
+	  }
+	  else if (*valptr == '+')
+	  {
+	    *bufptr++ = ' ';
+	    valptr ++;
+	  }
+	  else
+	    *bufptr++ = *valptr++;
+        }
+      }
+```
+5. A concise explanation of why it is vulnerable: 
+The function uses `bufend` (calculated as `buffer + bufsize - 1`) to prevent overflows. However, the loop checks `bufptr < bufend` before performing writes. Inside the `if (*valptr == '%' ...)` block, the code performs multiple writes to `*bufptr++` without re-checking the boundary. Specifically, after the first character is decoded and written, `bufptr` is incremented. If `bufptr` was exactly `bufend - 1` at the start of the loop, the logic inside the hex-decoding block can increment `bufptr` beyond `bufend`, leading to an off-by-one or small buffer overflow depending on the input string's structure. More critically, the logic `if (bufptr > buffer) *bufptr = '\0';` at the end of the function writes a null terminator to `*bufptr` after the loop has potentially already reached or exceeded `bufend`, causing a heap or stack overflow (depending on where `buffer` is allocated).
+
+6. Severity rating: High

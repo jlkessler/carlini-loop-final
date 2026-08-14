@@ -1,0 +1,18 @@
+1. File: include\corosync\totem\totem.h
+2. Name of the function containing the vulnerability: None (This is a header file with no functions, only definitions)
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow (indirect)
+4. The relevant vulnerable code snippet: 
+```c
+#define PROCESSOR_COUNT_MAX	384
+...
+struct totem_interface {
+    ...
+    struct totem_ip_address member_list[PROCESSOR_COUNT_MAX];
+};
+```
+5. This header file defines a structure that contains an array `member_list` of size `PROCESSOR_COUNT_MAX` (384). While this itself is not directly exploitable, it's part of a larger system where the actual vulnerability would occur when processing these arrays in other files. The issue is that the maximum number of processors is hardcoded to 384, and there's no runtime validation or bounds checking when populating this array.
+6. Severity rating: HIGH
+
+However, looking more carefully at the header file itself, it doesn't contain any direct exploitable code. The vulnerability would be in how this structure is used elsewhere in the system, but not directly present in this header file.
+
+NO_VULNERABILITY_FOUND

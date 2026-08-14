@@ -1,0 +1,35 @@
+1. File: common_lib\error_conversion.c
+2. Name of the function containing the vulnerability: `qb_to_cs_error`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121) / Integer Overflow / Information Disclosure
+4. The relevant vulnerable code snippet:
+```c
+cs_error_t qb_to_cs_error (int result)
+{
+	int32_t res;
+	cs_error_t err = CS_ERR_LIBRARY;
+
+	if (result >= 0) {
+		return CS_OK;
+	}
+	res = -result;  // Potential integer overflow when result is INT_MIN
+
+	switch (res) {
+```
+5. This function is vulnerable because it performs a direct negation of the input `result` without checking for integer overflow conditions. Specifically, when `result` equals `INT_MIN`, negating it will cause an integer overflow since `-INT_MIN` cannot be represented in a signed 32-bit integer. This could lead to unexpected behavior or exploitation opportunities.
+6. Severity rating: HIGH
+
+This vulnerability can potentially be exploited to bypass error handling logic or cause undefined behavior in the application, which may lead to denial of service or other security issues. The function does not validate that `result` is within a safe range before negating it, creating an integer overflow condition.
+
+However, looking more carefully at this specific code, I should note that there's also a potential issue with how negative error codes are handled in the second function `hdb_error_to_cs`, but the most serious vulnerability is in `qb_to_cs_error` due to the integer overflow possibility when result = INT_MIN.
+
+Actually, let me reconsider the functions more carefully:
+
+1. File: common_lib\error_conversion.c
+2. Name of the function containing the vulnerability: `qb_to_cs_error`
+3. Vulnerability type / CWE: Integer Overflow (CWE-190) / Information Disclosure (CWE-200)
+4. The relevant vulnerable code snippet:
+```c
+res = -result;
+```
+5. This is vulnerable because when `result` equals `INT_MIN` (which is -2147483648), negating it will overflow since the positive value 2147483648 cannot be represented in a signed 32-bit integer. This can result in unpredictable behavior and potentially allow an attacker to manipulate error code handling logic.
+6. Severity rating: HIGH

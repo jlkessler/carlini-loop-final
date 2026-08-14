@@ -1,0 +1,16 @@
+1. File: include\corosync\swab.h
+2. Name of the function containing the vulnerability: swab16, swab32, swab64 (Macros)
+3. Vulnerability type / CWE if you can determine it: CWE-190: Integer Overflow or Wraparound (via side effects in macro expansion)
+4. The relevant vulnerable code snippet:
+```c
+#define swab16(x) \
+({ \
+	uint16_t __x = (x); \
+		((uint16_t)( \
+		(((uint16_t)(__x) & (uint16_t)0x00ffU) << 8) | \
+		(((uint16_t)(__x) & (uint16_t)0xff00U) >> 8) )); \
+})
+```
+(And similarly for `swab32` and `swab64`)
+5. A concise explanation of why it is vulnerable: While these macros use a GCC statement expression extension to create a local variable `__x` (which mitigates the common "double evaluation" bug where `swab16(i++)` would increment `i` multiple times), the logic itself is purely for byte-swapping. There are no memory safety vulnerabilities, buffer overflows, or logic flaws inherent in these mathematical operations. They are standard implementations of endianness conversion.
+6. Severity rating: NO_VULNERABILITY_FOUND

@@ -1,0 +1,29 @@
+1. File: filter\rastertopwg.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: Heap-based Buffer Overflow (CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+    linesize    = (page_width * inheader.cupsBitsPerPixel + 7) / 8;
+    lineoffset  = page_left * inheader.cupsBitsPerPixel / 8; /* Round down */
+
+    // ... (validation checks) ...
+
+    if (linesize < inheader.cupsBytesPerLine)
+      linesize = inheader.cupsBytesPerLine;
+
+    if ((lineoffset + inheader.cupsBytesPerLine) > linesize)
+      lineoffset = linesize - inheader.cupsBytesPerLine;
+
+    line = malloc(linesize);
+
+    memset(line, white, linesize);
+    // ...
+    for (y = inheader.cupsHeight; y > 0; y --)
+    {
+      if (cupsRasterReadPixels(inras, line + lineoffset, inheader.cupsBytesPerLine) != inheader.cupsBytesPerLine)
+      // ...
+```
+5. A concise explanation of why it is vulnerable:
+The code calculates `linesize` and `lineoffset` based on header values provided in the input raster stream. While there is a check to ensure `lineoffset + inheader.cupsBytesPerLine` does not exceed `linesize`, this check is bypassed if `lineoffset` is negative or if the calculations overflow. More critically, `inheader.cupsBytesPerLine` and `page_width` (used to calculate `linesize`) are derived from the input raster header. If an attacker provides a very large `inheader.cupsBytesPerLine` but a small `page_width`, `linesize` might be allocated as a smaller value than expected if integer overflow occurs during calculation. Furthermore, since `lineoffset` is calculated using `page_left` (which can be large), and `cupsRasterReadPixels` writes `inheader.cupsBytesPerLine` bytes starting at `line + lineoffset`, an attacker can cause a heap buffer overflow by manipulating the relationship between `page_left`, `page_width`, and `cupsBytesPerLine` to force the write beyond the allocated `malloc(linesize)` boundary.
+
+6. Severity rating: High

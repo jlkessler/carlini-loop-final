@@ -1,0 +1,36 @@
+1. File: vcnet\regex\split.c
+2. Name of the function containing the vulnerability: `split`
+3. Vulnerability type / CWE: Out-of-bounds Write (CWE-787)
+4. The relevant vulnerable code snippet:
+```c
+	/* single separator */
+	if (sepc2 == '\0') {
+		fn = nfields;
+		for (;;) {
+			*fp++ = p;
+			fn--;
+			if (fn == 0)
+				break;
+			while ((c = *p++) != sepc)
+				if (c == '\0')
+					return(nfields - fn);
+			*(p-1) = '\0';
+		}
+```
+5. A concise explanation of why it is vulnerable:
+In the "single separator" logic, the function iterates through the string and stores pointers to the start of each field into the `fields` array. The loop checks if `fn == 0` (where `fn` starts as `nfields`) *after* the pointer `*fp++ = p;` has already been executed. If `nfields` is 1, the pointer is written to `fields[0]` and `fn` becomes 0, which then breaks the loop. However, the logic fails to properly bound the write if the loop structure or initial `nfields` value is manipulated in certain ways, but more importantly, the logic in the "two separators" and "n separators" sections contains similar off-by-one or missing bound checks. Specifically, in the single separator case, if the loop continues or if the provided `nfields` is very small/zero, there is a risk of writing outside the `fields` array. 
+
+Furthermore, in the "two separators" block:
+```c
+	if (sep[2] == '\0') {
+		fn = nfields;
+		for (;;) {
+			*fp++ = p;
+			fn--;
+			// ...
+			if (fn == 0)
+				break;
+```
+The pointer `fp` is incremented and a value is written to the array *before* checking if `fn` has reached 0. If `nfields` is 0, the code will write to `fields[0]` and decrement `fn` to -1, meaning `fn == 0` will never be true, leading to a massive buffer overflow of the `fields` array until a crash occurs.
+
+6. Severity rating: Critical

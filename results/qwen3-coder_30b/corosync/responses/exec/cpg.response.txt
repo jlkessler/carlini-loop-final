@@ -1,0 +1,33 @@
+1. File: exec\cpg.c
+2. Name of the function containing the vulnerability: message_handler_req_exec_cpg_joinlist
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static void message_handler_req_exec_cpg_joinlist (
+	const void *message_v,
+	unsigned int nodeid)
+{
+	const char *message = message_v;
+	const struct qb_ipc_response_header *res = (const struct qb_ipc_response_header *)message;
+	const struct join_list_entry *jle = (const struct join_list_entry *)(message + sizeof(struct qb_ipc_response_header));
+	struct joinlist_msg *stored_msg;
+
+	log_printf(LOGSYS_LEVEL_DEBUG, "got joinlist message from node %x",
+		nodeid);
+
+	while ((const char*)jle < message + res->size) {
+		stored_msg = malloc (sizeof (struct joinlist_msg));
+		memset(stored_msg, 0, sizeof (struct joinlist_msg));
+		stored_msg->sender_nodeid = nodeid;
+		stored_msg->pid = jle->pid;
+		memcpy(&stored_msg->group_name, &jle->group_name, sizeof(mar_cpg_name_t));
+		list_init (&stored_msg->list);
+		list_add (&stored_msg->list, &joinlist_messages_head);
+		jle++;
+	}
+}
+```
+
+5. The vulnerability exists because the code does not validate the size of the incoming message before processing the join_list_entry structures. An attacker can craft a malicious message with an oversized `res->size` field that causes the while loop to read beyond the allocated buffer boundaries, leading to a stack-based buffer overflow when processing the `jle` pointer.
+
+6. Severity rating: critical

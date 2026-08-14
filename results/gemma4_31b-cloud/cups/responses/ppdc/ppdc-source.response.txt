@@ -1,0 +1,26 @@
+1. File: ppdc\ppdc-source.cxx
+2. Name of the function containing the vulnerability: `ppdcSource::get_token`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```cpp
+	var = find_variable(name);
+	if (var)
+	{
+	  strlcpy(bufptr, var->value->value, (size_t)(bufend - bufptr + 1));
+	  bufptr += strlen(bufptr);
+	}
+	else
+	{
+	  if (!(cond_state & PPDC_COND_SKIP))
+	    _cupsLangPrintf(stderr,
+			    _("ppdc: Undefined variable (%s) on line %d of "
+			      "%s."), name, fp->line, fp->filename);
+
+	  snprintf(bufptr, (size_t)(bufend - bufptr + 1), "$%s", name);
+	  bufptr += strlen(bufptr);
+	}
+```
+5. A concise explanation of why it is vulnerable:
+In `get_token`, when the code encounters a variable substitution (`$name`), it attempts to write the expanded value into the output `buffer`. The logic uses `bufptr` to track the current writing position and `bufend` (defined as `buffer + buflen - 1`) to track the boundary. However, the calculation `(size_t)(bufend - bufptr + 1)` can lead to an off-by-one error or a buffer overflow because `bufend` is already pointing to the last valid byte of the buffer. If `bufptr` is close to `bufend`, the calculated size might allow `strlcpy` or `snprintf` to write beyond the intended buffer limit. Furthermore, `bufptr += strlen(bufptr)` advances the pointer based on the actual written length; if the resulting `bufptr` exceeds `bufend`, subsequent checks like `if (bufptr < bufend)` may fail to prevent writes if the integer wrap-around or pointer arithmetic is exploited, although the most immediate risk is the incorrect size calculation passed to the string functions.
+
+6. Severity rating: High

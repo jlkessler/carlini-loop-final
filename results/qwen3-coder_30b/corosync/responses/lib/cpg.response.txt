@@ -1,0 +1,34 @@
+1. File: lib\cpg.c
+2. Name of the function containing the vulnerability: cpg_zcb_alloc
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+map_size = size + sizeof (struct req_lib_cpg_mcast) + sizeof (struct coroipcs_zc_header);
+assert(memory_map (path, "corosync_zerocopy-XXXXXX", &buf, map_size) != -1);
+```
+5. The vulnerability exists because the `memory_map` function uses `mkstemp()` to create a temporary file with a fixed prefix "corosync_zerocopy-XXXXXX". However, the `path` buffer is allocated with `PATH_MAX` size but there's no validation of the actual path length returned by `snprintf()`. This can lead to a stack-based buffer overflow when the generated path exceeds the allocated buffer size in the `memory_map()` function.
+6. Severity rating: critical
+
+However, upon closer inspection, I need to be more precise about the actual vulnerability:
+
+1. File: lib\cpg.c
+2. Name of the function containing the vulnerability: memory_map
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+snprintf (path, PATH_MAX, "/dev/shm/%s", file);
+```
+5. The vulnerability exists because `file` parameter is not validated for length and the `snprintf()` function can potentially overflow the fixed-size `path` buffer when the constructed path exceeds `PATH_MAX`. While there's a check for `PATH_MAX`, it's not sufficient as `file` itself could be very long, leading to a buffer overflow when combined with "/dev/shm/" prefix.
+6. Severity rating: high
+
+Actually, looking more carefully at the code:
+
+1. File: lib\cpg.c
+2. Name of the function containing the vulnerability: cpg_zcb_alloc
+3. Vulnerability type / CWE: CWE-122: Heap-based Buffer Overflow or CWE-787: Out-of-bounds Write
+4. The relevant vulnerable code snippet:
+```c
+assert(memory_map (path, "corosync_zerocopy-XXXXXX", &buf, map_size) != -1);
+```
+5. The vulnerability is that `memory_map` function calls `mkstemp()` with a fixed format string and then `snprintf()` to create the path. While `snprintf` is used correctly with size parameter, there's no validation of the `size` parameter passed to `cpg_zcb_alloc`. If an attacker can control this value, they could cause an integer overflow or underflow in `map_size` calculation leading to a heap buffer overflow when `malloc()` and `mmap()` are called with malicious sizes.
+6. Severity rating: high

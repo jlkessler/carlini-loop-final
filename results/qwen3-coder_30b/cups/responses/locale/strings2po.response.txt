@@ -1,0 +1,12 @@
+1. File: locale\strings2po.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-78 - OS Command Injection
+4. The relevant vulnerable code snippet:
+```c
+snprintf(iconv, sizeof(iconv), "iconv -f utf-16 -t utf-8 '%s'", argv[1]);
+if ((strings = popen(iconv, "r")) == NULL)
+```
+5. The vulnerability exists because the filename provided by the user (argv[1]) is directly inserted into a shell command string without any sanitization or escaping. An attacker can inject malicious commands by manipulating the input filename, which gets executed by the shell when popen() is called.
+6. Severity rating: critical
+
+This is a critical OS command injection vulnerability because it allows arbitrary command execution on the system running the program. The unescaped user input in the shell command creates a direct path for attackers to execute arbitrary code with the privileges of the user running strings2po.

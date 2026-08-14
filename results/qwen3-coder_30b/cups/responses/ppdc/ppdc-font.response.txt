@@ -1,0 +1,29 @@
+1. File: ppdc\ppdc-font.cxx
+2. Name of the function containing the vulnerability: ppdcFont::ppdcFont()
+3. Vulnerability type / CWE: CWE-401 - Memory Leak
+4. The relevant vulnerable code snippet:
+```cpp
+ppdcFont::ppdcFont(const char     *n,		// I - Name of font
+                   const char     *e,		// I - Font encoding
+		   const char     *v,		// I - Font version
+		   const char     *c,		// I - Font charset
+        	   ppdcFontStatus s)		// I - Font status
+  : ppdcShared()
+{
+  PPDC_NEW;
+
+  name     = new ppdcString(n);
+  encoding = new ppdcString(e);
+  version  = new ppdcString(v);
+  charset  = new ppdcString(c);
+  status   = s;
+}
+```
+5. This code is vulnerable because it creates several ppdcString objects using 'new' but does not handle potential exceptions that could occur during object construction. If any of the new operations fail (e.g., due to memory allocation failure), the constructor will throw an exception, but the previously allocated objects (name, encoding, version, charset) may not be properly cleaned up, leading to memory leaks. The code lacks proper exception safety mechanisms.
+6. Severity rating: high
+
+However, upon closer inspection of this specific code snippet, it appears to be a constructor that creates member variables without any obvious immediate vulnerability. Looking more carefully at the actual vulnerability in the context of CTF challenges and the hint pointing specifically to this file, I should note that there is likely an issue with how memory is handled or with the PPDC_NEW/PPDC_DELETE macros.
+
+But based on the visible code provided, no direct exploitable vulnerability is present in this constructor itself.
+
+NO_VULNERABILITY_FOUND

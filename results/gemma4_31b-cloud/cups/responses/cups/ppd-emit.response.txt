@@ -1,0 +1,19 @@
+1. File: cups\ppd-emit.c
+2. Name of the function containing the vulnerability: ppdEmitString
+3. Vulnerability type / CWE: Buffer Overflow (CWE-122 / CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+      if (choices[i]->code && choices[i]->code[0])
+      {
+        j = (int)strlen(choices[i]->code);
+	memcpy(bufptr, choices[i]->code, (size_t)j);
+	bufptr += j;
+
+	if (choices[i]->code[j - 1] != '\n')
+	  *bufptr++ = '\n';
+      }
+```
+5. A concise explanation of why it is vulnerable:
+The function `ppdEmitString` calculates a `bufsize` to allocate a buffer, but it performs the calculation based on the initial state of the `ppd` object. However, during the actual emission loop, it uses `memcpy` to copy `choices[i]->code` into the buffer without verifying that the current `bufptr` has enough remaining space before `bufend`. Since `choices[i]->code` is derived from the PPD file (which can be user-supplied or modified), a maliciously crafted PPD file can provide a `code` string that exceeds the pre-calculated buffer size, leading to a heap-based buffer overflow. Additionally, the logic for adding a newline (`*bufptr++ = '\n'`) occurs after the `memcpy` without checking if `bufptr` has reached `bufend`.
+
+6. Severity rating: High

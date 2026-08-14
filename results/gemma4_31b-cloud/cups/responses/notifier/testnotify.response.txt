@@ -1,0 +1,10 @@
+1. File: notifier\testnotify.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: Out-of-bounds Read / Null Pointer Dereference (CWE-119 / CWE-476)
+4. The relevant vulnerable code snippet:
+```c
+    if (!strcmp(argv[1], "testnotify://nowait"))
+      return (0);
+```
+5. A concise explanation of why it is vulnerable: The program accesses `argv[1]` without first checking if `argc` is greater than 1. If the program is executed without any command-line arguments, `argv[1]` will be NULL, causing `strcmp` to dereference a null pointer and crash the application.
+6. Severity rating: Medium

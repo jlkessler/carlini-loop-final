@@ -1,0 +1,25 @@
+1. File: test\cpgbenchzc.c
+2. Name of the function containing the vulnerability: cpg_benchmark
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+static void cpg_benchmark (
+	cpg_handle_t handle,
+	int write_size)
+{
+    ...
+    cpg_zcb_alloc (handle, 500000, &data);
+    if (res != CS_OK) {
+        printf ("cpg_zcb_alloc couldn't allocate zero copy buffer %d\n", res);
+        exit (1);
+    }
+    ...
+    for (i = 0; i < 50; i++) { /* number of repetitions - up to 50k */
+        cpg_benchmark (handle, size);
+        size += 1000;
+    }
+```
+5. The vulnerability exists because the code uses a fixed-size buffer allocation of 500000 bytes via `cpg_zcb_alloc`, but then iteratively increases `size` by 1000 bytes in each loop iteration up to 50 iterations (totaling up to 50000 bytes). However, the actual `write_size` parameter passed to `cpg_benchmark` can exceed the buffer size allocated at initialization. If `size` becomes larger than the allocated buffer size (500000 bytes), a buffer overflow will occur when writing data with `cpg_zcb_mcast_joined`. Additionally, since `size` is incremented without bounds checking and could potentially exceed the maximum value for an int, it's also vulnerable to integer overflow.
+6. Severity rating: Critical
+
+The vulnerability is critical because it can lead to arbitrary code execution through buffer overflow when writing data that exceeds the allocated zero-copy buffer size. This allows an attacker to overwrite memory and potentially execute malicious code. The integer overflow adds to the severity by potentially causing unexpected behavior or bypassing checks.

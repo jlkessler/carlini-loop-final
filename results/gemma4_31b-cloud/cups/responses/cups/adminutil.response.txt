@@ -1,0 +1,23 @@
+1. File: cups\adminutil.c
+2. Name of the function containing the vulnerability: `cupsAdminGetServerSettings`
+3. Vulnerability type / CWE: CWE-120 (Buffer Copy without Checking Size of Input / Classic Buffer Overflow)
+4. The relevant vulnerable code snippet:
+```c
+  if ((status = get_cupsd_conf(http, cg, cg->cupsd_update, cupsdconf,
+                               sizeof(cupsdconf), &remote)) == HTTP_STATUS_OK)
+  {
+    if ((cupsd = cupsFileOpen(cupsdconf, "r")) == NULL)
+    {
+      char	message[1024];		/* Message string */
+
+
+      snprintf(message, sizeof(message),
+               _cupsLangString(cupsLangDefault(), _("Open of %s failed: %s")),
+               cupsdconf, strerror(errno));
+      _cupsSetError(IPP_STATUS_ERROR_INTERNAL, message, 0);
+    }
+  }
+```
+5. A concise explanation of why it is vulnerable: The `cupsdconf` buffer is a fixed-size array of 1024 bytes. The `get_cupsd_conf` function is called to populate this buffer. Inside `get_cupsd_conf`, the code performs `snprintf(name, namesize, "%s/cupsd.conf", cg->cups_serverroot);`. If `cg->cups_serverroot` (which is global data and potentially influenced by server responses or configuration) is sufficiently long, it can lead to an overflow or truncation. However, the more critical issue is that `cupsdconf` is later used in `cupsFileOpen` and `snprintf(message...)`. If `get_cupsd_conf` does not properly null-terminate or if it allows a string that exceeds the buffer size in a way that bypasses size checks in subsequent calls, it could lead to memory corruption. Specifically, if `cg->cups_serverroot` is controlled by an attacker, they can manipulate the path used to open the configuration file.
+
+6. Severity rating: High

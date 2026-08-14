@@ -1,0 +1,20 @@
+1. File: cgi-bin\template.c
+2. Name of the function containing the vulnerability: `cgiCopyTemplateLang`
+3. Vulnerability type / CWE: Path Traversal (CWE-22)
+4. The relevant vulnerable code snippet:
+```c
+  snprintf(filename, sizeof(filename), "%s%s/%s", directory, locale, tmpl);
+  if ((in = fopen(filename, "r")) == NULL)
+  {
+    locale[3] = '\0';
+
+    snprintf(filename, sizeof( filename), "%s%s/%s", directory, locale, tmpl);
+    if ((in = fopen(filename, "r")) == NULL)
+    {
+      snprintf(filename, sizeof(filename), "%s/%s", directory, tmpl);
+      in = fopen(filename, "r");
+    }
+  }
+```
+5. A concise explanation of why it is vulnerable: The function `cgiCopyTemplateLang` takes a `tmpl` argument (which likely comes from user-controlled input in a CGI context) and uses it to construct a file path via `snprintf`. There is no validation or sanitization of the `tmpl` string to check for directory traversal sequences (e.g., `../`). An attacker could provide a `tmpl` value like `../../../../etc/passwd` to read arbitrary files from the server's filesystem.
+6. Severity rating: High

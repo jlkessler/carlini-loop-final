@@ -1,0 +1,25 @@
+1. File: cups\ipp-vars.c
+2. Name of the function containing the vulnerability: `_ippVarsExpand`
+3. Vulnerability type / CWE: Off-by-one Error / Buffer Overflow (CWE-193)
+4. The relevant vulnerable code snippet:
+```c
+  dstptr = dst;
+  dstend = dst + dstsize - 1;
+
+  while (*src && dstptr < dstend)
+  {
+    // ... internal logic ...
+      if (value)
+      {
+        strlcpy(dstptr, value, (size_t)(dstend - dstptr + 1));
+	dstptr += strlen(dstptr);
+      }
+    // ...
+  }
+
+  *dstptr = '\0';
+```
+5. A concise explanation of why it is vulnerable:
+The loop condition `dstptr < dstend` ensures that the loop continues as long as `dstptr` has not reached the last byte of the buffer (`dstend` is defined as `dst + dstsize - 1`). However, when a variable is expanded, `strlcpy` is called with a size of `dstend - dstptr + 1`. If `dstptr` is exactly one byte before `dstend`, `strlcpy` can write up to 2 bytes (the character and the null terminator). Since `dstptr` is then incremented by `strlen(dstptr)`, it is possible for `dstptr` to be incremented to exactly `dstend + 1` (the first byte beyond the allocated buffer). The final line `*dstptr = '\0';` then writes a null byte outside the bounds of the destination buffer.
+
+6. Severity rating: Medium

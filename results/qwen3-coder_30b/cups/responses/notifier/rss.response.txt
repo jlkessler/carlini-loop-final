@@ -1,0 +1,40 @@
+1. File: notifier\rss.c
+2. Name of the function containing the vulnerability: `load_rss`
+3. Vulnerability type / CWE: CWE-122 - Heap Overflow / CWE-787 - Out of Bounds Write
+4. The relevant vulnerable code snippet:
+```c
+while (fgets(line, sizeof(line), fp))
+{
+  // ... code ...
+  else if ((start = strstr(line, "<title>")) != NULL)
+  {
+    start += 7;
+    if ((end = strstr(start, "</title>")) != NULL)
+    {
+      *end    = '\0';
+      subject = strdup(start);
+    }
+  }
+  // ... more similar code for description, link, etc. ...
+}
+```
+5. The vulnerability exists because `fgets` reads up to `sizeof(line)-1` characters into `line`, but there's no bounds checking when copying data from the parsed XML elements (like `<title>`, `<description>`, etc.) into dynamically allocated strings via `strdup`. If an attacker can control the input RSS file, they can cause a heap overflow by creating very long XML elements that exceed the buffer size limits during parsing. Specifically, the `start` pointer after `strstr` may point to data that extends beyond the bounds of the allocated `subject`, `text`, or `link_url` strings if not properly validated.
+
+6. Severity rating: HIGH
+
+The vulnerability allows for potential heap-based buffer overflow when processing untrusted RSS input, which could lead to arbitrary code execution or denial of service. The parser does not validate the length of XML elements before copying them into dynamically allocated memory, making it susceptible to attacker-controlled inputs that can cause memory corruption.
+
+However, upon closer inspection, there is a more direct and serious vulnerability:
+
+1. File: notifier\rss.c
+2. Name of the function containing the vulnerability: `main`
+3. Vulnerability type / CWE: CWE-78 - Command Injection / CWE-122 - Heap Overflow
+4. The relevant vulnerable code snippet:
+```c
+snprintf(filename, sizeof(filename), "%s/rss%s", cachedir, resource);
+```
+5. The vulnerability exists because the `resource` parameter (which comes from the URI parsing) is directly used in `snprintf` without sanitization. If an attacker can control the URI passed to the notifier (as would be possible if they control a printer that uses this RSS notifier), they could potentially inject malicious content into the filename string, leading to command injection or directory traversal attacks.
+
+6. Severity rating: CRITICAL
+
+The vulnerability allows for command injection through the `resource` parameter in the URI, which is directly used in `snprintf` without proper sanitization, allowing an attacker to inject malicious paths and potentially execute arbitrary commands on the system.

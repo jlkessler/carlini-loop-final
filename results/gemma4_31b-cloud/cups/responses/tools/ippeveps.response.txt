@@ -1,0 +1,20 @@
+1. File: tools\ippeveps.c
+2. Name of the function containing the vulnerability: `ascii85`
+3. Vulnerability type / CWE: Heap-based Buffer Overflow (CWE-122) / Out-of-bounds Write
+4. The relevant vulnerable code snippet:
+```c
+  if (length > 0)
+  {
+    // Copy any remainder into the leftdata array...
+    if (length > leftcount)
+      memcpy(leftdata + leftcount, data, (size_t)(length - leftcount));
+
+    memset(leftdata + length, 0, (size_t)(4 - length));
+
+    leftcount = length;
+  }
+```
+5. A concise explanation of why it is vulnerable:
+The `leftdata` array is a static buffer of size 4. The `ascii85` function maintains a `leftcount` of bytes remaining from the previous call. In the remainder handling block, the code checks `if (length > leftcount)` and performs a `memcpy` into `leftdata + leftcount`. However, it does not verify if the total resulting length (`leftcount + (length - leftcount)`, which simplifies to `length`) exceeds the buffer size of 4. If `length` is greater than 4, `memcpy` and the subsequent `memset` will write past the end of the `leftdata` array, leading to a buffer overflow on the data segment (static memory).
+
+6. Severity rating: High

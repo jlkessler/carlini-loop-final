@@ -1,0 +1,18 @@
+1. File: cups\dest.c
+2. Name of the function containing the vulnerability: `cups_dnssd_query_cb`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+char		key[256],	/* Key string */
+		value[256],	/* Value string */
+		make_and_model[512],
+				/* Manufacturer and model */
+		model[256],	/* Model */
+		uriname[1024],	/* Name for URI */
+		uri[1024];	/* Printer URI */
+```
+5. The vulnerability occurs because the code uses `strlcpy` to copy data from untrusted TXT record data into fixed-size buffers without sufficient bounds checking. When processing TXT records, the code reads key/value pairs and copies them directly into these fixed buffers (`key`, `value`, `make_and_model`, `model`, `uriname`, `uri`) without verifying that the source data will fit within the buffer limits, allowing potential overflow if the TXT record contains very long keys or values.
+
+6. Severity rating: Critical
+
+This vulnerability could allow an attacker to cause a buffer overflow when processing specially crafted Bonjour TXT records, potentially leading to arbitrary code execution, especially since this occurs in network discovery functionality that processes external data from printers on the network.

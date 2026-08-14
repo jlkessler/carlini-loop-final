@@ -1,0 +1,16 @@
+1. File: ppdc\ppdmerge.cxx
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-476: NULL Pointer Dereference
+4. The relevant vulnerable code snippet:
+```cpp
+	if ((co = ppdFindCustomOption(ppd, o->keyword)) != NULL)
+	{
+	  snprintf(line, sizeof(line), "Custom%s", o->keyword);
+	  attr = ppdFindAttr(ppd, line, "True");
+	  cupsFilePrintf(outfile, "*%s.Custom%s True/%s: \"\"\n", locale,
+			 o->keyword, attr->text);
+```
+5. A concise explanation of why it is vulnerable:
+The code calls `ppdFindAttr(ppd, line, "True")` and immediately accesses `attr->text` in the following `cupsFilePrintf` call without checking if `ppdFindAttr` returned `NULL`. If a PPD file contains a custom option but is missing the corresponding attribute that `ppdFindAttr` is searching for, the program will dereference a null pointer and crash.
+
+6. Severity rating: medium

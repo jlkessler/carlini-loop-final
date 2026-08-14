@@ -1,0 +1,18 @@
+1. File: cups\encode.c
+2. Name of the function containing the vulnerability: `_cupsEncodeOption`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120) / Memory Corruption
+4. The relevant vulnerable code snippet:
+```c
+      else if (*sep == '\\' && sep[1])
+	{
+	 /*
+	  * Skip quoted character...
+	  */
+
+	  memmove(sep, sep + 1, strlen(sep));
+	}
+```
+5. A concise explanation of why it is vulnerable:
+The code uses `memmove` to remove a backslash escape character by shifting the remaining string one position to the left. However, `strlen(sep)` calculates the length of the string starting from the current position `sep`. `memmove` expects the number of bytes to copy. By copying `strlen(sep)` bytes from `sep + 1` to `sep`, the function writes one byte beyond the end of the allocated buffer (the null terminator is shifted, but `memmove` copies the total length including the null terminator from a source that is effectively `strlen(sep) + 1` bytes long). More critically, if `val` points to the original `value` string (which happens when `count == 1`), the code performs a write operation on a string that might be in read-only memory or not intended to be modified, leading to a crash or potential memory corruption. If `copy` was used, it results in an off-by-one write.
+
+6. Severity rating: High

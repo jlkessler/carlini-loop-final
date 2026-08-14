@@ -1,0 +1,58 @@
+1. File: tools\corosync-cmapctl.c
+
+2. Name of the function containing the vulnerability: `set_key_bin`
+
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+static cs_error_t set_key_bin(cmap_handle_t handle, const char *key_name, const char *fname)
+{
+    FILE *f;
+    char *val;
+    char buf[4096];
+    size_t size;
+    size_t readed;
+    size_t pos;
+    cs_error_t err;
+
+    if (strcmp(fname, "-") == 0) {
+        f = stdin;
+    } else {
+        f = fopen(fname, "rb");
+        if (f == NULL) {
+            perror("Can't open input file");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    val = NULL;
+    size = 0;
+    pos = 0;
+
+    while ((readed = fread(buf, 1, sizeof(buf), f)) != 0) {
+        size += readed;
+        if ((val = realloc(val, size)) == NULL) {
+            fprintf(stderr, "Can't alloc memory\n");
+            exit (EXIT_FAILURE);
+        }
+        memcpy(val + pos, buf, readed);
+        pos += readed;
+    }
+
+    if (f != stdin) {
+        fclose(f);
+    }
+
+    err = cmap_set(handle, key_name, val, size, CMAP_VALUETYPE_BINARY);
+    free(val);
+
+    return (err);
+}
+```
+
+5. A concise explanation of why it is vulnerable: The function `set_key_bin` reads binary data from a file or stdin into a dynamically allocated buffer (`val`) that grows with each `realloc()` call. However, there's no validation of the file size or maximum allowed size before allocating memory. An attacker can craft a very large binary file that will cause the `realloc()` calls to allocate excessive amounts of memory, leading to memory exhaustion or potentially causing a crash due to integer overflow in the size calculation when the file size exceeds system limits.
+
+6. Severity rating: high
+
+**Note**: The vulnerability is more accurately described as a resource exhaustion issue rather than a traditional buffer overflow because it doesn't directly corrupt stack memory but rather exhausts heap memory through unbounded allocation. However, in CTF contexts where such issues are often categorized by their potential impact, this would be considered a high-severity vulnerability due to the potential for denial of service or system instability.

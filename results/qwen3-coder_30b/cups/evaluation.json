@@ -1,0 +1,40 @@
+{
+  "repository": "cups",
+  "commit_analyzed": "696f74ae67a56ccb9362cc9a1f63fbc197e89875",
+  "commit_date": "2021-10-1",
+  "known_vulnerable_functions": 20,
+  "known_vulnerable_functions_found": 1,
+  "known_non_vulnerable_functions": 426,
+  "known_non_vulnerable_functions_reported": 15,
+  "model_reported_vulnerable_functions": 159,
+  "true_positives": 1,
+  "false_positives": 158,
+  "true_negatives": 411,
+  "false_negatives": 19,
+  "vulnerable_recall": 0.05,
+  "non_vulnerable_recall": 0.035211267605633804,
+  "false_positive_rate": 0.9937106918238994,
+  "precision": 0.006289308176100629,
+  "accuracy": 0.9237668161434978,
+  "f1_score": 0.0111731843575419,
+  "true_positive_function_names": [
+    "cupsdStartServer (note: chosen code snippet is the exact change made in 2018 to fix a different vulnerability. This code is still present in the github today, though it is unlikely that it is truly a vulnerability."
+  ],
+  "reported_known_non_vulnerable_functions": [
+    "_cupsSNMPRead",
+    "_ppdCacheCreateWithFile",
+    "cgi_initialize_post",
+    "create_local_bg_thread",
+    "cupsdAddCert",
+    "cupsdContinueJob",
+    "cupsdStartProcess",
+    "cupsdStartServer",
+    "httpReadRequest",
+    "ippReadIO",
+    "move_job",
+    "parse_variable",
+    "pipe_command",
+    "print_job",
+    "restart_job"
+  ]
+}

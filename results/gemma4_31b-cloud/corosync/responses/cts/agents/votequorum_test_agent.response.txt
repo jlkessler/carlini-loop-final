@@ -1,0 +1,13 @@
+1. File: cts\agents\votequorum_test_agent.c
+2. Name of the function containing the vulnerability: do_command
+3. Vulnerability type / CWE: Null Pointer Dereference (CWE-476)
+4. The relevant vulnerable code snippet:
+```c
+	} else if (strcmp ("votequorum_setvotes", func) == 0) {
+		setvotes (sock, args[0]);
+	} else if (strcmp ("votequorum_setexpected", func) == 0) {
+		setexpected (sock, args[0]);
+	}
+```
+5. A concise explanation of why it is vulnerable: The `do_command` function accepts an array of arguments (`args`). When the `func` is "votequorum_setvotes" or "votequorum_setexpected", the code directly accesses `args[0]` and passes it to the respective helper functions. There is no check to ensure that `num_args` is greater than 0 or that `args` is not NULL. If a client sends an RPC request for these functions without providing any arguments, the program will dereference a NULL or invalid pointer, leading to a crash (Denial of Service).
+6. Severity rating: Medium

@@ -1,0 +1,17 @@
+1. File: scheduler\testlpd.c
+2. Name of the function containing the vulnerability: `print_job`
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+snprintf(control, sizeof(control),
+         "Hlocalhost\n"
+         "P%s\n"
+         "J%s\n"
+         "ldfA%03dlocalhost\n"
+         "UdfA%03dlocalhost\n"
+         "N%s\n",
+	 cupsUser(), jobname, sequence, sequence, jobname);
+```
+5. The vulnerability exists because `cupsUser()` and `jobname` are directly passed to `snprintf()` without any length checking. If these strings are longer than the allocated buffer size (1024 bytes), it will cause a stack buffer overflow, potentially allowing for arbitrary code execution or crash.
+
+6. Severity rating: critical

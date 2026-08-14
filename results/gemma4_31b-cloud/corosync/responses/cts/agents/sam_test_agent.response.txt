@@ -1,0 +1,18 @@
+1. File: cts\agents\sam_test_agent.c
+2. Name of the function containing the vulnerability: do_command
+3. Vulnerability type / CWE: CWE-120 (Buffer Copy without Checking Size of Input) / Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+	if (err == 0) {
+		snprintf (response, 100, "%s", OK_STR);
+	} else if (err == 1) {
+		snprintf (response, 100, "%s", FAIL_STR);
+		qb_log (LOG_ERR, "%s() test skipped?! (%d).", func, err);
+	} else {
+		snprintf (response, 100, "%s", FAIL_STR);
+		qb_log (LOG_ERR, "%s() failed (%d).", func, err);
+	}
+```
+5. A concise explanation of why it is vulnerable: The `do_command` function takes a `char* func` argument from the network socket (via the RPC mechanism). This `func` string is passed directly into `qb_log` using the `%s` format specifier. While the `snprintf` calls are safe, the `qb_log` calls are vulnerable to a format string attack if the logging implementation uses `printf`-style formatting internally and the input is not sanitized. More critically, the code blindly trusts the length of `func` provided by the remote caller. If `func` is an extremely long string, it may cause issues in the logging subsystem or subsequent processing. However, the most immediate risk is that `func` is used in `qb_log` without validation, which often leads to Format String vulnerabilities if the underlying logger doesn't handle the string as a literal.
+
+6. Severity rating: High

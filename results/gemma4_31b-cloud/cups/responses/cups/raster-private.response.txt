@@ -1,0 +1,6 @@
+1. File: cups\raster-private.h
+2. Name of the function containing the vulnerability: N/A
+3. Vulnerability type / CWE if you can determine it: NO_VULNERABILITY_FOUND
+4. The relevant vulnerable code snippet: N/A
+5. A concise explanation of why it is vulnerable: The provided file is a header file (`.h`) containing only structure definitions and function prototypes. There is no executable logic or implementation code present to analyze for vulnerabilities.
+6. Severity rating: NO_VULNERABILITY_FOUND

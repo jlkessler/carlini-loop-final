@@ -1,0 +1,12 @@
+1. File: libass\ass_cache_template.h
+2. Name of the function containing the vulnerability: `outline_bitmap_compare` (in the comparison function generation)
+3. Vulnerability type / CWE: CWE-476 NULL Pointer Dereference
+4. The relevant vulnerable code snippet:
+```c
+#define STRING(member) \
+    strcmp(a->member, b->member) == 0 &&
+```
+5. A concise explanation of why it is vulnerable: In the `CREATE_COMPARISON_FUNCTIONS` section, when generating comparison functions for structures containing `STRING(member)` fields (like `text` in `clip_bitmap_hash_key`), the code directly calls `strcmp(a->member, b->member)` without checking if either `a->member` or `b->member` is NULL. If a string field is NULL, this will cause a segmentation fault or crash.
+6. Severity rating: HIGH
+
+The vulnerability occurs because the generated comparison functions do not perform null checks before calling `strcmp()`, which can lead to a crash when comparing hash keys that contain NULL string pointers. This could be exploited in a denial-of-service attack or potentially used as part of a larger exploitation chain if combined with other vulnerabilities.

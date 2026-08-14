@@ -1,0 +1,43 @@
+1. File: exec\totemip.c
+2. Name of the function containing the vulnerability: totemip_parse
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+int totemip_parse(struct totem_ip_address *totemip, const char *addr, int family)
+{
+    struct addrinfo *ainfo;
+    struct addrinfo ahints;
+    struct sockaddr_in *sa;
+    struct sockaddr_in6 *sa6;
+    int ret;
+
+    memset(&ahints, 0, sizeof(ahints));
+    ahints.ai_socktype = SOCK_DGRAM;
+    ahints.ai_protocol = IPPROTO_UDP;
+    ahints.ai_family   = family;
+
+    /* Lookup the nodename address */
+    ret = getaddrinfo(addr, NULL, &ahints, &ainfo);
+    if (ret)
+        return -1;
+
+    sa = (struct sockaddr_in *)ainfo->ai_addr;
+    sa6 = (struct sockaddr_in6 *)ainfo->ai_addr;
+    totemip->family = ainfo->ai_family;
+
+    if (ainfo->ai_family == AF_INET)
+        memcpy(totemip->addr, &sa->sin_addr, sizeof(struct in_addr));
+    else
+        memcpy(totemip->addr, &sa6->sin6_addr, sizeof(struct in6_addr));
+
+    freeaddrinfo(ainfo);
+    return 0;
+}
+```
+5. The vulnerability exists because the code assumes that `ainfo->ai_addr` points to a valid `sockaddr_in` or `sockaddr_in6` structure based on `ainfo->ai_family`. However, there's no validation that the actual address family matches the expected structure size. An attacker could provide an address string that resolves to a different address family than what's expected, leading to incorrect memory copying into `totemip->addr`, which is only large enough for either IPv4 or IPv6 addresses but not both.
+
+Additionally, while the code uses `memcpy` with appropriate sizes for each family type, if `getaddrinfo` returns an unexpected structure (e.g., due to malformed input), it could lead to buffer overflows or undefined behavior when copying data into `totemip->addr`.
+
+6. Severity rating: HIGH
+
+The vulnerability allows for potential buffer overflow or memory corruption through crafted address inputs that can cause denial of service or arbitrary code execution, especially if the application does not properly validate or sanitize inputs before calling this function.

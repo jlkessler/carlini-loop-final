@@ -1,0 +1,6 @@
+1. File: libass\ass_fontconfig.h
+2. Name of the function containing the vulnerability: N/A
+3. Vulnerability type / CWE: N/A
+4. The relevant vulnerable code snippet: N/A
+5. A concise explanation of why it is vulnerable: The provided file is a header file containing only a function declaration. There is no implementation logic present in this file that could contain a vulnerability.
+6. Severity rating: NO_VULNERABILITY_FOUND

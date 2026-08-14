@@ -1,0 +1,14 @@
+1. File: scheduler\cupsfilter.c
+2. Name of the function containing the vulnerability: `add_printer_filter`
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+    ptr ++;
+    while (_cups_isspace(*ptr))
+      ptr ++;
+
+    _cups_strcpy(program, ptr);
+```
+5. A concise explanation of why it is vulnerable:
+The function `add_printer_filter` parses filter strings from a PPD file. It uses `sscanf` to extract a `program` string into a buffer of 1024 bytes. However, if the program string starts with `"maxsize("`, the code calculates a size, moves the pointer `ptr` past the `maxsize(...)` portion, and then calls `_cups_strcpy(program, ptr)`. `_cups_strcpy` is a wrapper for `strcpy`, which does not check the length of the source string. If the PPD file contains a specially crafted filter string where the remaining program path exceeds 1024 bytes, it will result in a stack-based buffer overflow.
+6. Severity rating: High

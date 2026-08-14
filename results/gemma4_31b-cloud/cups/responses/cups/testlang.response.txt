@@ -1,0 +1,14 @@
+1. File: cups\testlang.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-15: External Control of System or Configuration Option (Environment Variable Injection)
+4. The relevant vulnerable code snippet:
+```c
+		language  = cupsLangGet(argv[i]);
+		language2 = cupsLangGet(argv[i]);
+
+		setenv("LANG", argv[i], 1);
+		setenv("SOFTWARE", "CUPS/" CUPS_SVERSION, 1);
+		break;
+```
+5. A concise explanation of why it is vulnerable: The program takes a command-line argument provided by the user (`argv[i]`) and passes it directly to `setenv` to set the `LANG` environment variable. If this utility is run with elevated privileges or as part of a larger system process, an attacker can manipulate environment variables to influence the behavior of the process or subsequent child processes, potentially leading to privilege escalation or altering program execution flow via locale-specific vulnerabilities.
+6. Severity rating: medium

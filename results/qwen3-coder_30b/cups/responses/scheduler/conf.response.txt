@@ -1,0 +1,36 @@
+1. File: scheduler\conf.c
+2. Name of the function containing the vulnerability: `parse_variable`
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+case CUPSD_VARTYPE_PATHNAME :
+	if (!value)
+	{
+	  cupsdLogMessage(CUPSD_LOG_ERROR,
+			  "Missing pathname value for %s on line %d of %s.",
+			  line, linenum, filename);
+	  return (0);
+	}
+
+	if (value[0] == '/')
+	  strlcpy(temp, value, sizeof(temp));
+	else
+	  snprintf(temp, sizeof(temp), "%s/%s", ServerRoot, value);
+
+	if (access(temp, 0) && _cups_strcasecmp(value, "internal") && _cups_strcasecmp(line, "ServerKeychain"))
+	{
+	  cupsdLogMessage(CUPSD_LOG_ERROR,
+			  "File or directory for \"%s %s\" on line %d of %s "
+			  "does not exist.", line, value, linenum, filename);
+	  return (0);
+	}
+
+	cupsdSetString((char **)var->ptr, temp);
+	break;
+```
+
+5. This vulnerability exists in the `parse_variable` function when handling `CUPSD_VARTYPE_PATHNAME` type variables. The code uses `snprintf(temp, sizeof(temp), "%s/%s", ServerRoot, value)` to construct a path, but it doesn't properly validate that the combined length of `ServerRoot` and `value` will fit within the `temp` buffer. If `ServerRoot` is very long or `value` is very long, this could result in a buffer overflow.
+
+6. Severity rating: high
+
+The vulnerability occurs because the code constructs a path by concatenating `ServerRoot` and `value` without proper bounds checking, potentially leading to stack buffer overflow when the combined length exceeds `sizeof(temp)` (1024 bytes). This could allow an attacker to overwrite adjacent stack memory and potentially execute arbitrary code.

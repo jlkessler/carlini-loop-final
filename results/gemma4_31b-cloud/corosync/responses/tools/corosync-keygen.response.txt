@@ -1,0 +1,28 @@
+1. File: tools\corosync-keygen.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-377: Insecure Temporary File / Insecure File Permissions (Race Condition)
+4. The relevant vulnerable code snippet:
+```c
+	/*
+	 * Open key
+	 */
+	authkey_fd = open (KEYFILE, O_CREAT|O_WRONLY, 600);
+	if (authkey_fd == -1) {
+		perror ("Could not create " KEYFILE);
+		exit (errno);
+	}
+	/*
+	 * Set security of authorization key to uid = 0 gid = 0 mode = 0400
+	 */
+	res = fchown (authkey_fd, 0, 0);
+	if (res == -1) {
+		perror ("Could not fchown key to uid 0 and gid 0\n");
+		exit (errno);
+	}
+	if (fchmod (authkey_fd, 0400)) {
+		perror ("Failed to set key file permissions to 0400\n");
+		exit (errno);
+	}
+```
+5. A concise explanation of why it is vulnerable: The program creates the authentication key file with permissions `0600` (read/write for owner) and then subsequently changes the permissions to `0400` (read-only for owner) using `fchmod`. There is a small window of time between the `open` call and the `fchmod` call where the file exists with write permissions. More importantly, if the file `KEYFILE` already exists, `open(KEYFILE, O_CREAT|O_WRONLY, 600)` will open the existing file without verifying its ownership or current permissions. If a malicious actor can create a symbolic link at the `KEYFILE` location before the root user runs this tool, the tool will follow the link and overwrite an arbitrary file on the system with the generated key, or overwrite a target file with root privileges.
+6. Severity rating: High

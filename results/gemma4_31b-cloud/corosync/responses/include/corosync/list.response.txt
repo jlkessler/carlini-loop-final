@@ -1,0 +1,23 @@
+1. File: include\corosync\list.h
+2. Name of the function containing the vulnerability: `list_splice`
+3. Vulnerability type / CWE: CWE-476: NULL Pointer Dereference / Improper Handling of Exceptional Conditions
+4. The relevant vulnerable code snippet:
+```c
+static inline void list_splice (struct list_head *list, struct list_head *head)
+{
+	struct list_head *first;
+	struct list_head *last;
+	struct list_head *current;
+
+	first = list->next;
+	last = list->prev;
+	current = head->next;
+
+	first->prev = head;
+	head->next = first;
+	last->next = current;
+	current->prev = last;
+}
+```
+5. A concise explanation of why it is vulnerable: The `list_splice` function does not check if the `list` being spliced is empty before attempting to access its members. If `list` is initialized as an empty list (where `list->next == list` and `list->prev == list`), the logic superficially works. However, if the `list` pointer itself is NULL, it leads to an immediate crash. More critically, the implementation assumes that both `list` and `head` are valid, non-empty, and distinct. If `list` is empty, it effectively splices the head list into itself in a way that can corrupt the circular linked list structure, leading to infinite loops or crashes during subsequent list traversals.
+6. Severity rating: Medium

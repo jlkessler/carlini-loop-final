@@ -1,0 +1,20 @@
+1. File: cups\dest.c
+2. Name of the function containing the vulnerability: `cups_dnssd_query_cb`
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+      if (txt < txtnext && *txt == '=')
+      {
+	txt ++;
+
+	if (txt < txtnext)
+	  memcpy(value, txt, (size_t)(txtnext - txt));
+	value[txtnext - txt] = '\0';
+
+	DEBUG_printf(("6cups_dnssd_query_cb: %s=%s", key, value));
+      }
+```
+5. A concise explanation of why it is vulnerable:
+The function `cups_dnssd_query_cb` processes DNS-SD TXT records. While the code contains a comment claiming that buffers are safe because the length is 8 bits, it fails to actually validate the distance between `txt` and `txtnext` against the size of the `value` buffer (256 bytes). An attacker providing a maliciously crafted DNS-SD response can set a `txtlen` that, when combined with the current pointer position, results in a `memcpy` that overflows the `value` stack buffer. This can lead to a stack-based buffer overflow, potentially allowing for arbitrary code execution.
+
+6. Severity rating: critical

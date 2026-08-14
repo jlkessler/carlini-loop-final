@@ -1,0 +1,30 @@
+1. File: backend\usb-unix.c
+2. Name of the function containing the vulnerability: `open_device`
+3. Vulnerability type / CWE: CWE-20 - Improper Input Validation
+4. The relevant vulnerable code snippet:
+```c
+if (!strncmp(uri, "usb:/dev/", 9))
+#ifdef __linux
+  {
+   /*
+    * Do not allow direct devices anymore...
+    */
+
+    errno = ENODEV;
+    return (-1);
+  }
+```
+5. The vulnerability exists because the code checks if a URI starts with "usb:/dev/" and immediately returns an error (ENODEV) without properly validating or sanitizing the input. This allows potential attackers to bypass restrictions by crafting malicious URIs that could lead to unintended device access or privilege escalation.
+6. Severity rating: HIGH
+
+However, upon deeper inspection, this appears to be a protection mechanism rather than a vulnerability itself. The actual vulnerability may lie elsewhere in the codebase or in how the URI is processed before reaching this function.
+
+Let me reconsider - looking more carefully at the `open_device` function:
+
+The real vulnerability is in the Linux-specific handling where the function tries to find devices by iterating through multiple possible device paths without proper input validation on the URI. If an attacker can control the URI parameter, they could potentially cause unexpected behavior or resource exhaustion.
+
+Actually, re-examining the code more carefully:
+
+There's no direct vulnerability in the shown code segments that would be exploitable as described. The checks for "usb:/dev/" and "usb://" URIs are intended security measures.
+
+NO_VULNERABILITY_FOUND

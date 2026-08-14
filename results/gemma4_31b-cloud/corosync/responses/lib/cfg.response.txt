@@ -1,0 +1,18 @@
+1. File: lib\cfg.c
+2. Name of the function containing the vulnerability: `corosync_cfg_ring_status_get`
+3. Vulnerability type / CWE: Integer Overflow leading to Heap-based Buffer Overflow (CWE-190 / CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+	*interface_count = res_lib_cfg_ringstatusget.interface_count;
+	*interface_names = malloc (sizeof (char *) * *interface_count);
+	if (*interface_names == NULL) {
+		return (CS_ERR_NO_MEMORY);
+	}
+	memset (*interface_names, 0, sizeof (char *) * *interface_count);
+
+	*status = malloc (sizeof (char *) * *interface_count);
+```
+5. A concise explanation of why it is vulnerable:
+The function uses `res_lib_cfg_ringstatusget.interface_count`, which is received from an IPC response (untrusted input), to calculate the size of memory to allocate via `malloc`. Because `interface_count` is an `unsigned int`, a very large value can cause an integer overflow during the multiplication `sizeof(char *) * *interface_count`. This results in a small memory allocation. Subsequent loops then iterate up to `res_lib_cfg_ringstatusget.interface_count` times, writing pointers into the undersized buffers, leading to a heap-based buffer overflow.
+
+6. Severity rating: Critical

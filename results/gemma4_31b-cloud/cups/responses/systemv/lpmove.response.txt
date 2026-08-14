@@ -1,0 +1,10 @@
+1. File: systemv\lpmove.c
+2. Name of the function containing the vulnerability: move_job
+3. Vulnerability type / CWE: Format String Vulnerability (CWE-134) / Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+  httpAssembleURIf(HTTP_URI_CODING_ALL, printer_uri, sizeof(printer_uri),
+                   "ipp", NULL, "localhost", 0, "/printers/%s", dest);
+```
+5. A concise explanation of why it is vulnerable: The `httpAssembleURIf` function is used to build a URI. The `dest` variable is sourced directly from the command-line arguments (`argv`) without any validation or sanitization. If `httpAssembleURIf` internally uses a `printf`-style function to handle the format string `"/printers/%s"`, and `dest` contains format specifiers, it could lead to a format string attack. More critically, if the length of the input `dest` combined with the prefix exceeds `HTTP_MAX_URI`, and the internal implementation of `httpAssembleURIf` does not strictly respect the `sizeof(printer_uri)` boundary during the actual concatenation of the `%s` argument, it can lead to a stack-based buffer overflow.
+6. Severity rating: High

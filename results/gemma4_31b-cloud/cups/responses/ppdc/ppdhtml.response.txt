@@ -1,0 +1,19 @@
+1. File: ppdc\ppdhtml.cxx
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: Cross-Site Scripting (XSS) / CWE-79
+4. The relevant vulnerable code snippet:
+```cpp
+    puts("<html>");
+    printf("<head><title>Driver Summary for %s</title></head>\n", argv[i]);
+    printf("<body><h1>Driver Summary for %s</h1>\n", argv[i]);
+    // ...
+    printf("<tr valign='top'><td nowrap>%s</td><td nowrap>", d->model_name->value);
+    // ...
+    printf("%s<br>", size->text->value);
+    // ...
+    printf("%s<br>", c->text->value);
+```
+5. A concise explanation of why it is vulnerable:
+The program takes input from command-line arguments (`argv[i]`) and parsed PPD file data (`d->model_name->value`, `size->text->value`, and `c->text->value`) and embeds them directly into an HTML output stream using `printf` without any sanitization or HTML encoding. An attacker can provide a crafted PPD file or a malicious filename that contains HTML tags or JavaScript (e.g., `<script>alert(1)</script>`), leading to Cross-Site Scripting (XSS) when the resulting HTML file is viewed in a web browser.
+
+6. Severity rating: medium

@@ -1,0 +1,6 @@
+1. File: cups\versioning.h
+2. Name of the function containing the vulnerability: N/A (Header file containing macros)
+3. Vulnerability type / CWE if you can determine it: NO_VULNERABILITY_FOUND
+4. The relevant vulnerable code snippet: N/A
+5. A concise explanation of why it is vulnerable: The provided file consists entirely of preprocessor macro definitions used for API versioning, visibility attributes (like `__attribute__ ((visibility("hidden")))`), and compiler-specific annotations (like `deprecated` or `noreturn`). It does not contain any executable logic, memory management, or input handling that could lead to a security vulnerability.
+6. Severity rating: NO_VULNERABILITY_FOUND

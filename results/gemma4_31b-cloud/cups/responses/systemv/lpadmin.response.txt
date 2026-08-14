@@ -1,0 +1,17 @@
+1. File: systemv\lpadmin.c
+2. Name of the function containing the vulnerability: `set_printer_options`
+3. Vulnerability type / CWE: CWE-120 (Buffer Copy without Checking Size of Input / Classic Buffer Overflow)
+4. The relevant vulnerable code snippet:
+```c
+        strlcpy(keyword, line + 8, sizeof(keyword));
+
+	for (keyptr = keyword; *keyptr; keyptr ++)
+	  if (*keyptr == ':' || isspace(*keyptr & 255))
+	    break;
+
+        *keyptr++ = '\0';
+```
+5. A concise explanation of why it is vulnerable:
+The code uses `strlcpy` to copy a line from a PPD file into the `keyword` buffer (size 1024). While `strlcpy` prevents a direct overflow during the copy, the subsequent `for` loop searches for a delimiter (`:` or whitespace) to terminate the keyword. If the input line contains no such delimiter within the first 1023 characters, the loop will continue past the end of the `keyword` buffer until it finds one or hits a null byte in adjacent memory. The line `*keyptr++ = '\0';` then performs an out-of-bounds write, allowing an attacker who can provide a specially crafted PPD file to overwrite stack memory.
+
+6. Severity rating: High

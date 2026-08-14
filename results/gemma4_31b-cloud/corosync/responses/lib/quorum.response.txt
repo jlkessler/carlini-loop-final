@@ -1,0 +1,13 @@
+1. File: lib\quorum.c
+2. Name of the function containing the vulnerability: `quorum_finalize`
+3. Vulnerability type / CWE: Use-After-Free (CWE-416)
+4. The relevant vulnerable code snippet:
+```c
+	quorum_inst->finalize = 1;
+
+	(void)hdb_handle_destroy (&quorum_handle_t_db, handle);
+
+	(void)hdb_handle_put (&quorum_handle_t_db, handle);
+```
+5. A concise explanation of why it is vulnerable: The function calls `hdb_handle_destroy`, which decrements the reference count and potentially frees the `quorum_inst` object if the count reaches zero. Immediately after this call, it calls `hdb_handle_put` using the same `handle`. If `hdb_handle_destroy` already freed the object, `hdb_handle_put` operates on a dangling pointer, leading to a Use-After-Free condition.
+6. Severity rating: High

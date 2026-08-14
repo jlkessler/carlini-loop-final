@@ -1,0 +1,15 @@
+1. File: include\corosync\ipc_cpg.h
+2. Name of the function containing the vulnerability: marshall_from_mar_cpg_name_t
+3. Vulnerability type / CWE: CWE-120 (Buffer Copy without Checking Size of Input / Buffer Overflow)
+4. The relevant vulnerable code snippet:
+```c
+static inline void marshall_from_mar_cpg_name_t (
+	struct cpg_name *dest,
+	const mar_cpg_name_t *src)
+{
+	dest->length = src->length;
+	memcpy (&dest->value, &src->value, CPG_MAX_NAME_LENGTH);
+}
+```
+5. A concise explanation of why it is vulnerable: The function performs a `memcpy` of `CPG_MAX_NAME_LENGTH` bytes from `src->value` to `dest->value`. However, it does not validate that the `src->length` field (which is provided by the input/network) is consistent with the actual buffer size or that the destination buffer `dest->value` can safely hold this amount of data if the underlying `struct cpg_name` definition differs or if `CPG_MAX_NAME_LENGTH` is used blindly without bounds checking. More importantly, if `mar_cpg_name_t` is received from an untrusted source, an attacker can manipulate the `length` field. While the `memcpy` uses a constant, if the destination `struct cpg_name` has a smaller buffer than `CPG_MAX_NAME_LENGTH`, it results in a heap or stack overflow.
+6. Severity rating: High

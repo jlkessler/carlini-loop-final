@@ -1,0 +1,16 @@
+1. File: scheduler\filter.c
+
+2. Name of the function containing the vulnerability: `mimeAddFilter`
+
+3. Vulnerability type / CWE: Buffer Overflow / CWE-121
+
+4. The relevant vulnerable code snippet:
+```c
+strlcpy(temp->filter, filter, sizeof(temp->filter));
+```
+
+5. A concise explanation of why it is vulnerable: The `strlcpy` function is used to copy the filter program path from the input `filter` parameter into the `temp->filter` buffer. However, if the length of the `filter` string exceeds `sizeof(temp->filter) - 1`, then the destination buffer will be overflowed. This happens because `strlcpy` does not prevent buffer overflows when the source string is longer than the buffer size.
+
+6. Severity rating: HIGH
+
+The vulnerability exists in the `mimeAddFilter` function where user-provided filter paths are copied into a fixed-size buffer without proper validation of the input length against the buffer size, potentially leading to memory corruption or arbitrary code execution if exploited.

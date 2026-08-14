@@ -1,0 +1,31 @@
+1. File: cups\http-support.c
+2. Name of the function containing the vulnerability: `http_resolve_cb` (both DNSSD and Avahi versions)
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+  if ((value = TXTRecordGetValuePtr(txtLen, txtRecord, reskey,
+                                    &valueLen)) != NULL)
+  {
+    if (((char *)value)[0] == '/')
+    {
+     /*
+      * Value (incorrectly) has a leading slash already...
+      */
+
+      memcpy(resource, value, valueLen);
+      resource[valueLen] = '\0';
+    }
+    else
+    {
+     /*
+      * Convert to resource by concatenating with a leading "/"...
+      */
+
+      resource[0] = '/';
+      memcpy(resource + 1, value, valueLen);
+      resource[valueLen + 1] = '\0';
+    }
+  }
+```
+5. A concise explanation of why it is vulnerable: The function `http_resolve_cb` uses a fixed-size stack buffer `resource[257]` to store the remote printer path extracted from a DNS-SD TXT record. The code uses `memcpy` to copy the value from the TXT record into the buffer using `valueLen` without verifying that `valueLen` is less than or equal to the size of the `resource` buffer. An attacker can provide a maliciously crafted DNS-SD TXT record with a very long "rp" or "rfo" value to trigger a stack-based buffer overflow.
+6. Severity rating: Critical

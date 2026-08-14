@@ -1,0 +1,13 @@
+1. File: cups\tls-sspi.c
+2. Name of the function containing the vulnerability: `httpCredentialsAreValidForName`
+3. Vulnerability type / CWE: Buffer Overflow / CWE-120
+4. The relevant vulnerable code snippet:
+```c
+      char  *ptr = strrchr(cert_name, ',');
+      if (ptr && ptr[1])
+        _cups_strcpy(cert_name, ptr + 2);
+```
+5. A concise explanation of why it is vulnerable:
+The function `httpCredentialsAreValidForName` extracts the common name from a certificate. It uses `CertNameToStrA` to populate `cert_name` (a 1024-byte buffer). It then searches for the last comma (`,`) in the string. If a comma is found, it calls `_cups_strcpy` to copy the string starting from `ptr + 2` back into the beginning of the same `cert_name` buffer. Because `_cups_strcpy` (likely a wrapper for `strcpy`) does not perform bounds checking and the source and destination buffers overlap, this can lead to a buffer overflow or memory corruption if the input certificate subject is specially crafted. Specifically, if `ptr + 2` points to a string that, when shifted, exceeds the remaining bounds or is not properly null-terminated within the context of the original buffer, it may lead to an overflow.
+
+6. Severity rating: High

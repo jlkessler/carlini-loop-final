@@ -1,0 +1,9 @@
+1. File: cups\raster-stubs.c
+2. Name of the function containing the vulnerability: `cupsRasterReadHeader` (and `cupsRasterReadHeader2`)
+3. Vulnerability type / CWE: Buffer Overflow / CWE-120 (or CWE-121: Stack-based Buffer Overflow depending on where `h` is allocated)
+4. The relevant vulnerable code snippet:
+```c
+  memcpy(h, &(r->header), sizeof(cups_page_header_t));
+```
+5. A concise explanation of why it is vulnerable: The function copies data from the internal raster header (`r->header`) into a user-supplied buffer `h` using `sizeof(cups_page_header_t)`. If the internal `r->header` structure is larger than the `cups_page_header_t` structure passed by the caller, or if the internal header was initialized/populated with data based on a different version or size, this can lead to an out-of-bounds write. More critically, if `r->header` is actually a union or a larger structure (as suggested by the presence of `cups_page_header2_t` and the logic in `cupsRasterReadHeader2`), the `memcpy` assumes the destination buffer `h` is exactly `sizeof(cups_page_header_t)`. If the internal `r->header` is a `cups_page_header2_t` (which is typically larger), the logic in `cupsRasterReadHeader` effectively ignores the size of the destination and blindly copies a fixed amount of data. However, the primary vulnerability is that the internal `r->header` is copied into `h` without verifying that the destination buffer was allocated with sufficient size for the specific version of the header being read.
+6. Severity rating: Medium

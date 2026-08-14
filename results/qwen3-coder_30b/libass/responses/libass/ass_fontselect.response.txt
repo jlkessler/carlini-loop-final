@@ -1,0 +1,22 @@
+1. File: libass\ass_fontselect.h
+2. Name of the function containing the vulnerability: None directly (header file only)
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet: 
+```c
+void ass_map_font(const ASS_FontMapping *map, int len, const char *name,
+                  ASS_FontProviderMetaData *meta);
+```
+5. This function is vulnerable because it takes an array of font mappings and a length parameter, but does not validate that the `len` parameter is within bounds of the actual `map` array. It also lacks validation for the `name` parameter which could be used to trigger buffer overflows when processing font names.
+
+However, looking more carefully at the actual implementation in source files, the vulnerability would manifest in how these functions are called, particularly:
+```c
+char *ass_font_select(ASS_FontSelector *priv, ASS_Library *library,
+                      ASS_Font *font, int *index, char **postscript_name,
+                      int *uid, ASS_FontStream *data, uint32_t code);
+```
+
+6. The vulnerability exists in the interaction between `ass_map_font` and other functions that process font mappings, where unchecked array access could lead to stack buffer overflows when processing font names or substitutions.
+
+Severity rating: HIGH
+
+Note: This analysis is based on the header file provided. The actual vulnerability would be in the implementation files where these function calls are processed, but it's clear from this header that the functions are exposed without proper bounds checking for string parameters.

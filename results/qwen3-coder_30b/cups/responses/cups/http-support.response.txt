@@ -1,0 +1,67 @@
+1. File: cups\http-support.c
+2. Name of the function containing the vulnerability: httpAssembleURI
+3. Vulnerability type / CWE: CWE-122 - Heap-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+if (host)
+{
+  const char	*hostptr;		/* Pointer into hostname */
+  int		have_ipv6;		/* Do we have an IPv6 address? */
+
+  if (username && *username)
+  {
+   /*
+    * Add username@ first...
+    */
+
+    ptr = http_copy_encode(ptr, username, end, "/?#[]@", NULL,
+                           encoding & HTTP_URI_CODING_USERNAME);
+
+    if (!ptr)
+      goto assemble_overflow;
+
+    if (ptr < end)
+      *ptr++ = '@';
+    else
+      goto assemble_overflow;
+  }
+
+  // ... code continues to handle IPv6 address processing
+
+  if (have_ipv6)
+  {
+    // ... IPv6 handling code that may overflow buffer
+    while (ptr < end && *host)
+    {
+      if (*host == '%')
+      {
+        // ... conversion/encoding logic
+        if (encoding & HTTP_URI_CODING_RFC6874)
+        {
+          if (ptr >= (end - 2))
+            goto assemble_overflow;
+          // ... more encoding operations that could overflow
+        }
+        else
+	  *ptr++ = '+';
+	host ++;
+      }
+      else
+	*ptr++ = *host++;
+    }
+
+    if (*host)
+      goto assemble_overflow;
+
+    if (ptr < end)
+      *ptr++ = ']';
+    else
+      goto assemble_overflow;
+  }
+```
+
+5. This is vulnerable because the `httpAssembleURI` function processes hostnames and can potentially cause a buffer overflow when handling IPv6 addresses. The code doesn't properly validate or check buffer boundaries when copying encoded IPv6 address components, particularly around the zone separator handling ('%') which can lead to writing beyond the allocated buffer limits.
+
+6. Severity rating: HIGH
+
+The vulnerability is in the `httpAssembleURI` function where improper bounds checking during IPv6 address processing could allow an attacker to cause a heap-based buffer overflow by providing a specially crafted URI with an overly long hostname, potentially leading to arbitrary code execution or denial of service.

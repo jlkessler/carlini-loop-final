@@ -1,0 +1,76 @@
+1. File: cups\globals.c
+2. Name of the function containing the vulnerability: `cups_globals_alloc`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static _cups_globals_t *		/* O - Pointer to global data */
+cups_globals_alloc(void)
+{
+  _cups_globals_t *cg = malloc(sizeof(_cups_globals_t));
+					/* Pointer to global data */
+#ifdef _WIN32
+  HKEY		key;			/* Registry key */
+  DWORD		size;			/* Size of string */
+  static char	installdir[1024] = "",	/* Install directory */
+		confdir[1024] = "",	/* Server root directory */
+		localedir[1024] = "";	/* Locale directory */
+#endif /* _WIN32 */
+
+
+  if (!cg)
+    return (NULL);
+
+ /*
+  * Clear the global storage and set the default encryption and password
+  * callback values...
+  */
+
+  memset(cg, 0, sizeof(_cups_globals_t));
+  // ... other initializations ...
+#ifdef _WIN32
+  if (!installdir[0])
+  {
+   /*
+    * Open the registry...
+    */
+
+    strlcpy(installdir, "C:/Program Files/cups.org", sizeof(installdir));
+
+    if (!RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\cups.org", 0, KEY_READ, &key))
+    {
+     /*
+      * Grab the installation directory...
+      */
+
+      char  *ptr;			/* Pointer into installdir */
+
+      size = sizeof(installdir);
+      RegQueryValueExA(key, "installdir", NULL, NULL, installdir, &size);
+      RegCloseKey(key);
+
+      for (ptr = installdir; *ptr;)
+      {
+        if (*ptr == '\\')
+        {
+          if (ptr[1])
+            *ptr++ = '/';
+          else
+            *ptr = '\0';		/* Strip trailing \ */
+        }
+        else if (*ptr == '/' && !ptr[1])
+          *ptr = '\0';			/* Strip trailing / */
+        else
+          ptr ++;
+      }
+    }
+
+    snprintf(confdir, sizeof(confdir), "%s/conf", installdir);
+    snprintf(localedir, sizeof(localedir), "%s/locale", installdir);
+  }
+```
+
+5. This is vulnerable because `RegQueryValueExA` can write data that exceeds the size of the `installdir`, `confdir`, and `localedir` buffers without proper bounds checking. The code uses `strlcpy` to initialize these buffers but doesn't check if the registry value (from `RegQueryValueExA`) is larger than the buffer size, which can lead to a stack-based buffer overflow when the registry key contains a very long path.
+
+6. Severity rating: HIGH
+
+The vulnerability exists in the Windows-specific code path where registry values are read without proper bounds checking against fixed-size buffers, potentially allowing for stack corruption through a buffer overflow attack if an attacker controls the registry value.

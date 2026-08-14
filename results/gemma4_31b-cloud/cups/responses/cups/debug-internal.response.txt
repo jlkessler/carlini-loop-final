@@ -1,0 +1,12 @@
+1. File: cups\debug-internal.h
+2. Name of the function containing the vulnerability: `DEBUG_printf` (macro) / `_cups_debug_printf` (implementation)
+3. Vulnerability type / CWE: CWE-134: Use of Externally-Controlled Format String
+4. The relevant vulnerable code snippet:
+```c
+#  ifdef DEBUG
+#    define DEBUG_puts(x) _cups_debug_puts(x)
+#    define DEBUG_printf(x) _cups_debug_printf x
+#  else
+```
+5. A concise explanation of why it is vulnerable: The `DEBUG_printf` macro expands to `_cups_debug_printf x`. If a developer uses this macro and passes a variable containing user-controlled input as the first argument (e.g., `DEBUG_printf(user_input)`), it leads to a format string vulnerability. While this is a header file and the vulnerability manifests based on how the macro is used in the `.c` files, the architecture encourages passing the arguments directly to a variadic function. If `_cups_debug_printf` behaves like `printf`, an attacker can read from the stack or write to arbitrary memory addresses.
+6. Severity rating: High (provided `DEBUG` is defined and user-controlled strings are passed to the macro).

@@ -1,0 +1,14 @@
+1. File: cups\http-addrlist.c
+2. Name of the function containing the vulnerability: httpAddrConnect2
+3. Vulnerability type / CWE: CWE-122 - Heap Overflow
+4. The relevant vulnerable code snippet:
+```c
+int			nfds,		/* Number of file descriptors */
+			fds[100];	/* Socket file descriptors */
+http_addrlist_t	*addrs[100];	/* Addresses */
+```
+5. The vulnerability exists because the code uses fixed-size arrays `fds` and `addrs` of 100 elements each, but there's no bounds checking when adding elements to these arrays. If more than 100 addresses are processed, the code will write beyond the allocated array boundaries, causing heap overflow.
+
+6. Severity rating: HIGH
+
+The vulnerability is a classic heap buffer overflow that could lead to arbitrary code execution or denial of service. The fixed-size arrays can be exceeded when processing many addresses, allowing for memory corruption through out-of-bounds writes.

@@ -1,0 +1,15 @@
+1. File: cups\hash.c
+2. Name of the function containing the vulnerability: `cupsHashData`
+3. Vulnerability type / CWE: Integer Overflow (CWE-190) leading to potential Heap/Stack Buffer Overflow (CWE-122/CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+    CC_MD5_Init(&ctx);
+    CC_MD5_Update(&ctx, data, (CC_LONG)datalen);
+    CC_MD5_Final(hash, &ctx);
+```
+(And similar instances for `CC_SHA1_Update`, `CC_SHA224_Update`, etc., where `datalen` is cast to `CC_LONG`).
+
+5. A concise explanation of why it is vulnerable:
+The function `cupsHashData` accepts `datalen` as a `size_t` (which is 64-bit on 64-bit systems). However, it casts this value to `CC_LONG` (which is typically a 32-bit signed or unsigned integer) when calling the Apple CommonCrypto update functions (e.g., `CC_MD5_Update`). If a caller provides a `datalen` larger than the maximum value of a 32-bit integer (e.g., $2^{32} + 100$), the value will be truncated. This leads to a mismatch between the actual amount of data intended to be hashed and the amount processed by the crypto library, which can cause logic errors or potentially bypass security checks that rely on the integrity of the hash of the full data buffer.
+
+6. Severity rating: Medium

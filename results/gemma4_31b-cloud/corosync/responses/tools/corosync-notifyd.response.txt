@@ -1,0 +1,20 @@
+1. File: tools\corosync-notifyd.c
+2. Name of the function containing the vulnerability: `_cs_cmap_members_key_changed`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120 / CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+	/*
+	 * We want the ip out of: "r(0) ip(192.168.100.92)"
+	 */
+	open_bracket = strrchr(ip_str, '(');
+	open_bracket++;
+	close_bracket = strrchr(open_bracket, ')');
+	*close_bracket = '\0';
+	_cs_ip_to_hostname(open_bracket, nodename);
+```
+5. A concise explanation of why it is vulnerable: 
+The function `_cs_cmap_members_key_changed` retrieves a string `ip_str` from the cmap. It searches for the last occurrence of '(' and ')' to extract an IP address into the `nodename` buffer. However, it does not validate if the extracted string (the content between the brackets) fits within the `nodename` buffer, which is defined as `char nodename[CS_MAX_NAME_LENGTH]`. 
+
+Furthermore, the subsequent call to `_cs_ip_to_hostname(open_bracket, nodename)` uses `getnameinfo`, which is limited to `CS_MAX_NAME_LENGTH`, but the `open_bracket` pointer itself is derived from `ip_str` (an external input from the cmap) without any length checks. If an attacker can control the content of the cmap (specifically the IP string), they can cause a buffer overflow if the logic for finding brackets is manipulated or if the string between brackets is excessively long. More critically, the pointer arithmetic `open_bracket++` and the null termination `*close_bracket = '\0'` are performed without verifying if the characters '(' or ')' were actually found, potentially leading to a null pointer dereference or out-of-bounds write.
+
+6. Severity rating: High

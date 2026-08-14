@@ -1,0 +1,13 @@
+1. File: cups\string.c
+2. Name of the function containing the vulnerability: `_cupsStrAlloc`
+3. Vulnerability type / CWE: CWE-823: Unsafe Pointer Arithmetic / Logic Error (incorrect key derivation)
+4. The relevant vulnerable code snippet:
+```c
+  key = (_cups_sp_item_t *)(s - offsetof(_cups_sp_item_t, str));
+
+  if ((item = (_cups_sp_item_t *)cupsArrayFind(stringpool, key)) != NULL)
+```
+5. A concise explanation of why it is vulnerable:
+The function attempts to check if a string `s` is already in the global `stringpool` to avoid duplicate allocations. However, it derives the search `key` by subtracting the offset of the `str` member from the input pointer `s`. This assumes that `s` is already a pointer to the `str` member of an existing `_cups_sp_item_t` structure within the pool. If `s` is a pointer to a string located anywhere else (e.g., on the stack, in a different heap allocation, or in the data segment), the resulting `key` pointer will point to an arbitrary memory location before `s`. Passing this arbitrary pointer to `cupsArrayFind` can lead to out-of-bounds reads or incorrect matches if the memory happens to coincide with an existing pool item, potentially leading to memory corruption or crashes.
+
+6. Severity rating: High

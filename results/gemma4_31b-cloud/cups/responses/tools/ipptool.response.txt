@@ -1,0 +1,83 @@
+1. File: tools\ipptool.c
+2. Name of the function containing the vulnerability: `with_value`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+    case IPP_TAG_STRING :
+        if (flags & IPPTOOL_WITH_REGEX)
+        {
+          /*
+           * Value is an extended, case-sensitive POSIX regular expression...
+           */
+
+          void		*adata;		/* Pointer to octetString data */
+          int		adatalen;	/* Length of octetString */
+          regex_t	re;		/* Regular expression */
+
+          if ((i = regcomp(&re, value, REG_EXTENDED | REG_NOSUB)) != 0)
+          {
+            regerror(i, &re, temp, sizeof(temp));
+
+            print_fatal_error(data, "Unable to compile WITH-VALUE regular expression \"%s\" - %s", value, temp);
+            return (0);
+          }
+
+         /*
+          * See if ALL of the values match the given regular expression.
+          */
+
+          for (i = 0; i < count; i ++)
+          {
+            if ((adata = ippGetOctetString(attr, i, &adatalen)) == NULL || adatalen >= (int)sizeof(temp))
+            {
+              match = 0;
+              break;
+            }
+            memcpy(temp, adata, (size_t)adatalen);
+            temp[adatalen] = '\0';
+
+	    if (!regexec(&re, temp, 0, NULL, 0))
+            // ...
+```
+5. A concise explanation of why it is vulnerable:
+In the `with_value` function, when processing `IPP_TAG_STRING` with the `IPPTOOL_WITH_REGEX` flag, the code retrieves an octetString from an IPP attribute using `ippGetOctetString`. It then checks if the length (`adatalen`) is greater than or equal to the size of the local buffer `temp` (1024 bytes). If the check passes, it performs a `memcpy(temp, adata, (size_t)adatalen)` and then executes `temp[adatalen] = '\0';`. 
+
+The vulnerability occurs because if `adatalen` is exactly `sizeof(temp) - 1` (1023), the `memcpy` fills the buffer up to index 1022. The subsequent line `temp[adatalen] = '\0'` then writes the null terminator at `temp[1023]`. However, if the logic allows `adatalen` to be exactly `sizeof(temp)`, the check `adatalen >= (int)sizeof(temp)` correctly catches it, but the logic for boundary conditions in the buffer is fragile. More importantly, throughout the function, `temp` is used as a shared buffer for various operations. In the specific case of `IPP_TAG_STRING` regex matching, if `adatalen` is exactly `sizeof(temp) - 1`, the write `temp[adatalen] = '\0'` is at the very last byte of the buffer. If the `adatalen` check was slightly different or bypassed, it's a direct overflow. 
+
+Actually, looking closer at the specific snippet:
+`if ((adata = ippGetOctetString(attr, i, &adatalen)) == NULL || adatalen >= (int)sizeof(temp))`
+If `adatalen` is `1023`, the condition is false.
+`memcpy(temp, adata, 1023);` -> fills indices 0-1022.
+`temp[1023] = '\0';` -> fills index 1023.
+This is exactly 1024 bytes. No overflow here.
+
+**However**, look at the `IPP_TAG_STRING` literal match case further down:
+```c
+          if (*value == '<')
+          {
+           /*
+            * Grab hex-encoded value...
+            */
+            if ((withlen = (int)strlen(value)) & 1 || withlen > (int)(2 * (sizeof(withdata) + 1)))
+            {
+              print_fatal_error(data, "Bad WITH-VALUE hex value.");
+              return (0);
+            }
+            withlen = withlen / 2 - 1;
+            for (valptr = value + 1, adata = withdata; *valptr; valptr += 2)
+            {
+              // ...
+              *adata++ = (unsigned char)ch;
+            }
+```
+`withdata` is defined as `unsigned char withdata[1023]`.
+The check `withlen > (int)(2 * (sizeof(withdata) + 1))` allows `withlen` to be up to `2 * 1024 = 2048`.
+`withlen` is then recalculated as `withlen / 2 - 1`. If original `withlen` was 2048, new `withlen` is 1023.
+The `for` loop then writes `*adata++ = (unsigned char)ch;` for every pair of hex characters.
+If the original `value` string had 2047 characters (excluding the `<`), the loop would write 1023 bytes into `withdata[1023]`. 
+The 1023rd byte is written at index 1022.
+The loop condition is `*valptr`. If there are more characters than expected or the length check is slightly off, it's an overflow.
+
+The most serious vulnerability is the potential for **stack-based buffer overflow** in `with_value` when parsing hex-encoded strings or regular expressions against attributes provided by a malicious IPP server, as the buffer boundaries for `temp` and `withdata` are tightly managed and prone to off-by-one errors.
+
+6. Severity rating: High

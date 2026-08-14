@@ -1,0 +1,12 @@
+1. File: cgi-bin\ipp-var.c
+2. Name of the function containing the vulnerability: `cgiGetAttributes`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Command Injection (CWE-78)
+4. The relevant vulnerable code snippet:
+```c
+snprintf(filename, sizeof(filename), "%s/%s/%s", directory, locale, tmpl);
+```
+5. The vulnerability exists because the `tmpl` parameter is directly used in `snprintf()` without proper validation or sanitization. If an attacker can control the `tmpl` value (which comes from the template filename in the web interface), they could craft a malicious path that leads to buffer overflow when the full path exceeds 1024 bytes, or potentially execute arbitrary commands if the path traversal allows it.
+
+6. Severity rating: **HIGH**
+
+The vulnerability allows for potential buffer overflow and command injection through improper handling of user-controllable input in the template filename parameter, which can lead to arbitrary code execution on the server. This is a critical security flaw that needs immediate remediation.

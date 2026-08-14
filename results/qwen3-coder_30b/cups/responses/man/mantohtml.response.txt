@@ -1,0 +1,51 @@
+1. File: man\mantohtml.c
+2. Name of the function containing the vulnerability: html_alternate
+3. Vulnerability type / CWE: CWE-79 (Cross-site Scripting), CWE-122 (Heap-based Buffer Overflow)
+4. The relevant vulnerable code snippet:
+```c
+static void
+html_alternate(const char *s,		/* I - String */
+               const char *first,	/* I - First style or NULL */
+               const char *second,	/* I - Second style of NULL */
+               FILE       *fp)		/* I - File */
+{
+  // ... code ...
+  while (*s)
+  {
+    // ... code ...
+    if (!i && dolinks)
+    {
+      // ... code ...
+      const char *end;			/* End of current word */
+      const char *next;			/* Start of next word */
+
+      for (end = s; *end && !isspace(*end & 255); end ++);
+      for (next = end; isspace(*next & 255); next ++);
+
+      if (isalnum(*s & 255) && *next == '(')
+      {
+        // ... code ...
+        char	name[1024],		/* Name */
+		manfile[1024],		/* Man page filename */
+		manurl[1024];		/* Man page URL */
+
+        strlcpy(name, s, sizeof(name));
+        if ((size_t)(end - s) < sizeof(name))
+          name[end - s] = '\0';
+
+        snprintf(manfile, sizeof(manfile), "%s.man", name);
+	snprintf(manurl, sizeof(manurl), "man-%s.html?TOPIC=Man+Pages", name);
+
+	if (!access(manfile, 0))
+	{
+	  fprintf(fp, "<a href=\"%s\">", manurl);
+	  link = 1;
+	}
+      }
+    }
+```
+5. This function is vulnerable because it directly uses user-provided input (the man page content) in generating HTML output without proper sanitization or escaping. When parsing man page commands like .B, .I, etc., the code doesn't properly sanitize the text being inserted into HTML links. The `manurl` string is constructed from user input (`name`) and directly used in an HTML attribute without proper HTML escaping, leading to potential XSS vulnerabilities. Additionally, the `strlcpy` and `snprintf` calls may not be properly bounded, potentially causing buffer overflows.
+
+6. Severity rating: HIGH
+
+The vulnerability allows for cross-site scripting (XSS) attacks when processing man page content that includes specially crafted text that gets embedded into HTML anchor href attributes. This could allow attackers to inject malicious scripts into the generated HTML output, which would execute in users' browsers when they view the man page documentation.

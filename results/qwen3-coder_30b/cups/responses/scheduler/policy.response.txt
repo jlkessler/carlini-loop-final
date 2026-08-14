@@ -1,0 +1,24 @@
+1. File: scheduler\policy.c
+2. Name of the function containing the vulnerability: cupsdGetPrivateAttrs
+3. Vulnerability type / CWE: CWE-125 - Out-of-bounds Read
+4. The relevant vulnerable code snippet:
+```c
+if (con->username[0])
+  username = con->username;
+else if ((attr = ippFindAttribute(con->request, "requesting-user-name",
+                                  IPP_TAG_NAME)) != NULL)
+  username = attr->values[0].string.text;
+else
+  username = "anonymous";
+
+if (username[0])
+{
+  pw = getpwnam(username);
+  endpwent();
+}
+```
+5. The vulnerability occurs because the code calls `getpwnam()` with a potentially untrusted username from the IPP request without proper bounds checking or validation. If the username string is malformed or contains invalid characters, `getpwnam()` may return NULL or cause undefined behavior, leading to potential out-of-bounds memory access when subsequent code tries to use the returned `pw` structure.
+
+6. Severity rating: HIGH
+
+The vulnerability allows for a potential denial of service or information disclosure through improper handling of user input in the authentication flow, which could be exploited by an attacker to manipulate the scheduler's policy checking behavior.

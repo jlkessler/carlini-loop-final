@@ -1,0 +1,14 @@
+1. File: locale\checkpo.c
+2. Name of the function containing the vulnerability: abbreviate
+3. Vulnerability type / CWE: CWE-120 (Buffer Copy without Checking Size of Input / Buffer Overflow)
+4. The relevant vulnerable code snippet:
+```c
+  if (*s)
+    memcpy(bufptr, "...", 4);
+  else
+    *bufptr = '\0';
+```
+5. A concise explanation of why it is vulnerable:
+The `abbreviate` function tracks the remaining space in `buf` using the `bufsize` variable. When the loop terminates because `bufsize` has reached 0 (meaning the buffer is full), the code checks if there is still remaining input (`if (*s)`). If so, it attempts to append an ellipsis (`"..."`) using `memcpy(bufptr, "...", 4)`. Since `bufptr` is already at the end of the allocated buffer when `bufsize` is 0, this write operation overflows the buffer by 4 bytes.
+
+6. Severity rating: medium

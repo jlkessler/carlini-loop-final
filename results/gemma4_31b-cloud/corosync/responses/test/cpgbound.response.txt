@@ -1,0 +1,17 @@
+1. File: test\cpgbound.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-125: Out-of-bounds Read
+4. The relevant vulnerable code snippet:
+```c
+static unsigned char buffer[2000000];
+// ... (inside main)
+	iov.iov_base = (void *)buffer;
+	msg_size = 1025000;
+	for (i = 0; i < 1000000000; i++) {
+		iov.iov_len = msg_size;
+// ...
+		result = cpg_mcast_joined (handle, CPG_TYPE_AGREED,
+			&iov, 1);
+```
+5. A concise explanation of why it is vulnerable: The program defines a static buffer of 2,000,000 bytes. However, the loop increments `msg_size` starting from 1,025,000. Once `msg_size` exceeds 2,000,000, the `iov.iov_len` assigned to the `iovec` structure causes `cpg_mcast_joined` to read memory beyond the bounds of the `buffer` array. This allows the program to read adjacent memory on the data segment and send it over the network/service.
+6. Severity rating: High

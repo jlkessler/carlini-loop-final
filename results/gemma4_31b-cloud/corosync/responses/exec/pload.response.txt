@@ -1,0 +1,15 @@
+1. File: exec\pload.c
+2. Name of the function containing the vulnerability: `pload_send_message`
+3. Vulnerability type / CWE: Out-of-bounds Read / CWE-125
+4. The relevant vulnerable code snippet:
+```c
+	if (msg_size > sizeof (req_exec_pload_mcast)) {
+		iov[1].iov_base = &buffer;
+		iov[1].iov_len = msg_size - sizeof (req_exec_pload_mcast);
+		iov_len = 2;
+	}
+```
+5. A concise explanation of why it is vulnerable:
+The code assigns the address of the pointer variable `buffer` (`&buffer`) to `iov[1].iov_base` instead of assigning the pointer's value (`buffer`). When `api->totem_mcast` is called, it will read memory starting from the location of the `buffer` pointer itself on the data segment, rather than the allocated memory buffer. Furthermore, the length read is determined by `msg_size`, which is provided by a network message in `message_handler_req_exec_pload_start` without validation. This allows an attacker to leak arbitrary memory from the process's data segment.
+
+6. Severity rating: High

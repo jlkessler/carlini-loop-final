@@ -1,0 +1,19 @@
+1. File: test\cpgverify.c
+2. Name of the function containing the vulnerability: `cpg_deliver_fn`
+3. Vulnerability type / CWE: Out-of-bounds Read / CWE-125
+4. The relevant vulnerable code snippet:
+```c
+static void cpg_deliver_fn (
+        cpg_handle_t handle,
+        const struct cpg_name *group_name,
+        uint32_t nodeid,
+        uint32_t pid,
+        void *m,
+        size_t msg_len)
+{
+	const struct my_msg *msg2 = m;
+    // ...
+	PK11_DigestOp(sha1_context, msg2->buffer, msg2->msg_size);
+```
+5. A concise explanation of why it is vulnerable: The function `cpg_deliver_fn` receives a pointer `m` and the total length of the received message `msg_len`. However, it casts `m` to a `struct my_msg` and uses `msg2->msg_size` (a value provided within the untrusted message payload) to determine how many bytes to read from the buffer for the SHA1 digest. There is no check to ensure that `sizeof(struct my_msg) + msg2->msg_size` is less than or equal to the actual received `msg_len`. A malicious sender could provide a very large `msg_size`, causing `PK11_DigestOp` to read past the end of the allocated memory buffer.
+6. Severity rating: High

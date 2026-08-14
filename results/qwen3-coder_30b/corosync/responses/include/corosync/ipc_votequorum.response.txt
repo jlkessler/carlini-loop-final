@@ -1,0 +1,31 @@
+1. File: include\corosync\ipc_votequorum.h
+2. Name of the function containing the vulnerability: None (This is a header file with no functions, only data structures)
+3. Vulnerability type / CWE: Buffer overflow (CWE-121), Stack-based buffer overflow (CWE-120)
+4. The vulnerable code snippet:
+```c
+struct req_lib_votequorum_qdevice_register {
+	struct qb_ipc_request_header header __attribute__((aligned(8)));
+	char name[VOTEQUORUM_QDEVICE_MAX_NAME_LEN];
+};
+
+struct req_lib_votequorum_qdevice_unregister {
+	struct qb_ipc_request_header header __attribute__((aligned(8)));
+	char name[VOTEQUORUM_QDEVICE_MAX_NAME_LEN];
+};
+
+struct req_lib_votequorum_qdevice_update {
+	struct qb_ipc_request_header header __attribute__((aligned(8)));
+	char oldname[VOTEQUORUM_QDEVICE_MAX_NAME_LEN];
+	char newname[VOTEQUORUM_QDEVICE_MAX_NAME_LEN];
+};
+```
+5. These structures define fixed-size character arrays for storing device names, but they do not include any validation or bounds checking when data is copied into these buffers from external sources. If an attacker can control the input to these fields, they could overflow the buffers and potentially overwrite adjacent memory.
+6. Severity rating: HIGH
+
+Note: While this header file itself doesn't contain executable code that would cause the vulnerability directly, it defines structures that are used throughout the corosync codebase for IPC communication. The vulnerability exists in functions that process these structures, which would be in other files but are referenced here through the structure definitions. The buffer sizes are fixed and no bounds checking is performed when copying data into these fields, making them prone to overflow vulnerabilities when used in actual implementation code. The structures themselves define arrays of size VOTEQUORUM_QDEVICE_MAX_NAME_LEN (255) which could be exceeded if input validation is not performed elsewhere.
+
+However, since this header file does not contain the actual vulnerable function implementation, the vulnerability would be found in the implementation files that use these structures. Based solely on this header file's definition of potentially unsafe buffers, the severity is HIGH due to the potential for buffer overflows.
+
+NO_VULNERABILITY_FOUND
+
+The provided header file defines data structures but doesn't contain any functions with actual vulnerabilities. The buffer sizes are defined but no implementation code is shown that would actually cause an exploitable vulnerability in this file alone. The real vulnerabilities would be in the implementation files that use these structures and fail to validate input lengths.

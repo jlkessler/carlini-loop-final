@@ -1,0 +1,16 @@
+1. File: exec\fsm.h
+2. Name of the function containing the vulnerability: `cs_fsm_state_set`
+3. Vulnerability type / CWE: Out-of-bounds Read / CWE-125 (Potential Null Pointer Dereference)
+4. The relevant vulnerable code snippet:
+```c
+static inline void cs_fsm_state_set (struct cs_fsm* fsm, int32_t next_state, void* data, cs_fsm_cb cb)
+{
+	int i;
+	struct cs_fsm_entry *entry = &fsm->table[fsm->curr_entry];
+
+	if (fsm->curr_state == next_state) {
+		return;
+	}
+```
+5. A concise explanation of why it is vulnerable: The function `cs_fsm_state_set` relies on `fsm->curr_entry` to index into the `fsm->table` array. However, `fsm->curr_entry` is only initialized inside `cs_fsm_process`. If `cs_fsm_state_set` is called before `cs_fsm_process` has successfully matched an event, or if `fsm->table` is NULL/uninitialized, the code will perform an out-of-bounds memory access or a null pointer dereference. There is no check to ensure `fsm->curr_entry` is a valid index within the bounds of `fsm->entries` before accessing the table.
+6. Severity rating: Medium

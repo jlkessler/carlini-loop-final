@@ -1,0 +1,9 @@
+1. File: cups\cups.h
+2. Name of the function containing the vulnerability: `cupsTempFile`
+3. Vulnerability type / CWE: CWE-377: Insecure Temporary File
+4. The relevant vulnerable code snippet:
+```c
+extern char		*cupsTempFile(char *filename, int len) _CUPS_DEPRECATED_MSG("Use cupsTempFd or cupsTempFile2 instead.");
+```
+5. A concise explanation of why it is vulnerable: The function `cupsTempFile` is marked as deprecated in favor of `cupsTempFd` and `cupsTempFile2`. Functions that create temporary files by taking a filename/length as input without ensuring atomic creation and exclusive access (like `mkstemp` or `O_EXCL`) are typically vulnerable to symlink attacks (Race Conditions). An attacker could create a symbolic link at the predicted temporary file location, causing the program to overwrite arbitrary files with the privileges of the CUPS process.
+6. Severity rating: High

@@ -1,0 +1,32 @@
+1. File: ppdc\genstrings.cxx
+2. Name of the function containing the vulnerability: write_cstring
+3. Vulnerability type / CWE: CWE-20 (Improper Input Validation) / Potential Source Code Injection
+4. The relevant vulnerable code snippet:
+```cpp
+static void
+write_cstring(const char *s)		/* I - String to write */
+{
+  fputs("_(\"", stdout);
+  if (s)
+  {
+    while (*s)
+    {
+      if (*s == '\\')
+        fputs("\\\\", stdout);
+      else if (*s == '\"')
+        fputs("\\\"", stdout);
+      else if (*s == '\t')
+        fputs("\\t", stdout);
+      else if (*s == '\n')
+        fputs("\\n", stdout);
+      else
+        putchar(*s);
+
+      s ++;
+    }
+  }
+  puts("\");");
+}
+```
+5. A concise explanation of why it is vulnerable: The function is designed to generate a C source file containing strings for translation. While it escapes backslashes and double quotes, it fails to escape other characters that could be problematic depending on the compiler or character set, but more importantly, it blindly trusts the input strings from the PPD files. If an attacker can control the input strings (e.g., via a malicious `sample.drv` or PPD file), they can potentially inject characters that lead to unexpected behavior in the generated C file. Although it's not a direct memory corruption in this specific utility, it allows for the generation of malformed or malicious source code that will be compiled into the final binary.
+6. Severity rating: low

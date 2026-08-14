@@ -1,0 +1,14 @@
+1. File: cgi-bin\makedocset.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-78 - Command Injection
+4. The relevant vulnerable code snippet:
+```c
+snprintf(path, sizeof(path), "%s/Contents/Resources/Documentation", argv[1]);
+if ((hi = helpLoadIndex(NULL, path)) == NULL)
+{
+  fputs("makedocset: Unable to index help files!\n", stderr);
+  return (1);
+}
+```
+5. The vulnerability exists because the program directly uses the first command-line argument (`argv[1]`) as part of a file path without proper sanitization or validation. An attacker can manipulate `argv[1]` to inject malicious commands or manipulate file paths, potentially leading to arbitrary code execution or directory traversal attacks.
+6. Severity rating: critical

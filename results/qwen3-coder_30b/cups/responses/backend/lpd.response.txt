@@ -1,0 +1,15 @@
+1. File: backend\lpd.c
+2. Name of the function containing the vulnerability: `lpd_queue`
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+snprintf(control, sizeof(control),
+         "H%.31s\n"		/* RFC 1179, Section 7.2 - host name <= 31 chars */
+         "P%.31s\n"		/* RFC 1179, Section 7.2 - user name <= 31 chars */
+         "J%.99s\n",	/* RFC 1179, Section 7.2 - job name <= 99 chars */
+         localhost, user, title);
+```
+
+5. The vulnerability occurs because the `snprintf` function uses format specifiers like `%.31s`, `%.31s`, and `%.99s` which limit the number of characters copied from `localhost`, `user`, and `title` respectively. However, when `banner` is enabled, additional strings are appended using `snprintf(cptr, sizeof(control) - (size_t)(cptr - control), "C%.31s\n" "L%s\n", localhost, user)` without proper bounds checking on the total length of the constructed string, potentially leading to stack buffer overflow if the accumulated content exceeds the allocated size of `control`.
+
+6. Severity rating: high

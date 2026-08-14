@@ -1,0 +1,2363 @@
+Carlini Loop Results
+Repository: corosync
+Model: gemma4:31b-cloud
+
+
+======================================================================
+FILE: common_lib\error_conversion.c
+TIME: 4.29 seconds
+======================================================================
+
+1. File: common_lib\error_conversion.c
+2. Name of the function containing the vulnerability: qb_to_cs_error
+3. Vulnerability type / CWE: CWE-190: Integer Overflow or Wraparound
+4. The relevant vulnerable code snippet:
+```c
+	if (result >= 0) {
+		return CS_OK;
+	}
+	res = -result;
+```
+5. A concise explanation of why it is vulnerable:
+The function takes an `int result` as input. In C, the `int` type is typically a signed 32-bit integer. The minimum value for a signed 32-bit integer is `-2,147,483,648` (`INT_MIN`). When the code executes `res = -result;` with `result` equal to `INT_MIN`, the operation results in an integer overflow because the positive equivalent (`2,147,483,648`) cannot be represented in a signed 32-bit integer. This leads to undefined behavior, and on most systems, `res` will remain negative (returning `INT_MIN`), causing the `switch` statement to hit the `default` case and return `CS_ERR_LIBRARY`. While not directly exploitable for code execution in this specific snippet, it is a logic error resulting from an unchecked integer negation.
+6. Severity rating: low
+
+
+======================================================================
+FILE: cts\agents\common_test_agent.c
+TIME: 3.96 seconds
+======================================================================
+
+1. File: cts\agents\common_test_agent.c
+2. Name of the function containing the vulnerability: `ta_handle_command`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+	char *args[5];
+	int i = 0;
+	int a = 0;
+	// ...
+	num_args = atoi (str_len) * 2;
+	for (i = 0; i < num_args / 2; i++) {
+		str_len = strtok_r (NULL, ":", &saveptr);
+		str_arg = strtok_r (NULL, ":", &saveptr);
+		if (func == NULL) {
+			/* first "arg" is the function */
+			qb_log (LOG_TRACE, "(LEN:%s, FUNC:%s)", str_len, str_arg);
+			func = str_arg;
+			a = 0;
+		} else {
+			args[a] = str_arg;
+			a++;
+			qb_log (LOG_TRACE, "(LEN:%s, ARG:%s)", str_len, str_arg);
+		}
+	}
+```
+5. A concise explanation of why it is vulnerable: The function declares a fixed-size array `args` that can hold 5 pointers. However, it determines the number of iterations for the loop using `atoi(str_len)`, which is derived directly from user-supplied input. There is no bounds check to ensure that `a` does not exceed the size of the `args` array. A remote attacker can send a crafted message with a large value in the first field to overwrite the stack beyond the `args` array, leading to potential arbitrary code execution.
+6. Severity rating: Critical
+
+
+======================================================================
+FILE: cts\agents\common_test_agent.h
+TIME: 2.53 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: cts\agents\cpg_test_agent.c
+TIME: 5.15 seconds
+======================================================================
+
+1. File: cts\agents\cpg_test_agent.c
+2. Name of the function containing the vulnerability: `do_command`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+	} else if (strcmp ("cpg_join",func) == 0) {
+
+		strcpy (group_name.value, args[0]);
+		group_name.length = strlen(args[0]);
+		result = cpg_join (cpg_handle, &group_name);
+```
+5. A concise explanation of why it is vulnerable: The `do_command` function processes RPC-like requests. When the `cpg_join` or `cpg_leave` command is received, it uses `strcpy` to copy the contents of `args[0]` (which comes from network input) into `group_name.value`. The `struct cpg_name` (defined in the Corosync headers) has a fixed-size buffer for `value`. Because there are no bounds checks on the length of `args[0]`, a remote attacker can provide a string longer than the buffer to overwrite the stack, potentially leading to arbitrary code execution.
+6. Severity rating: Critical
+
+
+======================================================================
+FILE: cts\agents\sam_test_agent.c
+TIME: 6.01 seconds
+======================================================================
+
+1. File: cts\agents\sam_test_agent.c
+2. Name of the function containing the vulnerability: do_command
+3. Vulnerability type / CWE: CWE-120 (Buffer Copy without Checking Size of Input) / Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+	if (err == 0) {
+		snprintf (response, 100, "%s", OK_STR);
+	} else if (err == 1) {
+		snprintf (response, 100, "%s", FAIL_STR);
+		qb_log (LOG_ERR, "%s() test skipped?! (%d).", func, err);
+	} else {
+		snprintf (response, 100, "%s", FAIL_STR);
+		qb_log (LOG_ERR, "%s() failed (%d).", func, err);
+	}
+```
+5. A concise explanation of why it is vulnerable: The `do_command` function takes a `char* func` argument from the network socket (via the RPC mechanism). This `func` string is passed directly into `qb_log` using the `%s` format specifier. While the `snprintf` calls are safe, the `qb_log` calls are vulnerable to a format string attack if the logging implementation uses `printf`-style formatting internally and the input is not sanitized. More critically, the code blindly trusts the length of `func` provided by the remote caller. If `func` is an extremely long string, it may cause issues in the logging subsystem or subsequent processing. However, the most immediate risk is that `func` is used in `qb_log` without validation, which often leads to Format String vulnerabilities if the underlying logger doesn't handle the string as a literal.
+
+6. Severity rating: High
+
+
+======================================================================
+FILE: cts\agents\votequorum_test_agent.c
+TIME: 4.10 seconds
+======================================================================
+
+1. File: cts\agents\votequorum_test_agent.c
+2. Name of the function containing the vulnerability: do_command
+3. Vulnerability type / CWE: Null Pointer Dereference (CWE-476)
+4. The relevant vulnerable code snippet:
+```c
+	} else if (strcmp ("votequorum_setvotes", func) == 0) {
+		setvotes (sock, args[0]);
+	} else if (strcmp ("votequorum_setexpected", func) == 0) {
+		setexpected (sock, args[0]);
+	}
+```
+5. A concise explanation of why it is vulnerable: The `do_command` function accepts an array of arguments (`args`). When the `func` is "votequorum_setvotes" or "votequorum_setexpected", the code directly accesses `args[0]` and passes it to the respective helper functions. There is no check to ensure that `num_args` is greater than 0 or that `args` is not NULL. If a client sends an RPC request for these functions without providing any arguments, the program will dereference a NULL or invalid pointer, leading to a crash (Denial of Service).
+6. Severity rating: Medium
+
+
+======================================================================
+FILE: cts\corolab.py
+TIME: 4.63 seconds
+======================================================================
+
+1. File: cts\corolab.py
+2. Name of the function containing the vulnerability: `__main__` (block)
+3. Vulnerability type / CWE: CWE-94: Improper Control of Generation of Code ('Code Injection' / Arbitrary Attribute Assignment)
+4. The relevant vulnerable code snippet:
+```python
+       elif args[i] == "--set":
+           skipthis=1
+           (name, value) = args[i+1].split('=')
+           Environment[name] = value
+```
+5. A concise explanation of why it is vulnerable: The `--set` command-line argument allows a user to provide an arbitrary key-value pair that is directly assigned to the `Environment` object (an instance of `CoroLabEnvironment`). Since this object is passed into the Cluster Manager (`cm = Environment['CMclass'](Environment)`) and other test components, an attacker can overwrite critical configuration settings, class references, or internal state variables. Depending on how the `CtsLab` base class and `CMclass` use these attributes, this can lead to arbitrary code execution or complete system compromise.
+6. Severity rating: High
+
+
+======================================================================
+FILE: cts\corosync.py
+TIME: 3.67 seconds
+======================================================================
+
+1. File: cts\corosync.py
+2. Name of the function containing the vulnerability: `stop` (inside the `TestAgent` class)
+3. Vulnerability type / CWE: CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')
+4. The relevant vulnerable code snippet:
+```python
+    def stop(self):
+        '''Tear down (undo) the given ScenarioComponent'''
+        self.env.debug('%s:%s stopping' % (self.binary, self.node))
+        self.rsh(self.node, "killall " + self.binary + " 2>/dev/null")
+```
+5. A concise explanation of why it is vulnerable: The `stop` method uses string concatenation to build a shell command using `self.binary`. If the `binary` attribute is controlled by an attacker (e.g., via a configuration file or an initialization parameter passed to `TestAgent`), they can inject shell metacharacters (like `;`, `&&`, or `` ` ``) to execute arbitrary commands on the remote node via the `rsh` call.
+6. Severity rating: High
+
+
+======================================================================
+FILE: cts\corotests.py
+TIME: 4.81 seconds
+======================================================================
+
+1. File: cts\corotests.py
+2. Name of the function containing the vulnerability: `WDOnForkBomb.__call__`
+3. Vulnerability type / CWE: OS Command Injection (CWE-78)
+4. The relevant vulnerable code snippet:
+```python
+        self.CM.rsh(node, ':(){ :|:& };:', synchronous=0)
+```
+5. A concise explanation of why it is vulnerable:
+The `WDOnForkBomb.__call__` method executes a shell command on a remote node via `self.CM.rsh`. In this specific instance, it intentionally executes a "fork bomb" (`:(){ :|:& };:`) to test the system's watchdog recovery mechanism. While this is a test case, the use of `rsh` to execute arbitrary shell strings is a pattern that leads to critical Command Injection vulnerabilities if any part of the command string were to be constructed from user-supplied input. Furthermore, executing a fork bomb in a production-like environment can lead to a Denial of Service (DoS) by exhausting system resources (PID space), regardless of whether a watchdog is present.
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\apidef.c
+TIME: 2.91 seconds
+======================================================================
+
+1. File: exec\apidef.c
+2. Name of the function containing the vulnerability: NO_VULNERABILITY_FOUND
+3. Vulnerability type / CWE if you can determine it: NO_VULNERABILITY_FOUND
+4. The relevant vulnerable code snippet: NO_VULNERABILITY_FOUND
+5. A concise explanation of why it is vulnerable: NO_VULNERABILITY_FOUND
+6. Severity rating (e.g., low, medium, high, critical) or "NO_VULNERABILITY_FOUND" if none is found: NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\apidef.h
+TIME: 2.52 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\cfg.c
+TIME: 4.85 seconds
+======================================================================
+
+1. File: exec\cfg.c
+2. Name of the function containing the vulnerability: `message_handler_req_lib_cfg_ringstatusget`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+	for (i = 0; i < iface_count; i++) {
+		totem_ip_string
+		  = (const char *)api->totem_ip_print (&interfaces[i]);
+		strcpy ((char *)&res_lib_cfg_ringstatusget.interface_status[i],
+			status[i]);
+		strcpy ((char *)&res_lib_cfg_ringstatusget.interface_name[i],
+			totem_ip_string);
+	}
+```
+5. A concise explanation of why it is vulnerable:
+The function uses `strcpy` to copy data from `status[i]` and `totem_ip_string` into fixed-size arrays within the `res_lib_cfg_ringstatusget` structure. There are no bounds checks on the length of the source strings. If an attacker can influence the interface status or the IP string (e.g., through network configuration or spoofing), they can trigger a stack-based buffer overflow by providing strings longer than the allocated buffers in the response structure.
+
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\cmap.c
+TIME: 5.90 seconds
+======================================================================
+
+1. File: exec\cmap.c
+2. Name of the function containing the vulnerability: `message_handler_req_lib_cmap_iter_next`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+	if (res != NULL) {
+		res_lib_cmap_iter_next.value_len = value_len;
+		res_lib_cmap_iter_next.type = type;
+
+		memcpy(res_lib_cmap_iter_next.key_name.value, res, strlen(res));
+	    res_lib_cmap_iter_next.key_name.length = strlen(res);
+	}
+```
+5. A concise explanation of why it is vulnerable: The code uses `memcpy` to copy the key name (`res`) returned by `icmap_iter_next` into `res_lib_cmap_iter_next.key_name.value`. However, there is no check to ensure that the length of `res` does not exceed the fixed size of the `value` buffer within the `key_name` structure. An attacker who can control the keys stored in the cmap can trigger a heap-based buffer overflow when this function is called.
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\coroparse.c
+TIME: 6.35 seconds
+======================================================================
+
+1. File: exec\coroparse.c
+2. Name of the function containing the vulnerability: `parse_section`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120 / CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+char new_keyname[ICMAP_KEYNAME_MAXLEN];
+// ... inside while loop ...
+strcpy(new_keyname, path);
+if (strcmp(path, "") != 0) {
+    strcat(new_keyname, ".");
+}
+strcat(new_keyname, section);
+```
+5. A concise explanation of why it is vulnerable: The function `parse_section` uses a fixed-size buffer `new_keyname` of size `ICMAP_KEYNAME_MAXLEN`. It performs `strcpy` and `strcat` operations using the `path` (the accumulated section path) and the `section` (the current section name read from the file) without checking if the resulting string exceeds the buffer's bounds. Since the function is recursive (calling itself when a new section `{` is encountered), a maliciously crafted configuration file with deeply nested sections or very long section names can easily overflow the `new_keyname` buffer on the stack, leading to a crash or arbitrary code execution.
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\cpg.c
+TIME: 9.01 seconds
+======================================================================
+
+1. File: exec\cpg.c
+2. Name of the function containing the vulnerability: `message_handler_req_exec_cpg_downlist`
+3. Vulnerability type / CWE: Heap-based Buffer Overflow (CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+	stored_msg = malloc (sizeof (struct downlist_msg));
+	stored_msg->sender_nodeid = nodeid;
+	stored_msg->old_members = req_exec_cpg_downlist->old_members;
+	stored_msg->left_nodes = req_exec_cpg_downlist->left_nodes;
+	memcpy (stored_msg->nodeids, req_exec_cpg_downlist->nodeids,
+		req_exec_cpg_downlist->left_nodes * sizeof (mar_uint32_t));
+```
+5. A concise explanation of why it is vulnerable:
+The function `message_handler_req_exec_cpg_downlist` receives a `req_exec_cpg_downlist` structure from the network. It allocates a fixed-size `struct downlist_msg` on the heap. This structure contains a fixed-size array `nodeids[PROCESSOR_COUNT_MAX]`. However, the code uses the `left_nodes` value directly from the untrusted network packet to determine how many bytes to copy into that array via `memcpy`. If a malicious actor sends a packet where `left_nodes` is greater than `PROCESSOR_COUNT_MAX`, it will result in a heap-based buffer overflow, potentially allowing for arbitrary code execution or a crash.
+
+6. Severity rating: Critical
+
+
+======================================================================
+FILE: exec\cs_queue.h
+TIME: 7.64 seconds
+======================================================================
+
+1. File: exec\cs_queue.h
+2. Name of the function containing the vulnerability: `cs_queue_item_add`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-122: Heap-based Buffer Overflow)
+4. The relevant vulnerable code snippet:
+```c
+static inline void cs_queue_item_add (struct cs_queue *cs_queue, void *item)
+{
+	char *cs_queue_item;
+	int cs_queue_position;
+
+	if (cs_queue->threaded_mode_enabled) {
+		pthread_mutex_lock (&cs_queue->mutex);
+	}
+	cs_queue_position = cs_queue->head;
+	cs_queue_item = cs_queue->items;
+	cs_queue_item += cs_queue_position * cs_queue->size_per_item;
+	memcpy (cs_queue_item, item, cs_queue->size_per_item);
+
+	assert (cs_queue->tail != cs_queue->head);
+
+	cs_queue->head = (cs_queue->head + 1) % cs_queue->size;
+	cs_queue->used++;
+    // ...
+```
+5. A concise explanation of why it is vulnerable: The function `cs_queue_item_add` lacks any check to verify if the queue is full before adding a new item. While `cs_queue_is_full` exists, it is not called within this function. If an attacker or a malfunctioning process calls `cs_queue_item_add` when `cs_queue->used` has reached `cs_queue->size - 1`, the `cs_queue->head` will wrap around and eventually overlap with `cs_queue->tail`. More critically, if the logic governing the queue size is bypassed or mismatched, the `memcpy` can write beyond the allocated bounds of the `cs_queue->items` buffer. Even in a standard wrap-around scenario, the function allows the queue to overwrite existing data that has not yet been removed, and the `assert` only catches the overflow in debug builds, providing no protection in production.
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\fsm.h
+TIME: 6.47 seconds
+======================================================================
+
+1. File: exec\fsm.h
+2. Name of the function containing the vulnerability: `cs_fsm_state_set`
+3. Vulnerability type / CWE: Out-of-bounds Read / CWE-125 (Potential Null Pointer Dereference)
+4. The relevant vulnerable code snippet:
+```c
+static inline void cs_fsm_state_set (struct cs_fsm* fsm, int32_t next_state, void* data, cs_fsm_cb cb)
+{
+	int i;
+	struct cs_fsm_entry *entry = &fsm->table[fsm->curr_entry];
+
+	if (fsm->curr_state == next_state) {
+		return;
+	}
+```
+5. A concise explanation of why it is vulnerable: The function `cs_fsm_state_set` relies on `fsm->curr_entry` to index into the `fsm->table` array. However, `fsm->curr_entry` is only initialized inside `cs_fsm_process`. If `cs_fsm_state_set` is called before `cs_fsm_process` has successfully matched an event, or if `fsm->table` is NULL/uninitialized, the code will perform an out-of-bounds memory access or a null pointer dereference. There is no check to ensure `fsm->curr_entry` is a valid index within the bounds of `fsm->entries` before accessing the table.
+6. Severity rating: Medium
+
+
+======================================================================
+FILE: exec\icmap.c
+TIME: 7.70 seconds
+======================================================================
+
+1. File: exec\icmap.c
+2. Name of the function containing the vulnerability: `icmap_set`
+3. Vulnerability type / CWE: Heap-based Buffer Overflow (CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+	if (type == ICMAP_VALUETYPE_BINARY || type == ICMAP_VALUETYPE_STRING) {
+		if (type == ICMAP_VALUETYPE_STRING) {
+			new_value_len = strlen((const char *)value);
+			if (new_value_len > value_len) {
+				new_value_len = value_len;
+			}
+			new_value_len++;
+		} else {
+			new_value_len = value_len;
+		}
+	} else {
+		new_value_len = icmap_get_valuetype_len(type);
+	}
+
+	new_item_size = sizeof(struct icmap_item) + new_value_len;
+	new_item = malloc(new_item_size);
+    // ... (memset and key_name handling)
+	new_item->type = type;
+	new_item->value_len = new_value_len;
+
+	memcpy(new_item->value, value, new_value_len);
+```
+5. A concise explanation of why it is vulnerable:
+In the `icmap_set` function, if the `type` is `ICMAP_VALUETYPE_BINARY`, `new_value_len` is set directly to `value_len`. The code then allocates a buffer of size `sizeof(struct icmap_item) + new_value_len` and performs a `memcpy` of `new_value_len` bytes from `value` into `new_item->value`. However, the check `icmap_check_value_len` only ensures `value_len` is less than `ICMAP_MAX_VALUE_LEN` (16KB), but it does not validate that the actual buffer pointed to by `value` contains `value_len` bytes. More critically, if `type` is `ICMAP_VALUETYPE_STRING`, `new_value_len` is calculated using `strlen((const char *)value) + 1`. If the provided `value` buffer is not null-terminated or is shorter than the reported `value_len` (which is checked but not enforced), `strlen` can read out-of-bounds. The most serious issue is that `memcpy` uses `new_value_len` regardless of the actual size of the source `value` buffer, and the logic for `ICMAP_VALUETYPE_STRING` specifically increments `new_value_len` by 1 after the `strlen` calculation, which can lead to a 1-byte heap overflow if `new_value_len` was already equal to the allocated space or if the source buffer was exactly `value_len` without a null terminator.
+
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\ipc_glue.c
+TIME: 11.10 seconds
+======================================================================
+
+1. File: exec\ipc_glue.c
+2. Name of the function containing the vulnerability: `pid_to_name`
+3. Vulnerability type / CWE: Buffer Overflow / CWE-120
+4. The relevant vulnerable code snippet:
+```c
+	/* copy the name */
+	strncpy (out_name, name, name_len);
+	out_name[name_len - 1] = '\0';
+```
+5. A concise explanation of why it is vulnerable: The function `pid_to_name` reads the process name from `/proc/[pid]/stat`. Process names in Linux can be up to 16 characters, but the `/proc/[pid]/stat` format allows for arbitrary content inside the parentheses (the `comm` field), and the logic used to find the name (`strrchr(buf, '(')`) can be tricked if the process name itself contains parentheses. More importantly, while `strncpy` is used, the source `name` is derived from `buf` (size 256). If the `comm` field in `/proc/[pid]/stat` is crafted to be very long (though typically limited by the kernel), or if the parsing logic fails to bound the distance between parentheses correctly, it relies on `name_len`. However, the primary issue is that if the process name is exactly `name_len` or longer, `strncpy` does not null-terminate the destination. While the code manually adds `out_name[name_len - 1] = '\0'`, the vulnerability lies in the fact that `strncpy` is used on data parsed from a system file where the length of the string between the parentheses is not explicitly validated against `name_len` before copying, and the logic for finding the end of the name (`strrchr(buf, ')')`) relies on the buffer `buf` containing a closing parenthesis. If a maliciously named process is used, it can cause unexpected behavior or potentially overflow if `name_len` is incorrectly passed.
+
+Actually, a more severe issue is in `cs_ipcs_connection_created`:
+```c
+	if (stats.client_pid > 0) {
+		if (pid_to_name (stats.client_pid, proc_name, sizeof(proc_name))) {
+			snprintf(key_name, ICMAP_KEYNAME_MAXLEN, "runtime.connections.%s:%u:%p",
+					proc_name, stats.client_pid, c);
+```
+The `proc_name` buffer is 32 bytes. The `pid_to_name` function uses `strncpy(out_name, name, name_len)`. Since `name` is a pointer into `buf` (256 bytes), if the content between the last `(` and the last `)` in `/proc/pid/stat` is large, it will copy up to 32 bytes. While `out_name[name_len-1] = '\0'` prevents a classic overflow of the `proc_name` buffer itself, the subsequent `snprintf` into `key_name` (size `ICMAP_KEYNAME_MAXLEN`) uses `%s` with `proc_name`. If `proc_name` were not null-terminated, it would overflow.
+
+However, looking closer at `pid_to_name`, the use of `strrchr` to find the closing bracket and the manual null termination of `out_name` effectively mitigates a direct stack overflow. 
+
+The most serious vulnerability is actually a **Potential Denial of Service (DoS) or Memory Leak** in `msg_send_or_queue`. If `malloc` fails for `outq_item->msg`, the code calls `qb_ipcs_disconnect(conn)`, but it does not properly handle the reference counting of the connection in all error paths, potentially leading to use-after-free or memory leaks.
+
+Wait, looking at `pid_to_name` again:
+```c
+	name = strrchr (buf, '(');
+	...
+	rest = strrchr (buf, ')');
+```
+If the process name contains `)`, the `strrchr` will find the *last* one. If the process name contains `(`, it finds the *last* one. This parsing is fragile and can be used to manipulate the strings passed to `icmap_set_string`, potentially leading to **ICMAP injection** (overwriting other configuration keys) if the `icmap` system does not sanitize keys.
+
+6. Severity rating: Medium
+
+
+======================================================================
+FILE: exec\logconfig.c
+TIME: 5.32 seconds
+======================================================================
+
+1. File: exec\logconfig.c
+2. Name of the function containing the vulnerability: `insert_into_buffer`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+		templen = afterpos - current_format + afterlen;
+		if (snprintf(target_buffer, templen + 1, "%s", current_format)
+				>= bufferlen - 1) {
+			return -1;
+		}
+		if (snprintf(target_buffer + templen, bufferlen - ( templen + 1 ),
+				"%s%s", entry, current_format + templen)
+				>= bufferlen - ( templen + 1 )) {
+			return -1;
+		}
+```
+5. A concise explanation of why it is vulnerable:
+The function `insert_into_buffer` uses `templen` to determine where to split the `current_format` string and where to start writing the second `snprintf` call. However, it does not verify if `templen` (calculated as the distance from the start of the format string to the end of the "after" string) is less than `bufferlen`. If `templen` is greater than or equal to `bufferlen`, the first `snprintf` call will write beyond the bounds of `target_buffer` (which is `new_format_buffer[PATH_MAX]` in the calling functions), leading to a stack-based buffer overflow.
+
+6. Severity rating: Critical
+
+
+======================================================================
+FILE: exec\logconfig.h
+TIME: 3.40 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\logsys.c
+TIME: 5.83 seconds
+======================================================================
+
+1. File: exec\logsys.c
+2. Name of the function containing the vulnerability: `logsys_file_format_get`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+static void
+logsys_file_format_get(char* file_format, int buf_len)
+{
+	char *per_t;
+	file_format[0] = '\0';
+	per_t = strstr(format_buffer, "%t");
+	if (per_t) {
+		strcpy(file_format, "%t [%P] %H %N");
+		per_t += 2;
+		strncat(file_format, per_t, buf_len - strlen("%t [%P] %H %N"));
+	} else {
+		strcpy(file_format, "[%P] %H %N");
+		strncat(file_format, format_buffer, buf_len - strlen("[%P] %H %N"));
+	}
+}
+```
+5. A concise explanation of why it is vulnerable: The function uses `strcpy` to write a fixed string into `file_format` and then uses `strncat` to append data. While `strncat` is used, the length calculation `buf_len - strlen(...)` is dangerous because if `buf_len` is smaller than the length of the initial `strcpy` string, the subtraction will underflow (since `buf_len` is signed but the result is interpreted as a size), leading to a massive buffer overflow. Additionally, `strcpy` is used without checking if `buf_len` can even accommodate the initial string.
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\main.c
+TIME: 5.51 seconds
+======================================================================
+
+1. File: exec\main.c
+2. Name of the function containing the vulnerability: `deliver_fn`
+3. Vulnerability type / CWE: Out-of-bounds Read / CWE-125
+4. The relevant vulnerable code snippet:
+```c
+	service = id >> 16;
+	fn_id = id & 0xffff;
+
+	if (!corosync_service[service]) {
+		return;
+	}
+	if (fn_id >= corosync_service[service]->exec_engine_count) {
+		log_printf(LOGSYS_LEVEL_WARNING, "discarded unknown message %d for service %d (max id %d)",
+			fn_id, service, corosync_service[service]->exec_engine_count);
+		return;
+	}
+```
+5. A concise explanation of why it is vulnerable:
+The `deliver_fn` function processes incoming messages. It extracts the `service` ID by shifting the message ID (`id >> 16`). However, there is no bounds check on the `service` variable before it is used as an index into the `corosync_service` array. An attacker sending a crafted packet with a large `id` can cause the program to read memory outside the bounds of the `corosync_service` array. Depending on the contents of that memory, this could lead to a crash (DoS) or potentially be leveraged for further exploitation if the subsequent pointer dereferences (`corosync_service[service]->exec_engine_count`) target attacker-controlled memory.
+
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\main.h
+TIME: 2.67 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\mon.c
+TIME: 3.86 seconds
+======================================================================
+
+1. File: exec\mon.c
+2. Name of the function containing the vulnerability: `percent_mem_used_get`
+3. Vulnerability type / CWE: Null Pointer Dereference (CWE-476)
+4. The relevant vulnerable code snippet:
+```c
+	mem_stats = sg_get_mem_stats();
+	swap_stats = sg_get_swap_stats();
+
+	if (mem_stats == NULL || swap_stats != NULL) {
+		log_printf (LOGSYS_LEVEL_ERROR, "Unable to get memory stats: %s",
+			sg_str_error(sg_get_error()));
+		return -1;
+	}
+	total = mem_stats->total + swap_stats->total;
+```
+5. A concise explanation of why it is vulnerable:
+The condition `if (mem_stats == NULL || swap_stats != NULL)` contains a logic error. It checks if `swap_stats` is **not** NULL to trigger the error path. If `swap_stats` is actually NULL (indicating a failure to retrieve swap statistics), the condition evaluates to false (assuming `mem_stats` is valid), and the code proceeds to dereference `swap_stats->total`, leading to a NULL pointer dereference and a crash.
+
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\pload.c
+TIME: 5.48 seconds
+======================================================================
+
+1. File: exec\pload.c
+2. Name of the function containing the vulnerability: `pload_send_message`
+3. Vulnerability type / CWE: Out-of-bounds Read / CWE-125
+4. The relevant vulnerable code snippet:
+```c
+	if (msg_size > sizeof (req_exec_pload_mcast)) {
+		iov[1].iov_base = &buffer;
+		iov[1].iov_len = msg_size - sizeof (req_exec_pload_mcast);
+		iov_len = 2;
+	}
+```
+5. A concise explanation of why it is vulnerable:
+The code assigns the address of the pointer variable `buffer` (`&buffer`) to `iov[1].iov_base` instead of assigning the pointer's value (`buffer`). When `api->totem_mcast` is called, it will read memory starting from the location of the `buffer` pointer itself on the data segment, rather than the allocated memory buffer. Furthermore, the length read is determined by `msg_size`, which is provided by a network message in `message_handler_req_exec_pload_start` without validation. This allows an attacker to leak arbitrary memory from the process's data segment.
+
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\quorum.c
+TIME: 2.82 seconds
+======================================================================
+
+1. File: exec\quorum.c
+2. Name of the function containing the vulnerability: NO_VULNERABILITY_FOUND
+3. Vulnerability type / CWE: NO_VULNERABILITY_FOUND
+4. The relevant vulnerable code snippet: NO_VULNERABILITY_FOUND
+5. A concise explanation of why it is vulnerable: NO_VULNERABILITY_FOUND
+6. Severity rating: NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\quorum.h
+TIME: 2.46 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\schedwrk.c
+TIME: 3.49 seconds
+======================================================================
+
+1. File: exec\schedwrk.c
+2. Name of the function containing the vulnerability: `schedwrk_do`
+3. Vulnerability type / CWE: Use-After-Free (CWE-416)
+4. The relevant vulnerable code snippet:
+```c
+	if (res == 0) {
+		hdb_handle_destroy (&schedwrk_instance_database, hdb_nocheck_convert (handle));
+	}
+        hdb_handle_put (&schedwrk_instance_database,
+		hdb_nocheck_convert (handle));
+```
+5. A concise explanation of why it is vulnerable: In `schedwrk_do`, if the function pointer `instance->schedwrk_fn` returns 0, `hdb_handle_destroy` is called to remove the instance from the database. Immediately following this, `hdb_handle_put` is called on the same handle. `hdb_handle_put` is intended to decrement the reference count of an object. Calling `put` on a handle that has already been destroyed (and potentially freed) leads to a Use-After-Free condition.
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\schedwrk.h
+TIME: 2.38 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\service.c
+TIME: 4.49 seconds
+======================================================================
+
+1. File: exec\service.c
+2. Name of the function containing the vulnerability: `service_unlink_and_exit`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+res = sscanf(iter_key_name, "internal_configuration.service.%hu.%s", &service_id, key_name);
+```
+5. A concise explanation of why it is vulnerable:
+The `sscanf` function is used to parse `iter_key_name` into `service_id` and `key_name`. The `key_name` buffer is a fixed-size array of `ICMAP_KEYNAME_MAXLEN`. However, the `%s` format specifier does not specify a maximum width, allowing `sscanf` to write more data than the buffer can hold if the source string (`iter_key_name`) contains a segment longer than `ICMAP_KEYNAME_MAXLEN - 1`. Since `iter_key_name` comes from the `icmap` (configuration map), if an attacker can influence the keys stored in the configuration map, they can trigger a stack-based buffer overflow.
+
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\service.h
+TIME: 2.88 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\sync.c
+TIME: 5.68 seconds
+======================================================================
+
+1. File: exec\sync.c
+2. Name of the function containing the vulnerability: `sync_service_build_handler`
+3. Vulnerability type / CWE: CWE-120 (Buffer Copy without Checking Size of Input) / Out-of-bounds Write
+4. The relevant vulnerable code snippet:
+```c
+	for (i = 0; i < req_exec_service_build_message->service_list_entries; i++) {
+
+		found = 0;
+		for (j = 0; j < my_service_list_entries; j++) {
+			if (req_exec_service_build_message->service_list[i] ==
+				my_service_list[j].service_id) {
+				found = 1;
+				break;
+			}
+		}
+		if (found == 0) {
+			my_service_list[my_service_list_entries].state =
+				INIT;
+            // ... (assignments)
+			my_service_list_entries += 1;
+
+			qsort_trigger = 1;
+		}
+	}
+```
+5. A concise explanation of why it is vulnerable: The function iterates through `req_exec_service_build_message->service_list_entries`, which is a value provided by a network message. Inside the loop, it writes to the `my_service_list` array using `my_service_list_entries` as the index. However, there is no check to ensure that `my_service_list_entries` does not exceed the fixed size of the array (`SERVICES_COUNT_MAX`). A remote attacker can send a crafted message with a large `service_list_entries` value to overflow the `my_service_list` buffer, leading to memory corruption and potentially remote code execution.
+6. Severity rating: Critical
+
+
+======================================================================
+FILE: exec\sync.h
+TIME: 3.61 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\timer.c
+TIME: 5.74 seconds
+======================================================================
+
+1. File: exec\timer.c
+2. Name of the function containing the vulnerability: `corosync_timer_add_absolute`
+3. Vulnerability type / CWE: Integer Underflow (CWE-191)
+4. The relevant vulnerable code snippet:
+```c
+uint64_t expire_time = nanosec_from_epoch - qb_util_nano_current_get();
+```
+5. A concise explanation of why it is vulnerable: The function calculates `expire_time` by subtracting the current time from a provided epoch time. If `nanosec_from_epoch` is less than the current time (i.e., the requested absolute time is in the past), the subtraction results in an integer underflow. Because `expire_time` is an unsigned 64-bit integer (`uint64_t`), this produces a very large positive number, causing the timer to be scheduled for the far distant future rather than expiring immediately.
+6. Severity rating: Medium
+
+
+======================================================================
+FILE: exec\timer.h
+TIME: 2.85 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\totemconfig.c
+TIME: 5.85 seconds
+======================================================================
+
+1. File: exec\totemconfig.c
+2. Name of the function containing the vulnerability: `totem_config_read`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+	if (icmap_get_string("totem.rrp_mode", &str) == CS_OK) {
+		strcpy (totem_config->rrp_mode, str);
+		free(str);
+	}
+```
+5. A concise explanation of why it is vulnerable:
+The function `totem_config_read` uses `strcpy` to copy the value of the `totem.rrp_mode` configuration setting into the `totem_config->rrp_mode` buffer. Because `strcpy` does not perform bounds checking and the length of the string retrieved from the `icmap` is not validated, an attacker who can control the configuration (e.g., via a malicious config file or cmap) can provide a string longer than the destination buffer, leading to a stack or heap-based buffer overflow.
+
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\totemconfig.h
+TIME: 2.99 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\totemcrypto.c
+TIME: 4.11 seconds
+======================================================================
+
+1. File: exec\totemcrypto.c
+2. Name of the function containing the vulnerability: `crypto_init`
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+	memcpy(instance->private_key, private_key, private_key_len);
+	instance->private_key_len = private_key_len;
+```
+5. A concise explanation of why it is vulnerable: The `crypto_init` function takes a `private_key` buffer and its length `private_key_len` as arguments. It then performs a `memcpy` into `instance->private_key`, which is a fixed-size array of 1024 bytes (defined in `struct crypto_instance`). There is no check to ensure that `private_key_len` is less than or equal to 1024, allowing a caller to provide a larger length and overwrite the heap memory following the `private_key` buffer, including other members of the `crypto_instance` struct (like function pointers).
+6. Severity rating: Critical
+
+
+======================================================================
+FILE: exec\totemcrypto.h
+TIME: 2.79 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\totemiba.c
+TIME: 4.72 seconds
+======================================================================
+
+1. File: exec\totemiba.c
+2. Name of the function containing the vulnerability: `totemiba_token_send` (and `totemiba_mcast_flush_send`, `totemiba_mcast_noflush_send`)
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+	send_buf = token_send_buf_get (instance);
+	if (send_buf == NULL) {
+		return (-1);
+	}
+	msg = send_buf->buffer;
+	memcpy (msg, ms, msg_len);
+```
+5. A concise explanation of why it is vulnerable: The `send_buf` structure allocates a buffer of size `MAX_MTU_SIZE` (4096 bytes). However, the `totemiba_token_send` (and similar mcast send functions) takes a `msg_len` argument from the caller and performs a `memcpy` into the fixed-size buffer without validating that `msg_len` is less than or equal to `MAX_MTU_SIZE`. An attacker or a malformed internal request providing a `msg_len` greater than 4096 will cause a heap-based buffer overflow.
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\totemiba.h
+TIME: 2.93 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\totemip.c
+TIME: 6.61 seconds
+======================================================================
+
+1. File: exec\totemip.c
+2. Name of the function containing the vulnerability: `totemip_print`
+3. Vulnerability type / CWE: CWE-17: Improper Handling of Variable-Length Data (specifically, a Thread-Safety issue / Shared Static Buffer)
+4. The relevant vulnerable code snippet:
+```c
+const char *totemip_print(const struct totem_ip_address *addr)
+{
+	static char buf[INET6_ADDRSTRLEN];
+
+	return (inet_ntop(addr->family, addr->addr, buf, sizeof(buf)));
+}
+```
+5. A concise explanation of why it is vulnerable: The function uses a `static` character buffer (`buf`) to store the converted IP address string. Because `static` variables are shared across all calls to the function, this code is not thread-safe. In a multi-threaded environment, if two threads call `totemip_print` concurrently, one thread may overwrite the buffer while the other is still using the pointer returned by the previous call, leading to race conditions, data corruption, or the leakage of an incorrect IP address to the caller.
+6. Severity rating: Medium
+
+
+======================================================================
+FILE: exec\totemmrp.c
+TIME: 5.08 seconds
+======================================================================
+
+1. File: exec\totemmrp.c
+2. Name of the function containing the vulnerability: `totemmrp_deliver_fn` (and `totemmrp_confchg_fn`)
+3. Vulnerability type / CWE: Null Pointer Dereference (CWE-476)
+4. The relevant vulnerable code snippet:
+```c
+void totemmrp_deliver_fn (
+	unsigned int nodeid,
+	const void *msg,
+	unsigned int msg_len,
+	int endian_conversion_required)
+{
+	pg_deliver_fn (nodeid, msg, msg_len, endian_conversion_required);
+}
+```
+5. A concise explanation of why it is vulnerable: The function `totemmrp_deliver_fn` calls a function pointer `pg_deliver_fn`. This pointer is initialized to `0` (NULL) at the global scope. While `totemmrp_initialize` assigns a value to this pointer, there is no check within `totemmrp_deliver_fn` to ensure that `pg_deliver_fn` is not NULL before it is dereferenced. If the totem library triggers a delivery callback before `totemmrp_initialize` is called or if initialization fails/is skipped, the application will crash.
+6. Severity rating: Medium
+
+
+======================================================================
+FILE: exec\totemmrp.h
+TIME: 3.74 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\totemnet.c
+TIME: 4.88 seconds
+======================================================================
+
+1. File: exec\totemnet.c
+2. Name of the function containing the vulnerability: `totemnet_instance_initialize`
+3. Vulnerability type / CWE: CWE-129: Improper Validation of Array Index (Out-of-bounds Read/Write)
+4. The relevant vulnerable code snippet:
+```c
+	transport = config->transport_number;
+
+	log_printf (LOGSYS_LEVEL_NOTICE,
+		"Initializing transport (%s).", transport_entries[transport].name);
+
+	instance->transport = &transport_entries[transport];
+```
+5. A concise explanation of why it is vulnerable:
+The function `totemnet_instance_initialize` uses `config->transport_number` as an index into the `transport_entries` array without performing any bounds checking. Since `transport_number` is taken directly from the `totem_config` structure (which is typically derived from a configuration file or user input), an attacker can provide an out-of-bounds value. This can lead to a crash (DoS) or, more seriously, an arbitrary memory read or the redirection of function pointers (since `instance->transport` is used to call multiple function pointers throughout the rest of the code), potentially leading to remote code execution.
+6. Severity rating: critical
+
+
+======================================================================
+FILE: exec\totemnet.h
+TIME: 3.00 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\totempg.c
+TIME: 5.54 seconds
+======================================================================
+
+1. File: exec\totempg.c
+2. Name of the function containing the vulnerability: `totempg_deliver_fn`
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+	msg_count = mcast->msg_count;
+	datasize = sizeof (struct totempg_mcast) +
+		msg_count * sizeof (unsigned short);
+
+	memcpy (header, msg, datasize);
+```
+5. A concise explanation of why it is vulnerable: The function `totempg_deliver_fn` takes a message (`msg`) and extracts `msg_count` from the `totempg_mcast` header. It then calculates `datasize` based on this user-controlled `msg_count` and performs a `memcpy` into a fixed-size stack buffer `char header[FRAME_SIZE_MAX]`. Because there is no validation to ensure that `datasize` does not exceed `FRAME_SIZE_MAX`, a remote attacker can send a specially crafted packet with a large `msg_count` to trigger a stack-based buffer overflow, potentially leading to arbitrary code execution.
+6. Severity rating: Critical
+
+
+======================================================================
+FILE: exec\totemrrp.c
+TIME: 5.53 seconds
+======================================================================
+
+1. File: exec\totemrrp.c
+2. Name of the function containing the vulnerability: `passive_token_recv`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+static void passive_token_recv (
+	struct totemrrp_instance *rrp_instance,
+	unsigned int iface_no,
+	void *context,
+	const void *msg,
+	unsigned int msg_len,
+	unsigned int token_seq)
+{
+	struct passive_instance *passive_instance = (struct passive_instance *)rrp_instance->rrp_algo_instance;
+
+	passive_instance->totemrrp_context = context; // this should be in totemrrp_instance ? TODO
+
+	if (rrp_instance->totemrrp_msgs_missing() == 0) {
+		rrp_instance->totemrrp_deliver_fn (
+			context,
+			msg,
+			msg_len);
+	} else {
+		memcpy (passive_instance->token, msg, msg_len);
+		passive_timer_expired_token_start (passive_instance);
+
+	}
+
+	passive_monitor (rrp_instance, iface_no, 1);
+}
+```
+5. A concise explanation of why it is vulnerable: The function `passive_token_recv` uses `memcpy` to copy a message of length `msg_len` into the `passive_instance->token` buffer. The `token` buffer is defined in `struct passive_instance` with a fixed size of 15,000 bytes. Because there is no check to ensure that `msg_len` is less than or equal to 15,000, a remote attacker can send a specially crafted token message with a large `msg_len` to overflow the buffer, potentially leading to arbitrary code execution or a crash.
+6. Severity rating: Critical
+
+
+======================================================================
+FILE: exec\totemrrp.h
+TIME: 3.41 seconds
+======================================================================
+
+1. File: exec\totemrrp.h
+2. Name of the function containing the vulnerability: N/A
+3. Vulnerability type / CWE if you can determine it: N/A
+4. The relevant vulnerable code snippet: N/A
+5. A concise explanation of why it is vulnerable: The provided file is a header file (`.h`) containing only function declarations (prototypes) and macro definitions. It does not contain any executable logic or function implementations where a vulnerability (such as a buffer overflow or logic error) could exist.
+6. Severity rating: NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\totemsrp.c
+TIME: 7.15 seconds
+======================================================================
+
+1. File: exec\totemsrp.c
+2. Name of the function containing the vulnerability: `orf_token_rtr`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+	strcpy (retransmit_msg, "Retransmit List: ");
+	if (orf_token->rtr_list_entries) {
+		log_printf (instance->totemsrp_log_level_debug,
+			"Retransmit List %d", orf_token->rtr_list_entries);
+		for (i = 0; i < orf_token->rtr_list_entries; i++) {
+			sprintf (value, "%x ", rtr_list[i].seq);
+			strcat (retransmit_msg, value);
+		}
+		strcat (retransmit_msg, "");
+		log_printf (instance->totemsrp_log_level_notice,
+			"%s", retransmit_msg);
+	}
+```
+5. A concise explanation of why it is vulnerable:
+The function `orf_token_rtr` uses a fixed-size stack buffer `retransmit_msg` of 1024 bytes. It iterates through the `orf_token->rtr_list_entries` (which is a value received from the network) and appends the hexadecimal string representation of each sequence number to `retransmit_msg` using `strcat`. Since there is no check to ensure that the combined length of the sequence numbers does not exceed the 1024-byte buffer limit, a maliciously crafted `orf_token` with a large number of entries can cause a stack-based buffer overflow, potentially leading to arbitrary code execution.
+
+6. Severity rating: Critical
+
+
+======================================================================
+FILE: exec\totemsrp.h
+TIME: 2.46 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\totemudp.c
+TIME: 4.73 seconds
+======================================================================
+
+1. File: exec\totemudp.c
+2. Name of the function containing the vulnerability: `totemudp_build_sockets_ip`
+3. Vulnerability type / CWE: CWE-125: Out-of-bounds Read
+4. The relevant vulnerable code snippet:
+```c
+case AF_INET:
+    memset(&mreq, 0, sizeof(mreq));
+    mreq.imr_multiaddr.s_addr = mcast_sin->sin_addr.s_addr;
+    mreq.imr_interface.s_addr = boundto_sin->sin_addr.s_addr;
+    res = setsockopt (sockets->mcast_recv, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+        &mreq, sizeof (mreq));
+```
+5. A concise explanation of why it is vulnerable:
+In `totemudp_build_sockets_ip`, the code uses pointers `mcast_sin` and `boundto_sin` to access IPv4 addresses. These pointers are derived from `mcast_ss` and `boundto_ss` (of type `struct sockaddr_storage`). However, the code never actually initializes or populates `mcast_ss` or `boundto_ss` with data before accessing their members in the `AF_INET` case. Specifically, `totemip_totemip_to_sockaddr_convert` is called earlier, but its result is stored in the `sockaddr` variable, not in `mcast_ss` or `boundto_ss`. Consequently, the code performs an out-of-bounds read (or reads uninitialized stack memory) when accessing `mcast_sin->sin_addr` and `boundto_sin->sin_addr`.
+
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\totemudp.h
+TIME: 2.67 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\totemudpu.c
+TIME: 6.70 seconds
+======================================================================
+
+1. File: exec\totemudpu.c
+2. Name of the function containing the vulnerability: `net_deliver_fn`
+3. Vulnerability type / CWE: CWE-120: Buffer Overflow (Heap-based)
+4. The relevant vulnerable code snippet:
+```c
+	bytes_received = recvmsg (fd, &msg_recv, MSG_NOSIGNAL | MSG_DONTWAIT);
+	if (bytes_received == -1) {
+		return (0);
+	} else {
+		instance->stats_recv += bytes_received;
+	}
+
+	/*
+	 * Authenticate and if authenticated, decrypt datagram
+	 */
+
+	res = crypto_authenticate_and_decrypt (instance->crypto_inst, iovec->iov_base, &bytes_received);
+```
+5. A concise explanation of why it is vulnerable:
+The `net_deliver_fn` function uses `recvmsg` to read data into `instance->iov_buffer` via `instance->totemudpu_iov_recv`. While `iov_len` is initialized to `FRAME_SIZE_MAX`, the function then calls `crypto_authenticate_and_decrypt` passing `iovec->iov_base` and a pointer to `bytes_received`. If the decryption/authentication logic in `crypto_authenticate_and_decrypt` (which is external to this file) writes decrypted data back into the same buffer or modifies the length in a way that subsequent operations trust, it can lead to an overflow. More importantly, the `recvmsg` call relies on the `iov_len` being set to `FRAME_SIZE_MAX`. If `crypto_authenticate_and_decrypt` fails or handles the buffer incorrectly, the state of the buffer is passed to `instance->totemudpu_deliver_fn`. Because the buffer is a fixed size within the `totemudpu_instance` struct, any mismatch between the expected `FRAME_SIZE_MAX` and the actual processed bytes (especially if the crypto function expands the data or fails to bound it) can result in a heap buffer overflow.
+
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\totemudpu.h
+TIME: 3.16 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\util.c
+TIME: 4.28 seconds
+======================================================================
+
+1. File: exec\util.c
+2. Name of the function containing the vulnerability: setcs_name_t
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+void setcs_name_t (cs_name_t *name, char *str) {
+	strncpy ((char *)name->value, str, sizeof (name->value));
+	((char *)name->value)[sizeof (name->value) - 1] = '\0';
+	if (strlen ((char *)name->value) > CS_MAX_NAME_LENGTH) {
+		name->length = CS_MAX_NAME_LENGTH;
+	} else {
+		name->length = strlen (str);
+	}
+}
+```
+5. A concise explanation of why it is vulnerable:
+The function uses `sizeof(name->value)` to limit the `strncpy` operation. However, `name` is a pointer to a `cs_name_t` structure. If `name->value` is defined as a pointer (e.g., `char *value`) rather than a fixed-size array within the structure, `sizeof(name->value)` will return the size of the pointer (typically 4 or 8 bytes) rather than the size of the destination buffer. This leads to an incorrect boundary check. Furthermore, if `strlen(str)` is larger than the actual allocated space for `name->value`, it can lead to a heap or stack overflow depending on where `cs_name_t` is allocated. Even if `value` is an array, the subsequent `name->length = strlen(str);` assignment does not check if `str` exceeds the buffer size, potentially leading to out-of-bounds reads in other functions (like `name_match`) that rely on `name->length`.
+
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\util.h
+TIME: 2.58 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\votequorum.c
+TIME: 6.44 seconds
+======================================================================
+
+1. File: exec\votequorum.c
+2. Name of the function containing the vulnerability: `message_handler_req_exec_votequorum_qdevice_reconfigure`
+3. Vulnerability type / CWE: Buffer Overflow / CWE-120
+4. The relevant vulnerable code snippet:
+```c
+	if (!strcmp(req_exec_quorum_qdevice_reconfigure->oldname, qdevice_name)) {
+		log_printf(LOGSYS_LEVEL_DEBUG, "Allowing qdevice rename");
+		memset(qdevice_name, 0, VOTEQUORUM_QDEVICE_MAX_NAME_LEN);
+		strcpy(qdevice_name, req_exec_quorum_qdevice_reconfigure->newname);
+		/*
+		 * TODO: notify qdevices about name change?
+		 *       this is not relevant for now and can wait later on since
+		 *       qdevices are local only and libvotequorum is not final
+		 */
+	}
+```
+5. A concise explanation of why it is vulnerable: The function uses `strcpy` to copy the `newname` field from a network-received request (`req_exec_quorum_qdevice_reconfigure`) into the global buffer `qdevice_name`. While both the source and destination buffers are defined as `VOTEQUORUM_QDEVICE_MAX_NAME_LEN`, `strcpy` does not check for bounds and relies on the source string being null-terminated. If a malicious node sends a `newname` that is not null-terminated within the allocated length, `strcpy` will continue writing past the end of the `qdevice_name` buffer, leading to a heap or static data section overflow.
+6. Severity rating: High
+
+
+======================================================================
+FILE: exec\votequorum.h
+TIME: 3.53 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\vsf.h
+TIME: 3.60 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\vsf_quorum.c
+TIME: 4.86 seconds
+======================================================================
+
+1. File: exec\vsf_quorum.c
+2. Name of the function containing the vulnerability: `quorum_api_set_quorum`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+static int quorum_view_list[PROCESSOR_COUNT_MAX];
+...
+static void quorum_api_set_quorum(const unsigned int *view_list,
+				  size_t view_list_entries,
+				  int quorum, struct memb_ring_id *ring_id)
+{
+	...
+	quorum_view_list_entries = view_list_entries;
+	memcpy(&quorum_ring_id, ring_id, sizeof (quorum_ring_id));
+	memcpy(quorum_view_list, view_list, sizeof(unsigned int)*view_list_entries);
+	...
+}
+```
+5. A concise explanation of why it is vulnerable: The function `quorum_api_set_quorum` accepts a `view_list_entries` size parameter and uses it to perform a `memcpy` into the global array `quorum_view_list`. However, there is no bounds check to ensure that `view_list_entries` is less than or equal to `PROCESSOR_COUNT_MAX`. If an attacker or a malicious quorum provider provides a value larger than `PROCESSOR_COUNT_MAX`, it will result in a stack or data segment buffer overflow, potentially allowing for arbitrary code execution or a denial of service.
+6. Severity rating: Critical
+
+
+======================================================================
+FILE: exec\vsf_ykd.c
+TIME: 4.98 seconds
+======================================================================
+
+1. File: exec\vsf_ykd.c
+2. Name of the function containing the vulnerability: `ykd_state_endian_convert` (and `ykd_session_endian_convert`)
+3. Vulnerability type / CWE: Out-of-bounds Read/Write (CWE-125 / CWE-787)
+4. The relevant vulnerable code snippet:
+```c
+static void ykd_session_endian_convert (struct ykd_session *ykd_session)
+{
+	int i;
+
+	ykd_session->member_list_entries =
+		swab32 (ykd_session->member_list_entries);
+	ykd_session->session_id = swab32 (ykd_session->session_id);
+	for (i = 0; i < ykd_session->member_list_entries; i++) {
+		ykd_session->member_list[i] =
+			swab32 (ykd_session->member_list[i]);
+	}
+}
+```
+5. A concise explanation of why it is vulnerable: The function `ykd_session_endian_convert` trusts the `member_list_entries` value received from the network. It uses this value as a loop boundary to iterate over the `member_list` array. Since `member_list` has a fixed size of `YKD_PROCESSOR_COUNT_MAX` (32), an attacker can provide a value larger than 32 in the `member_list_entries` field of the `ykd_session` struct. This will cause the loop to read and write memory beyond the bounds of the `member_list` array, leading to a crash or potential remote code execution.
+6. Severity rating: Critical
+
+
+======================================================================
+FILE: exec\vsf_ykd.h
+TIME: 3.51 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: exec\wd.c
+TIME: 7.98 seconds
+======================================================================
+
+1. File: exec\wd.c
+2. Name of the function containing the vulnerability: `wd_resource_create`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+static int32_t wd_resource_create (char *res_path, char *res_name)
+{
+	char *state;
+	uint64_t tmp_value;
+	struct resource *ref = calloc (1, sizeof (struct resource));
+	char key_name[ICMAP_KEYNAME_MAXLEN];
+
+	strcpy(ref->res_path, res_path);
+    // ...
+	strcpy(ref->name, res_name);
+```
+5. A concise explanation of why it is vulnerable: The function `wd_resource_create` uses `strcpy` to copy `res_path` into `ref->res_path` and `res_name` into `ref->name`. These inputs are derived from `key_name` in `wd_scan_resources` or `wd_resource_created_cb`. While `key_name` is constrained by `ICMAP_KEYNAME_MAXLEN`, the `struct resource` buffers (`res_path` and `name`) are also sized based on `ICMAP_KEYNAME_MAXLEN` and `CS_MAX_NAME_LENGTH`. If the input strings are not properly null-terminated or exceed the destination buffer sizes (especially if `CS_MAX_NAME_LENGTH` is smaller than `ICMAP_KEYNAME_MAXLEN`), a heap-based buffer overflow occurs. More critically, in the context of the `sscanf` calls in `wd_scan_resources`, there is no length limit on the `%[^.]` format specifiers, allowing an attacker to provide an arbitrarily long key name in the icmap, leading to a stack overflow in the `res_name` and `res_type` buffers before `wd_resource_create` is even called, or a heap overflow within `wd_resource_create`.
+
+6. Severity rating: High
+
+
+======================================================================
+FILE: include\corosync\cfg.h
+TIME: 6.88 seconds
+======================================================================
+
+1. File: include\corosync\cfg.h
+2. Name of the function containing the vulnerability: `corosync_cfg_get_node_addrs`
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+cs_error_t
+corosync_cfg_get_node_addrs (
+	corosync_cfg_handle_t cfg_handle,
+	int nodeid,
+	size_t max_addrs,
+	int *num_addrs,
+	corosync_cfg_node_address_t *addrs);
+```
+5. A concise explanation of why it is vulnerable: The function `corosync_cfg_get_node_addrs` accepts a pointer to a buffer (`addrs`) and a maximum number of addresses (`max_addrs`). In typical implementations of this pattern, if the internal logic does not strictly validate that the number of addresses written to the `addrs` buffer does not exceed `max_addrs`, or if there is a type mismatch between `size_t` (unsigned) and `int *num_addrs` (signed), a heap or stack-based buffer overflow can occur. Specifically, if the caller provides a small `max_addrs` but the underlying system returns more, it will overwrite adjacent memory.
+6. Severity rating: High
+
+
+======================================================================
+FILE: include\corosync\cmap.h
+TIME: 6.11 seconds
+======================================================================
+
+1. File: include\corosync\cmap.h
+2. Name of the function containing the vulnerability: `cmap_iter_next`
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+extern cs_error_t cmap_iter_next(
+		cmap_handle_t handle,
+		cmap_iter_handle_t iter_handle,
+		char key_name[],
+		size_t *value_len,
+		cmap_value_types_t *type);
+```
+5. A concise explanation of why it is vulnerable: The function `cmap_iter_next` takes a `char key_name[]` buffer to store the name of the key. While the documentation states "Maximum length is CMAP_KEYNAME_MAXLEN", the function signature itself does not accept a parameter to specify the actual size of the buffer provided by the caller. This relies entirely on the caller allocating exactly `CMAP_KEYNAME_MAXLEN` bytes. If the implementation of `cmap_iter_next` does not strictly enforce this limit or if a caller provides a smaller buffer, it will result in a stack or heap-based buffer overflow when writing the key name.
+6. Severity rating: High
+
+
+======================================================================
+FILE: include\corosync\coroapi.h
+TIME: 5.04 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: include\corosync\corodefs.h
+TIME: 4.35 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: include\corosync\corotypes.h
+TIME: 7.50 seconds
+======================================================================
+
+1. File: include\corosync\corotypes.h
+2. Name of the function containing the vulnerability: cs_timestamp_get
+3. Vulnerability type / CWE: CWE-190 (Integer Overflow or Wraparound)
+4. The relevant vulnerable code snippet:
+```c
+#if defined _POSIX_MONOTONIC_CLOCK && _POSIX_MONOTONIC_CLOCK >= 0
+	struct timespec ts;
+
+	clock_gettime (CLOCK_MONOTONIC, &ts);
+	result = (ts.tv_sec * CS_TIME_NS_IN_SEC) + (uint64_t)ts.tv_nsec;
+#else
+	struct timeval time_from_epoch;
+
+	gettimeofday (&time_from_epoch, 0);
+	result = ((time_from_epoch.tv_sec * CS_TIME_NS_IN_SEC) +
+		(time_from_epoch.tv_usec * CS_TIME_NS_IN_USEC));
+#endif
+```
+5. A concise explanation of why it is vulnerable: In the `#else` block, `time_from_epoch.tv_sec` (typically a `time_t`, which is often a signed 32-bit or 64-bit integer) is multiplied by `CS_TIME_NS_IN_SEC` (1,000,000,000). If `tv_sec` is large enough, this multiplication can overflow before being assigned to the `uint64_t result`. Furthermore, if `tv_sec` is negative (representing time before the epoch), the signed multiplication and subsequent addition to an unsigned 64-bit integer can lead to unexpected wrap-around values, potentially causing logic errors in time-sensitive operations (like timeouts or sequencing).
+6. Severity rating: medium
+
+
+======================================================================
+FILE: include\corosync\cpg.h
+TIME: 5.44 seconds
+======================================================================
+
+1. File: include\corosync\cpg.h
+2. Name of the function containing the vulnerability: `struct cpg_name` (Data Structure)
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+#define CPG_MAX_NAME_LENGTH 128
+struct cpg_name {
+	uint32_t length;
+	char value[CPG_MAX_NAME_LENGTH];
+};
+```
+5. A concise explanation of why it is vulnerable: The `struct cpg_name` contains a fixed-size buffer `value` of 128 bytes, but it also includes a `length` field. If the implementation of functions that process this structure (such as `cpg_join` or `cpg_leave`) trusts the `length` field provided in the structure when copying data into `value` or when processing it, it can lead to a heap or stack-based buffer overflow. Because the `length` is a `uint32_t`, it can be set to a value much larger than `CPG_MAX_NAME_LENGTH`, causing memory corruption during copy operations.
+6. Severity rating: High
+
+
+======================================================================
+FILE: include\corosync\hdb.h
+TIME: 4.55 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: include\corosync\icmap.h
+TIME: 6.20 seconds
+======================================================================
+
+1. File: include\corosync\icmap.h
+2. Name of the function containing the vulnerability: `icmap_convert_name_to_valid_name`
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow') / Potential Out-of-bounds Write.
+4. The relevant vulnerable code snippet:
+```c
+/*
+ * Converts given key_name to valid key name (replacing all prohibited characters by _)
+ */
+extern void icmap_convert_name_to_valid_name(char *key_name);
+```
+5. A concise explanation of why it is vulnerable: The function `icmap_convert_name_to_valid_name` takes a pointer to a character buffer (`char *key_name`) but does not take a parameter specifying the size of that buffer. This indicates that the implementation likely relies on the input string being null-terminated and modifies it in place. If the function logic involves appending characters or if it is used in conjunction with buffers that are not properly null-terminated or sized according to the `ICMAP_KEYNAME_MAXLEN` definition, it can lead to a buffer overflow. Because there is no boundary check passed to the function, it is impossible for the function to know if it is writing beyond the allocated memory of the provided pointer.
+6. Severity rating: Medium
+
+
+======================================================================
+FILE: include\corosync\ipc_cfg.h
+TIME: 21.74 seconds
+======================================================================
+
+1. File: include\corosync\ipc_cfg.h
+2. Name of the function containing the vulnerability: N/A (Structure Definition)
+3. Vulnerability type / CWE: CWE-119: Improper Restriction of Operations within the Bounds of a Memory Buffer (Specifically, a Zero-Length Array / Flexible Array Member misuse)
+4. The relevant vulnerable code snippet:
+```c
+struct res_lib_cfg_get_node_addrs {
+        struct qb_ipc_response_header header __attribute__((aligned(8)));
+	unsigned int family;
+	unsigned int num_addrs;
+	char addrs[TOTEMIP_ADDRLEN][0];
+};
+```
+5. A concise explanation of why it is vulnerable: The `res_lib_cfg_get_node_addrs` struct defines `addrs` as a zero-length array `[TOTEMIP_ADDRLEN][0]`. While often used as a "flexible array member," using `[0]` is a GNU extension and not standard C. More importantly, if the code processing this structure trusts the `num_addrs` field to determine how many addresses to read from or write to the `addrs` buffer without strictly validating the actual size of the received IPC message, it can lead to an out-of-bounds read or write (buffer overflow/over-read) on the heap or stack.
+6. Severity rating: High
+
+
+======================================================================
+FILE: include\corosync\ipc_cmap.h
+TIME: 9.78 seconds
+======================================================================
+
+1. File: include\corosync\ipc_cmap.h
+2. Name of the function containing the vulnerability: N/A (Header file defining data structures)
+3. Vulnerability type / CWE: CWE-119 (Improper Restriction of Operations within the Bounds of a Memory Buffer) / Potential Buffer Overflow or Out-of-bounds Read.
+4. The relevant vulnerable code snippet:
+```c
+struct req_lib_cmap_set {
+	struct qb_ipc_request_header header __attribute__((aligned(8)));
+	mar_name_t key_name __attribute__((aligned(8)));
+	mar_size_t value_len __attribute__((aligned(8)));
+	mar_uint8_t type __attribute__((aligned(8)));
+	mar_uint8_t value[] __attribute__((aligned(8)));
+};
+```
+(Also seen in `res_lib_cmap_get` and `res_lib_cmap_notify_callback`)
+5. A concise explanation of why it is vulnerable: The header defines several structures used for IPC (Inter-Process Communication) that utilize flexible array members (e.g., `mar_uint8_t value[]`). These structures rely on a length field (like `value_len`) provided by the sender to determine the size of the subsequent data. If the receiving code does not strictly validate `value_len` against the actual size of the received network packet/buffer before accessing the `value` array, it can lead to an out-of-bounds read or a heap-based buffer overflow. Because these are IPC structures, an untrusted process capable of sending these requests could trigger a crash or execute arbitrary code in the receiving process.
+6. Severity rating: High
+
+
+======================================================================
+FILE: include\corosync\ipc_cpg.h
+TIME: 4.91 seconds
+======================================================================
+
+1. File: include\corosync\ipc_cpg.h
+2. Name of the function containing the vulnerability: marshall_from_mar_cpg_name_t
+3. Vulnerability type / CWE: CWE-120 (Buffer Copy without Checking Size of Input / Buffer Overflow)
+4. The relevant vulnerable code snippet:
+```c
+static inline void marshall_from_mar_cpg_name_t (
+	struct cpg_name *dest,
+	const mar_cpg_name_t *src)
+{
+	dest->length = src->length;
+	memcpy (&dest->value, &src->value, CPG_MAX_NAME_LENGTH);
+}
+```
+5. A concise explanation of why it is vulnerable: The function performs a `memcpy` of `CPG_MAX_NAME_LENGTH` bytes from `src->value` to `dest->value`. However, it does not validate that the `src->length` field (which is provided by the input/network) is consistent with the actual buffer size or that the destination buffer `dest->value` can safely hold this amount of data if the underlying `struct cpg_name` definition differs or if `CPG_MAX_NAME_LENGTH` is used blindly without bounds checking. More importantly, if `mar_cpg_name_t` is received from an untrusted source, an attacker can manipulate the `length` field. While the `memcpy` uses a constant, if the destination `struct cpg_name` has a smaller buffer than `CPG_MAX_NAME_LENGTH`, it results in a heap or stack overflow.
+6. Severity rating: High
+
+
+======================================================================
+FILE: include\corosync\ipc_quorum.h
+TIME: 5.02 seconds
+======================================================================
+
+1. File: include\corosync\ipc_quorum.h
+2. Name of the function containing the vulnerability: `res_lib_quorum_notification` (Struct definition)
+3. Vulnerability type / CWE: CWE-125: Out-of-bounds Read / Potential Memory Corruption (Flexible Array Member usage)
+4. The relevant vulnerable code snippet:
+```c
+struct res_lib_quorum_notification {
+	struct qb_ipc_response_header header __attribute__((aligned(8)));
+	mar_int32_t quorate __attribute__((aligned(8)));
+	mar_uint64_t ring_seq __attribute__((aligned(8)));
+	mar_uint32_t view_list_entries __attribute__((aligned(8)));
+	mar_uint32_t view_list[];
+};
+```
+5. A concise explanation of why it is vulnerable: The structure `res_lib_quorum_notification` uses a flexible array member `view_list[]`. The size of this array is determined by the `view_list_entries` field. If the code processing this structure trusts the `view_list_entries` value provided by a remote or untrusted IPC sender without strictly validating it against the actual size of the received data packet, it can lead to an out-of-bounds read (OOB Read) or buffer overflow when iterating through `view_list`. This is a classic vulnerability pattern in IPC protocols where length fields are provided alongside variable-length arrays.
+6. Severity rating: High
+
+
+======================================================================
+FILE: include\corosync\ipc_votequorum.h
+TIME: 6.40 seconds
+======================================================================
+
+1. File: include\corosync\ipc_votequorum.h
+2. Name of the function containing the vulnerability: N/A (Header file defining data structures)
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow') / Potential Memory Corruption.
+4. The relevant vulnerable code snippet:
+```c
+struct req_lib_votequorum_qdevice_register {
+	struct qb_ipc_request_header header __attribute__((aligned(8)));
+	char name[VOTEQUORUM_QDEVICE_MAX_NAME_LEN];
+};
+
+struct req_lib_votequorum_qdevice_unregister {
+	struct qb_ipc_request_header header __attribute__((aligned(8)));
+	char name[VOTEQUORUM_QDEVICE_MAX_NAME_LEN];
+};
+
+struct req_lib_votequorum_qdevice_update {
+	struct qb_ipc_request_header header __attribute__((aligned(8)));
+	char oldname[VOTEQUORUM_QDEVICE_MAX_NAME_LEN];
+	char newname[VOTEQUORUM_QDEVICE_MAX_NAME_LEN];
+};
+```
+5. A concise explanation of why it is vulnerable: The header defines several IPC request structures that use fixed-size buffers (`VOTEQUORUM_QDEVICE_MAX_NAME_LEN`) for strings. Because these structures are intended to be received over an IPC (Inter-Process Communication) mechanism, there is a high risk that if the receiving code (the implementation of these requests) uses functions like `strcpy()` or `sprintf()` to move the `name` field into another buffer without explicitly verifying that the input string is null-terminated within the 255-byte limit, a buffer overflow will occur. Specifically, if a malicious actor sends a packet where the `name` field is filled to the limit without a null terminator, any subsequent string operation on that field will read out-of-bounds until a null byte is encountered in memory.
+6. Severity rating: High
+
+
+======================================================================
+FILE: include\corosync\list.h
+TIME: 10.88 seconds
+======================================================================
+
+1. File: include\corosync\list.h
+2. Name of the function containing the vulnerability: `list_splice`
+3. Vulnerability type / CWE: CWE-476: NULL Pointer Dereference / Improper Handling of Exceptional Conditions
+4. The relevant vulnerable code snippet:
+```c
+static inline void list_splice (struct list_head *list, struct list_head *head)
+{
+	struct list_head *first;
+	struct list_head *last;
+	struct list_head *current;
+
+	first = list->next;
+	last = list->prev;
+	current = head->next;
+
+	first->prev = head;
+	head->next = first;
+	last->next = current;
+	current->prev = last;
+}
+```
+5. A concise explanation of why it is vulnerable: The `list_splice` function does not check if the `list` being spliced is empty before attempting to access its members. If `list` is initialized as an empty list (where `list->next == list` and `list->prev == list`), the logic superficially works. However, if the `list` pointer itself is NULL, it leads to an immediate crash. More critically, the implementation assumes that both `list` and `head` are valid, non-empty, and distinct. If `list` is empty, it effectively splices the head list into itself in a way that can corrupt the circular linked list structure, leading to infinite loops or crashes during subsequent list traversals.
+6. Severity rating: Medium
+
+
+======================================================================
+FILE: include\corosync\logsys.h
+TIME: 4.41 seconds
+======================================================================
+
+1. File: include\corosync\logsys.h
+2. Name of the function containing the vulnerability: `LOGSYS_PERROR` (macro)
+3. Vulnerability type / CWE: CWE-134: Use of Externally-Controlled Format String (Format String Vulnerability)
+4. The relevant vulnerable code snippet:
+```c
+#define LOGSYS_PERROR(err_num, level, fmt, args...) do {						\
+		char _error_str[LOGSYS_MAX_PERROR_MSG_LEN];						\
+		const char *_error_ptr = qb_strerror_r(err_num, _error_str, sizeof(_error_str));	\
+		qb_log(level, fmt ": %s (%d)", ##args, _error_ptr, err_num);				\
+	} while(0)
+```
+5. A concise explanation of why it is vulnerable: The `LOGSYS_PERROR` macro takes a `fmt` argument and passes it directly as the format string to `qb_log`. If an attacker can control the content of the `fmt` parameter, they can inject format specifiers (e.g., `%s`, `%x`, `%n`) to read from the stack or write to arbitrary memory locations, leading to information disclosure or remote code execution.
+6. Severity rating: High
+
+
+======================================================================
+FILE: include\corosync\mar_gen.h
+TIME: 7.04 seconds
+======================================================================
+
+1. File: include\corosync\mar_gen.h
+2. Name of the function containing the vulnerability: `marshall_from_mar_name_t`
+3. Vulnerability type / CWE: Buffer Overflow / CWE-120 (Buffer Copy without Checking Size of Input)
+4. The relevant vulnerable code snippet:
+```c
+static inline void marshall_from_mar_name_t (
+	cs_name_t *dest,
+	const mar_name_t *src)
+{
+	dest->length = src->length;
+	memcpy (dest->value, src->value, CS_MAX_NAME_LENGTH);
+}
+```
+5. A concise explanation of why it is vulnerable: The function performs a `memcpy` using a fixed size (`CS_MAX_NAME_LENGTH`) from `src->value` to `dest->value`. While `mar_name_t` has a buffer of `CS_MAX_NAME_LENGTH`, it also contains a `length` field. If the `cs_name_t` structure's `value` buffer is smaller than `CS_MAX_NAME_LENGTH`, this will cause a heap or stack overflow depending on where `dest` is allocated. Furthermore, the function blindly copies the entire maximum length regardless of the actual `src->length` provided in the source structure, potentially reading past the initialized portion of the source buffer or writing past the bounds of the destination buffer.
+6. Severity rating: High
+
+
+======================================================================
+FILE: include\corosync\quorum.h
+TIME: 4.22 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: include\corosync\sam.h
+TIME: 5.90 seconds
+======================================================================
+
+1. File: include\corosync\sam.h
+2. Name of the function containing the vulnerability: `sam_recovery_policy_t` (Enum definition)
+3. Vulnerability type / CWE: CWE-697: Insufficient Comparison / Logic Error (Duplicate Enum Values)
+4. The relevant vulnerable code snippet:
+```c
+typedef enum {
+	SAM_RECOVERY_POLICY_QUIT = 1,
+	SAM_RECOVERY_POLICY_RESTART = 2,
+	SAM_RECOVERY_POLICY_QUORUM = 0x08,
+	SAM_RECOVERY_POLICY_QUORUM_QUIT = SAM_RECOVERY_POLICY_QUORUM | SAM_RECOVERY_POLICY_QUIT,
+	SAM_RECOVERY_POLICY_QUORUM_RESTART = SAM_RECOVERY_POLICY_QUORUM | SAM_RECOVERY_POLICY_RESTART,
+	SAM_RECOVERY_POLICY_CMAP = 0x10,
+	SAM_RECOVERY_POLICY_CONFDB = 0x10,
+} sam_recovery_policy_t;
+```
+5. A concise explanation of why it is vulnerable:
+The enum `sam_recovery_policy_t` assigns the same value (`0x10`) to both `SAM_RECOVERY_POLICY_CMAP` and `SAM_RECOVERY_POLICY_CONFDB`. If the implementation logic relies on distinguishing between these two policies (e.g., using a `switch` statement or equality check), it will be impossible to differentiate between them. This can lead to incorrect recovery logic being executed, where the system treats a `CONFDB` request as a `CMAP` request or vice-versa, potentially causing unexpected system behavior or failure to execute the intended recovery path.
+
+6. Severity rating: low
+
+
+======================================================================
+FILE: include\corosync\sq.h
+TIME: 6.35 seconds
+======================================================================
+
+1. File: include\corosync\sq.h
+2. Name of the function containing the vulnerability: `sq_init`
+3. Vulnerability type / CWE: Integer Overflow leading to Heap-based Buffer Overflow (CWE-190 / CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+sq->items = malloc (item_count * size_per_item);
+if (sq->items == NULL) {
+    return (-ENOMEM);
+}
+memset (sq->items, 0, item_count * size_per_item);
+```
+5. A concise explanation of why it is vulnerable: The function `sq_init` takes `item_count` and `size_per_item` as `int` arguments and multiplies them to determine the size of the memory allocation for `sq->items`. Because there is no validation on these inputs, an attacker providing large values can cause an integer overflow. For example, if the product exceeds the maximum value of `size_t`, `malloc` will allocate a much smaller buffer than intended. Subsequently, the `memset` call (and later `sq_item_add` or `sq_copy` operations) will write data beyond the end of the allocated heap buffer, leading to a heap-based buffer overflow.
+6. Severity rating: Critical
+
+
+======================================================================
+FILE: include\corosync\swab.h
+TIME: 4.52 seconds
+======================================================================
+
+1. File: include\corosync\swab.h
+2. Name of the function containing the vulnerability: swab16, swab32, swab64 (Macros)
+3. Vulnerability type / CWE if you can determine it: CWE-190: Integer Overflow or Wraparound (via side effects in macro expansion)
+4. The relevant vulnerable code snippet:
+```c
+#define swab16(x) \
+({ \
+	uint16_t __x = (x); \
+		((uint16_t)( \
+		(((uint16_t)(__x) & (uint16_t)0x00ffU) << 8) | \
+		(((uint16_t)(__x) & (uint16_t)0xff00U) >> 8) )); \
+})
+```
+(And similarly for `swab32` and `swab64`)
+5. A concise explanation of why it is vulnerable: While these macros use a GCC statement expression extension to create a local variable `__x` (which mitigates the common "double evaluation" bug where `swab16(i++)` would increment `i` multiple times), the logic itself is purely for byte-swapping. There are no memory safety vulnerabilities, buffer overflows, or logic flaws inherent in these mathematical operations. They are standard implementations of endianness conversion.
+6. Severity rating: NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: include\corosync\totem\totem.h
+TIME: 3.36 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: include\corosync\totem\totemip.h
+TIME: 3.20 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: include\corosync\totem\totempg.h
+TIME: 3.49 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: include\corosync\votequorum.h
+TIME: 3.65 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: lib\cfg.c
+TIME: 5.13 seconds
+======================================================================
+
+1. File: lib\cfg.c
+2. Name of the function containing the vulnerability: `corosync_cfg_ring_status_get`
+3. Vulnerability type / CWE: Integer Overflow leading to Heap-based Buffer Overflow (CWE-190 / CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+	*interface_count = res_lib_cfg_ringstatusget.interface_count;
+	*interface_names = malloc (sizeof (char *) * *interface_count);
+	if (*interface_names == NULL) {
+		return (CS_ERR_NO_MEMORY);
+	}
+	memset (*interface_names, 0, sizeof (char *) * *interface_count);
+
+	*status = malloc (sizeof (char *) * *interface_count);
+```
+5. A concise explanation of why it is vulnerable:
+The function uses `res_lib_cfg_ringstatusget.interface_count`, which is received from an IPC response (untrusted input), to calculate the size of memory to allocate via `malloc`. Because `interface_count` is an `unsigned int`, a very large value can cause an integer overflow during the multiplication `sizeof(char *) * *interface_count`. This results in a small memory allocation. Subsequent loops then iterate up to `res_lib_cfg_ringstatusget.interface_count` times, writing pointers into the undersized buffers, leading to a heap-based buffer overflow.
+
+6. Severity rating: Critical
+
+
+======================================================================
+FILE: lib\cmap.c
+TIME: 9.00 seconds
+======================================================================
+
+1. File: lib\cmap.c
+2. Name of the function containing the vulnerability: `cmap_get_int`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+static cs_error_t cmap_get_int(
+	cmap_handle_t handle,
+	const char *key_name,
+	void *value,
+	size_t value_size,
+	cmap_value_types_t type)
+{
+	char key_value[16];
+	size_t key_size;
+	cs_error_t err;
+
+	cmap_value_types_t key_type;
+
+	key_size = sizeof(key_value);
+	memset(key_value, 0, key_size);
+
+	err = cmap_get(handle, key_name, key_value, &key_size, &key_type);
+	if (err != CS_OK)
+		return (err);
+
+	if (key_type != type) {
+		return (CS_ERR_INVALID_PARAM);
+	}
+
+	memcpy(value, key_value, value_size);
+
+	return (CS_OK);
+}
+```
+5. A concise explanation of why it is vulnerable: 
+The function `cmap_get_int` uses a small fixed-size stack buffer `key_value[16]` to store the result of `cmap_get`. While `cmap_get` is passed `key_size` (16) to limit the write, the subsequent `memcpy(value, key_value, value_size)` uses the `value_size` parameter provided by the caller. If the caller passes a `value_size` greater than 16, `memcpy` will read past the end of the `key_value` buffer on the stack, leading to an out-of-bounds read. More importantly, if this function is used as a helper for various types, and the `cmap_get` logic (which is external) doesn't strictly enforce the `key_size` limit or if the internal `res_lib_cmap_get->value_len` is used incorrectly elsewhere, the stack can be corrupted. Specifically, the `memcpy` into `value` is a potential Heap or Stack overflow depending on where `value` points, driven by an untrusted `value_size` relative to the fixed 16-byte buffer.
+
+6. Severity rating: High
+
+
+======================================================================
+FILE: lib\cpg.c
+TIME: 4.79 seconds
+======================================================================
+
+1. File: lib\cpg.c
+2. Name of the function containing the vulnerability: `cpg_mcast_joined`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+	struct iovec iov[64];
+	// ...
+	iov[0].iov_base = (void *)&req_lib_cpg_mcast;
+	iov[0].iov_len = sizeof (struct req_lib_cpg_mcast);
+	memcpy (&iov[1], iovec, iov_len * sizeof (struct iovec));
+```
+5. A concise explanation of why it is vulnerable:
+The function defines a fixed-size array `iov[64]` on the stack. However, it accepts `iov_len` as a parameter from the caller without any bounds checking. The `memcpy` operation copies `iov_len * sizeof(struct iovec)` bytes starting at `iov[1]`. If `iov_len` is 64 or greater, the `memcpy` will write past the end of the `iov` array, leading to a stack-based buffer overflow. This can be used to overwrite the return address and gain control of the execution flow.
+
+6. Severity rating: Critical
+
+
+======================================================================
+FILE: lib\quorum.c
+TIME: 4.17 seconds
+======================================================================
+
+1. File: lib\quorum.c
+2. Name of the function containing the vulnerability: `quorum_finalize`
+3. Vulnerability type / CWE: Use-After-Free (CWE-416)
+4. The relevant vulnerable code snippet:
+```c
+	quorum_inst->finalize = 1;
+
+	(void)hdb_handle_destroy (&quorum_handle_t_db, handle);
+
+	(void)hdb_handle_put (&quorum_handle_t_db, handle);
+```
+5. A concise explanation of why it is vulnerable: The function calls `hdb_handle_destroy`, which decrements the reference count and potentially frees the `quorum_inst` object if the count reaches zero. Immediately after this call, it calls `hdb_handle_put` using the same `handle`. If `hdb_handle_destroy` already freed the object, `hdb_handle_put` operates on a dangling pointer, leading to a Use-After-Free condition.
+6. Severity rating: High
+
+
+======================================================================
+FILE: lib\sam.c
+TIME: 5.17 seconds
+======================================================================
+
+1. File: lib\sam.c
+2. Name of the function containing the vulnerability: sam_parent_data_store
+3. Vulnerability type / CWE: Integer Overflow leading to Heap-based Buffer Overflow (CWE-190 / CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+	if (sam_safe_read (parent_fd_in, &size, sizeof (size)) != sizeof (size)) {
+		err = CS_ERR_LIBRARY;
+		goto error_reply;
+	}
+
+	if (size > 0) {
+		user_data = malloc (size);
+		if (user_data == NULL) {
+			err = CS_ERR_NO_MEMORY;
+			goto error_reply;
+		}
+
+		if (sam_safe_read (parent_fd_in, user_data, size) != size) {
+			err = CS_ERR_LIBRARY;
+			goto free_error_reply;
+		}
+	}
+```
+5. A concise explanation of why it is vulnerable:
+The variable `size` is defined as `ssize_t` (a signed integer). The function reads `size` directly from the pipe (`parent_fd_in`). While there is a check `if (size > 0)`, it does not check for an upper bound. A malicious child process can send an extremely large value for `size`. If `malloc(size)` succeeds (or if the value is large enough to cause wrapping in subsequent calculations in `sam_data_store`), the subsequent `sam_safe_read` will attempt to read that many bytes from the pipe into the heap buffer. More critically, `sam_data_store` uses `realloc` and `memcpy` with this `size`. If `size` is large enough to cause an integer overflow during memory management or exceeds available memory, it can lead to a heap overflow or a Denial of Service (DoS) via memory exhaustion.
+
+6. Severity rating: High
+
+
+======================================================================
+FILE: lib\util.h
+TIME: 3.40 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: lib\votequorum.c
+TIME: 4.47 seconds
+======================================================================
+
+1. File: lib\votequorum.c
+2. Name of the function containing the vulnerability: `votequorum_getinfo`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+	memset(info->qdevice_name, 0, VOTEQUORUM_QDEVICE_MAX_NAME_LEN);
+	strcpy(info->qdevice_name, res_lib_votequorum_getinfo.qdevice_name);
+```
+5. A concise explanation of why it is vulnerable: The function `votequorum_getinfo` receives data from an external IPC source (`res_lib_votequorum_getinfo`). It uses `strcpy` to copy the `qdevice_name` field from the response into the `info->qdevice_name` buffer. Because `strcpy` does not check the length of the source string, if the IPC response contains a `qdevice_name` longer than `VOTEQUORUM_QDEVICE_MAX_NAME_LEN`, it will result in a stack-based buffer overflow.
+6. Severity rating: High
+
+
+======================================================================
+FILE: test\cpgbench.c
+TIME: 4.04 seconds
+======================================================================
+
+1. File: test\cpgbench.c
+2. Name of the function containing the vulnerability: `cpg_benchmark`
+3. Vulnerability type / CWE: CWE-125: Out-of-bounds Read
+4. The relevant vulnerable code snippet:
+```c
+	iov.iov_base = data;
+	iov.iov_len = write_size;
+
+	write_count = 0;
+	alarm (10);
+
+	gettimeofday (&tv1, NULL);
+	do {
+		res = cpg_mcast_joined (handle_in, CPG_TYPE_AGREED, &iov, 1);
+	} while (alarm_notice == 0 && (res == CS_OK || res == CS_ERR_TRY_AGAIN));
+```
+5. A concise explanation of why it is vulnerable: The function `cpg_benchmark` uses a global array `data` of size `ONE_MEG` (1,048,576 bytes). While the `main` function contains a check (`if (size >= (ONE_MEG - 100))`) to prevent `write_size` from exceeding the buffer limits, this check is only performed *after* the first call to `cpg_benchmark` and subsequent increments. If the logic in `main` were altered or if `cpg_benchmark` were called with a `write_size` larger than `ONE_MEG`, the `iov_len` passed to `cpg_mcast_joined` would cause the function to read memory beyond the bounds of the `data` array, leading to an out-of-bounds read.
+6. Severity rating: Medium
+
+
+======================================================================
+FILE: test\cpgbenchzc.c
+TIME: 6.40 seconds
+======================================================================
+
+1. File: test\cpgbenchzc.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-20 (Improper Input Validation / Logic Error - Unchecked Return Value) leading to potential Out-of-Bounds Write/Read.
+4. The relevant vulnerable code snippet:
+```c
+	cpg_zcb_alloc (handle, 500000, &data);
+	if (res != CS_OK) {
+		printf ("cpg_zcb_alloc couldn't allocate zero copy buffer %d\n", res);
+		exit (1);
+	}
+```
+5. A concise explanation of why it is vulnerable: The code calls `cpg_zcb_alloc` to allocate a zero-copy buffer and stores the return value in the CPU registers/stack, but it does **not** assign that return value to the variable `res`. Instead, it checks the value of `res` from the previous call (`cpg_initialize`). If `cpg_zcb_alloc` fails and returns an error, the program will not exit; it will proceed to call `cpg_benchmark` using an uninitialized or NULL `data` pointer, and it will attempt to write up to `size` bytes into that buffer via `cpg_zcb_mcast_joined`. This leads to a null pointer dereference or memory corruption.
+6. Severity rating: High
+
+
+======================================================================
+FILE: test\cpgbound.c
+TIME: 7.02 seconds
+======================================================================
+
+1. File: test\cpgbound.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-125: Out-of-bounds Read
+4. The relevant vulnerable code snippet:
+```c
+static unsigned char buffer[2000000];
+// ... (inside main)
+	iov.iov_base = (void *)buffer;
+	msg_size = 1025000;
+	for (i = 0; i < 1000000000; i++) {
+		iov.iov_len = msg_size;
+// ...
+		result = cpg_mcast_joined (handle, CPG_TYPE_AGREED,
+			&iov, 1);
+```
+5. A concise explanation of why it is vulnerable: The program defines a static buffer of 2,000,000 bytes. However, the loop increments `msg_size` starting from 1,025,000. Once `msg_size` exceeds 2,000,000, the `iov.iov_len` assigned to the `iovec` structure causes `cpg_mcast_joined` to read memory beyond the bounds of the `buffer` array. This allows the program to read adjacent memory on the data segment and send it over the network/service.
+6. Severity rating: High
+
+
+======================================================================
+FILE: test\cpgverify.c
+TIME: 4.80 seconds
+======================================================================
+
+1. File: test\cpgverify.c
+2. Name of the function containing the vulnerability: `cpg_deliver_fn`
+3. Vulnerability type / CWE: Out-of-bounds Read / CWE-125
+4. The relevant vulnerable code snippet:
+```c
+static void cpg_deliver_fn (
+        cpg_handle_t handle,
+        const struct cpg_name *group_name,
+        uint32_t nodeid,
+        uint32_t pid,
+        void *m,
+        size_t msg_len)
+{
+	const struct my_msg *msg2 = m;
+    // ...
+	PK11_DigestOp(sha1_context, msg2->buffer, msg2->msg_size);
+```
+5. A concise explanation of why it is vulnerable: The function `cpg_deliver_fn` receives a pointer `m` and the total length of the received message `msg_len`. However, it casts `m` to a `struct my_msg` and uses `msg2->msg_size` (a value provided within the untrusted message payload) to determine how many bytes to read from the buffer for the SHA1 digest. There is no check to ensure that `sizeof(struct my_msg) + msg2->msg_size` is less than or equal to the actual received `msg_len`. A malicious sender could provide a very large `msg_size`, causing `PK11_DigestOp` to read past the end of the allocated memory buffer.
+6. Severity rating: High
+
+
+======================================================================
+FILE: test\stress_cpgcontext.c
+TIME: 9.37 seconds
+======================================================================
+
+1. File: test\stress_cpgcontext.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-401: Memory Leak
+4. The relevant vulnerable code snippet:
+```c
+	for (j = 0; j < ITERATIONS; j++) {
+		for (i = 0; i < INSTANCES; i++) {
+			context[i] = malloc (20);
+			res = cpg_context_set (handle[i], context[i]);
+            // ...
+		}
+
+		for (i = 0; i < INSTANCES; i++) {
+			res = cpg_context_get (handle[i], &ctx);
+            // ...
+			free (ctx);
+		}
+	}
+```
+5. A concise explanation of why it is vulnerable: The program is designed as a stress test. In each of the `ITERATIONS` (1,000,000), it allocates memory for `INSTANCES` (100) pointers using `malloc`. While it calls `free(ctx)` after retrieving the pointer via `cpg_context_get`, this only frees the memory for the *current* iteration's context. However, if `cpg_context_set` does not internally free the previous context associated with the handle, or if the loop structure creates a mismatch in ownership, the program consumes massive amounts of memory. More importantly, in the context of a "stress test" for a library, if the library's `cpg_context_set` simply overwrites a pointer without freeing the old one, this test reveals a leak in the library; but as written, the test itself is highly unstable. Specifically, if `cpg_context_set` fails or if the logic changes, the allocated `context[i]` is leaked. In this specific loop, it allocates $10^8$ small blocks. If the underlying library `cpg_context_set` doesn't manage the memory (which it typically doesn't, as the user provides the pointer), the `free(ctx)` handles the cleanup for the current loop, but any failure in `cpg_context_get` or an early `exit(-1)` leads to massive leaks.
+6. Severity rating: medium
+
+
+======================================================================
+FILE: test\stress_cpgfdget.c
+TIME: 3.09 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: test\stress_cpgzc.c
+TIME: 2.82 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: test\testcpg.c
+TIME: 5.14 seconds
+======================================================================
+
+1. File: test\testcpg.c
+2. Name of the function containing the vulnerability: `main`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+	if (argc > optind) {
+		strcpy(group_name.value, argv[optind]);
+		group_name.length = strlen(argv[optind]);
+	}
+```
+5. A concise explanation of why it is vulnerable:
+The program uses `strcpy` to copy a command-line argument (`argv[optind]`) into `group_name.value`. However, there is no check on the length of the input argument before the copy. Because `group_name` is a global/static structure (likely with a fixed-size buffer for `value`), a sufficiently long command-line argument will overflow the buffer, allowing an attacker to overwrite adjacent memory.
+
+6. Severity rating: High
+
+
+======================================================================
+FILE: test\testcpg2.c
+TIME: 3.94 seconds
+======================================================================
+
+1. File: test\testcpg2.c
+2. Name of the function containing the vulnerability: confch
+3. Vulnerability type / CWE: CWE-125: Out-of-bounds Read
+4. The relevant vulnerable code snippet:
+```c
+static void confch(
+	cpg_handle_t handle,
+	const struct cpg_name *group_name,
+	const struct cpg_address *member_list, size_t member_list_entries,
+	const struct cpg_address *left_list, size_t left_list_entries,
+	const struct cpg_address *joined_list, size_t joined_list_entries)
+{
+	printf("confchg nodeid %x\n", member_list[0].nodeid);
+}
+```
+5. A concise explanation of why it is vulnerable: The function `confch` accesses the first element of the `member_list` array (`member_list[0]`) without first verifying that `member_list_entries` is greater than zero. If the callback is triggered with an empty member list, this will result in an out-of-bounds read, potentially leading to a program crash (Segmentation Fault).
+6. Severity rating: Medium
+
+
+======================================================================
+FILE: test\testcpgzc.c
+TIME: 5.81 seconds
+======================================================================
+
+1. File: test\testcpgzc.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+	if (argc > optind) {
+		strcpy(group_name.value, argv[optind]);
+		group_name.length = strlen(argv[optind])+1;
+	}
+	else {
+		strcpy(group_name.value, DEFAULT_GROUP_NAME);
+		group_name.length = strlen(DEFAULT_GROUP_NAME) + 1;
+	}
+```
+5. A concise explanation of why it is vulnerable: The code uses `strcpy` to copy a command-line argument (`argv[optind]`) into `group_name.value` without checking the length of the input. Since `group_name` is a static global structure, if a user provides a string longer than the allocated size of the `value` array in `struct cpg_name`, it will result in a stack or data segment buffer overflow, potentially allowing for arbitrary code execution or crashing the program.
+6. Severity rating: High
+
+
+======================================================================
+FILE: test\testparse.c
+TIME: 2.93 seconds
+======================================================================
+
+NO_VULNERABILITY_FOUND
+
+
+======================================================================
+FILE: test\testquorum.c
+TIME: 6.09 seconds
+======================================================================
+
+1. File: test\testquorum.c
+2. Name of the function containing the vulnerability: quorum_notification_fn
+3. Vulnerability type / CWE: CWE-125: Out-of-bounds Read
+4. The relevant vulnerable code snippet:
+```c
+	for (i=0; i<view_list_entries; i++) {
+		printf(" %d ", view_list[i]);
+	}
+```
+5. A concise explanation of why it is vulnerable: The function `quorum_notification_fn` is a callback that processes a list of nodes provided by the Corosync library. It relies entirely on the `view_list_entries` parameter to determine how many elements to read from the `view_list` pointer. If a malicious or malformed packet causes the library to pass an excessively large value for `view_list_entries` that exceeds the actual allocated size of `view_list`, the loop will read memory past the end of the buffer, leading to a crash (DoS) or potential information leakage.
+6. Severity rating: Medium
+
+
+======================================================================
+FILE: test\testsam.c
+TIME: 6.06 seconds
+======================================================================
+
+1. File: test\testsam.c
+2. Name of the function containing the vulnerability: `test6_signal`
+3. Vulnerability type / CWE: CWE-362: Concurrent Execution using Shared Resource with Improper Synchronization (Race Condition)
+4. The relevant vulnerable code snippet:
+```c
+static void test6_signal (int sig) {
+	cs_error_t error;
+
+	printf ("%s\n", __FUNCTION__);
+	test6_sig_delivered++;
+
+	if ((error = sam_data_store (&test6_sig_delivered, sizeof (test6_sig_delivered))) != CS_OK) {
+		fprintf (stderr, "Can't store data! Error : %d\n", error);
+	}
+}
+```
+5. A concise explanation of why it is vulnerable: The function `test6_signal` is a signal handler that modifies and reads the global variable `test6_sig_delivered` without any synchronization mechanisms (like atomic operations or signal masking). Since signal handlers can interrupt the main program flow at any time, and multiple signals could potentially trigger the handler, this creates a race condition. Furthermore, `printf` and `fprintf` are not async-signal-safe functions, meaning calling them inside a signal handler can lead to deadlocks or memory corruption if the main program was interrupted while inside a `stdio` function.
+6. Severity rating: medium
+
+
+======================================================================
+FILE: test\testtimer.c
+TIME: 5.02 seconds
+======================================================================
+
+1. File: test\testtimer.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-401: Missing Release of Resource After Effective Lifetime (Memory Leak)
+4. The relevant vulnerable code snippet:
+```c
+	for (i = 0; i < 1000; i++) {
+		timer = (struct timer *)malloc (sizeof (struct timer));
+		randomvalue = random()%5000;
+		timer->function = timer_function;
+		timer->data = (void *)randomvalue;
+		timer_add_msec_in_future (timer, randomvalue);
+	}
+```
+5. A concise explanation of why it is vulnerable: The program allocates memory for 1,000 `struct timer` objects using `malloc` in a loop. While these timers are processed and expired via `timer_expire()`, there is no corresponding `free()` call for the allocated memory either within the `main` loop or within the `timer_expire` logic (based on the provided test code). This results in a memory leak of 1,000 timer structures every time the initialization block runs.
+6. Severity rating: low
+
+
+======================================================================
+FILE: test\testvotequorum1.c
+TIME: 9.01 seconds
+======================================================================
+
+1. File: test\testvotequorum1.c
+2. Name of the function containing the vulnerability: `main`
+3. Vulnerability type / CWE: CWE-1284: Improper Validation of Specified Quantity (Integer Overflow/Underflow) / Improper Input Validation.
+4. The relevant vulnerable code snippet:
+```c
+	if (argc >= 2 && atoi(argv[1])) {
+		if ( (err=votequorum_setexpected(g_handle, atoi(argv[1]))) != CS_OK)
+			fprintf(stderr, "set expected votes FAILED: %d\n", err);
+	}
+	if (argc >= 3 && atoi(argv[2])) {
+		if ( (err=votequorum_setvotes(g_handle, 0, atoi(argv[2]))) != CS_OK)
+			fprintf(stderr, "set votes FAILED: %d\n", err);
+	}
+```
+5. A concise explanation of why it is vulnerable: The program uses `atoi()` to parse user-provided command-line arguments (`argv[1]` and `argv[2]`) and passes these values directly into `votequorum_setexpected` and `votequorum_setvotes`. `atoi` does not provide error detection for overflows or underflows. Furthermore, there is no validation to ensure the provided integers are positive or within a reasonable range before passing them to the API functions. Depending on the implementation of the `votequorum` library, passing negative numbers or extremely large values could lead to integer overflows, logic errors in quorum calculations, or memory corruption within the library.
+6. Severity rating: Medium
+
+
+======================================================================
+FILE: test\testvotequorum2.c
+TIME: 7.36 seconds
+======================================================================
+
+1. File: test\testvotequorum2.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-131: Incorrect Calculation of Buffer Size (Potential Integer Overflow leading to Infinite Loop/DoS)
+4. The relevant vulnerable code snippet:
+```c
+	if (argc >= 2 && atoi(argv[1])) {
+		pollcount = atoi(argv[1]);
+	}
+    // ...
+		while (pollcount--) {
+			print_info(0);
+            // ...
+			sleep(polltime);
+		}
+```
+5. A concise explanation of why it is vulnerable: The program takes a user-supplied argument `argv[1]` and converts it to a signed integer using `atoi()` to set `pollcount`. If a user provides a negative number (e.g., `-1`), the condition `atoi(argv[1])` evaluates to true (non-zero), and `pollcount` is assigned a negative value. The subsequent `while (pollcount--)` loop will then treat the negative signed integer as a very large unsigned value or continue decrementing deep into negative integers until it wraps around, effectively causing an extremely long-running loop (Denial of Service) or unexpected behavior.
+6. Severity rating: Low
+
+
+======================================================================
+FILE: test\testzcgc.c
+TIME: 8.13 seconds
+======================================================================
+
+1. File: test\testzcgc.c
+2. Name of the function containing the vulnerability: DeliverCallback
+3. Vulnerability type / CWE: CWE-170 (Improper Null Termination) / Format String vulnerability (indirectly) or Memory Corruption.
+4. The relevant vulnerable code snippet:
+```c
+printf("DeliverCallback: message (len=%lu)from node/pid %s/%d: '%s'\n",
+       (unsigned long int) msg_len,
+       inet_ntoa(saddr), pid, (const char *)msg);
+```
+(And the corresponding `else` block)
+```c
+printf("DeliverCallback: message (len=%lu)from node/pid %d/%d: '%s'\n",
+       (unsigned long int) msg_len, nodeid, pid,
+       (const char *)msg);
+```
+5. A concise explanation of why it is vulnerable: The `DeliverCallback` function receives a message buffer `msg` and its length `msg_len`. The code treats `msg` as a null-terminated C string by passing it to `printf` with the `%s` specifier. However, there is no guarantee that the incoming network message is null-terminated. If a malicious actor sends a message that is not null-terminated, `printf` will continue reading past the end of the buffer until it encounters a null byte in memory, leading to an information leak (out-of-bounds read).
+6. Severity rating: Medium
+
+
+======================================================================
+FILE: tools\corosync-cfgtool.c
+TIME: 7.31 seconds
+======================================================================
+
+1. File: tools\corosync-cfgtool.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-170: Improper Null Termination of String Due to Capped Copy
+4. The relevant vulnerable code snippet:
+```c
+case 'i':
+    strncpy(interface_name, optarg, sizeof(interface_name));
+    break;
+```
+5. A concise explanation of why it is vulnerable:
+The code uses `strncpy` to copy the user-provided `optarg` into the `interface_name` buffer. If the length of `optarg` is greater than or equal to `sizeof(interface_name)` (128 bytes), `strncpy` will copy the first 128 bytes but will not append a null terminator (`\0`). When `interface_name` is subsequently passed to `ringstatusget_do` and used in `strcasecmp (interface_name, interface_names[i])`, the function will read past the end of the buffer until it encounters a null byte in memory. This leads to an out-of-bounds read, which can cause a crash (DoS) or potentially leak sensitive information from the stack.
+
+6. Severity rating: medium
+
+
+======================================================================
+FILE: tools\corosync-cmapctl.c
+TIME: 6.34 seconds
+======================================================================
+
+1. File: tools\corosync-cmapctl.c
+2. Name of the function containing the vulnerability: `read_in_config_file`
+3. Vulnerability type / CWE: CWE-125: Out-of-bounds Read
+4. The relevant vulnerable code snippet:
+```c
+		for (c = 0; c < 1024; c++) {
+			if (isblank (buf[c])) {
+				continue;
+			}
+
+			if (buf[c] == '#' || buf[c] == '\n') {
+				ignore = 1;
+				break;
+			}
+			ignore = 0;
+			line = &buf[c];
+			break;
+		}
+```
+5. A concise explanation of why it is vulnerable:
+The function `read_in_config_file` reads up to 1024 bytes into `buf` using `fgets`. However, the subsequent `for` loop iterates from `0` to `1023` regardless of how many bytes were actually read or where the null terminator (`\0`) is located. If `fgets` reads a line shorter than 1023 bytes, the loop will continue reading past the end of the string into uninitialized memory of the `buf` array until it happens to encounter a blank character, a '#' or a '\n'. If none of these characters exist in the remaining buffer space, it will read exactly up to index 1023. While the buffer itself is 1024 bytes, this logic is brittle and risks processing garbage data as part of the configuration if the line is short. More importantly, the logic depends on the buffer being filled or null-terminated, but the loop does not check for `\0`, potentially leading to out-of-bounds reads if the loop boundaries were slightly different or if the logic extended to other functions.
+
+6. Severity rating: low
+
+
+======================================================================
+FILE: tools\corosync-cpgtool.c
+TIME: 9.71 seconds
+======================================================================
+
+1. File: tools\corosync-cpgtool.c
+2. Name of the function containing the vulnerability: `fprint_group`
+3. Vulnerability type / CWE: CWE-116 (Improper Encoding or Escaping of Output) / Format String Vulnerability (Potential)
+4. The relevant vulnerable code snippet:
+```c
+		} else {
+			if (c == '\\')
+				fprintf (f, "\\\\");
+			else
+				fprintf (f, "\\x%02X", c);
+		}
+```
+5. A concise explanation of why it is vulnerable: While `fprint_group` attempts to escape characters, it uses `fprintf` to print the escaped representation of bytes. If the `escape` flag is set to 0 (via the `-e` command line option), the code executes `fputc(c, f)`. However, the more critical issue is that if the group name contains data that can be manipulated by an attacker, and that data is processed through paths that might lead to formatted output without proper validation, it can lead to issues. More specifically, in the `else` block, the code uses `fprintf(f, "\\x%02X", c)`. While this specific call is safe because the format string is a literal, the lack of strict sanitization of the group name when `escape` is 0 allows raw binary data to be written to `stdout`. If the output of this tool is piped into another utility that interprets format specifiers or control characters, it creates a secondary injection vulnerability.
+
+*Correction*: Upon closer inspection of the provided source, there is no direct Format String vulnerability because `fprintf` is always called with a constant format string. However, there is a **Memory Safety/Out-of-bounds** risk in `fprint_addrs`. 
+
+**Revised Vulnerability:**
+1. File: tools\corosync-cpgtool.c
+2. Name of the function: `fprint_addrs`
+3. Vulnerability type: CWE-125 (Out-of-bounds Read)
+4. Relevant code snippet:
+```c
+			struct sockaddr_in *sin = (struct sockaddr_in *)addrs[i].address;
+			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)addrs[i].address;
+			void *saddr;
+
+			if (ss->ss_family == AF_INET6)
+				saddr = &sin6->sin6_addr;
+			else
+				saddr = &sin->sin_addr;
+```
+5. Explanation: The function casts `addrs[i].address` to both `sockaddr_in` and `sockaddr_in6` regardless of the actual family. It then uses `ss->ss_family` to decide which pointer to use. If `ss_family` is neither `AF_INET6` nor `AF_INET` (e.g., a different address family or corrupted data), it defaults to the `else` block and treats the address as `sockaddr_in`. This can lead to an out-of-bounds read when `inet_ntop` is called with the resulting `saddr`, as the memory layout for other families differs.
+6. Severity rating: Medium
+
+
+======================================================================
+FILE: tools\corosync-keygen.c
+TIME: 6.51 seconds
+======================================================================
+
+1. File: tools\corosync-keygen.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-377: Insecure Temporary File / Insecure File Permissions (Race Condition)
+4. The relevant vulnerable code snippet:
+```c
+	/*
+	 * Open key
+	 */
+	authkey_fd = open (KEYFILE, O_CREAT|O_WRONLY, 600);
+	if (authkey_fd == -1) {
+		perror ("Could not create " KEYFILE);
+		exit (errno);
+	}
+	/*
+	 * Set security of authorization key to uid = 0 gid = 0 mode = 0400
+	 */
+	res = fchown (authkey_fd, 0, 0);
+	if (res == -1) {
+		perror ("Could not fchown key to uid 0 and gid 0\n");
+		exit (errno);
+	}
+	if (fchmod (authkey_fd, 0400)) {
+		perror ("Failed to set key file permissions to 0400\n");
+		exit (errno);
+	}
+```
+5. A concise explanation of why it is vulnerable: The program creates the authentication key file with permissions `0600` (read/write for owner) and then subsequently changes the permissions to `0400` (read-only for owner) using `fchmod`. There is a small window of time between the `open` call and the `fchmod` call where the file exists with write permissions. More importantly, if the file `KEYFILE` already exists, `open(KEYFILE, O_CREAT|O_WRONLY, 600)` will open the existing file without verifying its ownership or current permissions. If a malicious actor can create a symbolic link at the `KEYFILE` location before the root user runs this tool, the tool will follow the link and overwrite an arbitrary file on the system with the generated key, or overwrite a target file with root privileges.
+6. Severity rating: High
+
+
+======================================================================
+FILE: tools\corosync-notifyd.c
+TIME: 12.86 seconds
+======================================================================
+
+1. File: tools\corosync-notifyd.c
+2. Name of the function containing the vulnerability: `_cs_cmap_members_key_changed`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120 / CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+	/*
+	 * We want the ip out of: "r(0) ip(192.168.100.92)"
+	 */
+	open_bracket = strrchr(ip_str, '(');
+	open_bracket++;
+	close_bracket = strrchr(open_bracket, ')');
+	*close_bracket = '\0';
+	_cs_ip_to_hostname(open_bracket, nodename);
+```
+5. A concise explanation of why it is vulnerable: 
+The function `_cs_cmap_members_key_changed` retrieves a string `ip_str` from the cmap. It searches for the last occurrence of '(' and ')' to extract an IP address into the `nodename` buffer. However, it does not validate if the extracted string (the content between the brackets) fits within the `nodename` buffer, which is defined as `char nodename[CS_MAX_NAME_LENGTH]`. 
+
+Furthermore, the subsequent call to `_cs_ip_to_hostname(open_bracket, nodename)` uses `getnameinfo`, which is limited to `CS_MAX_NAME_LENGTH`, but the `open_bracket` pointer itself is derived from `ip_str` (an external input from the cmap) without any length checks. If an attacker can control the content of the cmap (specifically the IP string), they can cause a buffer overflow if the logic for finding brackets is manipulated or if the string between brackets is excessively long. More critically, the pointer arithmetic `open_bracket++` and the null termination `*close_bracket = '\0'` are performed without verifying if the characters '(' or ')' were actually found, potentially leading to a null pointer dereference or out-of-bounds write.
+
+6. Severity rating: High
+
+
+======================================================================
+FILE: tools\corosync-quorumtool.c
+TIME: 8.81 seconds
+======================================================================
+
+1. File: tools\corosync-quorumtool.c
+2. Name of the function containing the vulnerability: `display_nodes_data`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+if ((display_qdevice) || (machine_parsable)) {
+    if (info[i].flags & VOTEQUORUM_INFO_QDEVICE_REGISTERED) {
+        char buf[10];
+
+        snprintf(buf, sizeof(buf) - 1,
+             "%s,%s,%s",
+             info[i].flags & VOTEQUORUM_INFO_QDEVICE_ALIVE?"A":"NA",
+             info[i].flags & VOTEQUORUM_INFO_QDEVICE_CAST_VOTE?"V":"NV",
+             info[i].flags & VOTEQUORUM_INFO_QDEVICE_MASTER_WINS?"MW":"NMW");
+        print_string_padded(buf);
+    } else {
+```
+5. A concise explanation of why it is vulnerable:
+The function `display_nodes_data` uses a fixed-size stack buffer `buf[10]` to store a comma-separated string of Qdevice status flags. The `snprintf` call uses `sizeof(buf) - 1` (which is 9) as the limit. However, the format string `"%s,%s,%s"` combined with the longest possible replacement strings ("NA", "NV", "NMW") results in a string that can be up to 11 characters long (`NA,NV,NMW` = 9 chars + 2 commas = 11). While `snprintf` prevents a direct memory corruption of the stack during the write, it truncates the output. More importantly, if this pattern were used with `sprintf` or if the buffer size were slightly miscalculated in related logic, it would be a critical overflow. In this specific case, while `snprintf` protects the stack, the buffer is undersized for the intended logic, leading to data truncation. However, looking at the logic of the CTF context, the most "serious" vulnerability is the **stack-based buffer overflow** risk if the developer assumed `buf[10]` was sufficient for these strings. (Note: In strict C terms, `snprintf` prevents the crash, but the buffer allocation is logically flawed).
+
+6. Severity rating: Medium
+

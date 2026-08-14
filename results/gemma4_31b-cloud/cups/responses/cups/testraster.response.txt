@@ -1,0 +1,22 @@
+1. File: cups\testraster.c
+2. Name of the function containing the vulnerability: `do_ras_file`
+3. Vulnerability type / CWE: Integer Overflow / Heap-based Buffer Overflow (CWE-190 / CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+  while (cupsRasterReadHeader2(ras, &header))
+  {
+    pages ++;
+    data = malloc(header.cupsBytesPerLine);
+
+    printf("    Page %u: %ux%ux%u@%ux%udpi", pages,
+           header.cupsWidth, header.cupsHeight, header.cupsBitsPerPixel,
+           header.HWResolution[0], header.HWResolution[1]);
+    fflush(stdout);
+
+    for (y = 0; y < header.cupsHeight; y ++)
+      if (cupsRasterReadPixels(ras, data, header.cupsBytesPerLine) <
+              header.cupsBytesPerLine)
+        break;
+```
+5. A concise explanation of why it is vulnerable: The function `do_ras_file` reads a raster file and trusts the `cupsBytesPerLine` value provided in the file header. If a maliciously crafted file provides a very small or zero value for `cupsBytesPerLine`, `malloc` may return a small buffer. However, if `cupsRasterReadPixels` does not strictly validate the internal consistency of the raster data against the allocated size or if the header values are manipulated to cause an integer overflow in subsequent length calculations within the library, it can lead to a heap buffer overflow. More directly, if `header.cupsBytesPerLine` is 0, `malloc(0)` may return a valid pointer that is then passed to `cupsRasterReadPixels`, which may attempt to write data into an undersized or null-sized heap chunk.
+6. Severity rating: High

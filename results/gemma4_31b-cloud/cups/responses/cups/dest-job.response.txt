@@ -1,0 +1,17 @@
+1. File: cups\dest-job.c
+2. Name of the function containing the vulnerability: `cupsCreateDestJob`
+3. Vulnerability type / CWE: Null Pointer Dereference (CWE-476)
+4. The relevant vulnerable code snippet:
+```c
+  if (job_id)
+    *job_id = 0;
+
+  if (!http || !dest || !info || !job_id)
+  {
+    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(EINVAL), 0);
+    DEBUG_puts("1cupsCreateDestJob: Bad arguments.");
+    return (IPP_STATUS_ERROR_INTERNAL);
+  }
+```
+5. A concise explanation of why it is vulnerable: The function attempts to dereference the `job_id` pointer (`*job_id = 0`) before checking if the pointer is `NULL`. If a caller passes `NULL` for the `job_id` argument, the program will crash due to a null pointer dereference.
+6. Severity rating: medium

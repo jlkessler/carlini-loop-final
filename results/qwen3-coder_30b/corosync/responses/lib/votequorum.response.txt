@@ -1,0 +1,16 @@
+1. File: lib\votequorum.c
+
+2. Name of the function containing the vulnerability: votequorum_getinfo
+
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+strcpy(info->qdevice_name, res_lib_votequorum_getinfo.qdevice_name);
+```
+
+5. The vulnerability exists because the code copies data from `res_lib_votequorum_getinfo.qdevice_name` to `info->qdevice_name` without checking if the source string is shorter than `VOTEQUORUM_QDEVICE_MAX_NAME_LEN`. If the source string is longer, it will overflow the destination buffer.
+
+6. Severity rating: HIGH
+
+The vulnerability is a classic stack-based buffer overflow in the votequorum_getinfo function. The code uses strcpy() to copy data from a potentially untrusted source (res_lib_votequorum_getinfo.qdevice_name) into a fixed-size buffer (info->qdevice_name) without any bounds checking. This could allow an attacker to overwrite adjacent memory, potentially leading to arbitrary code execution or denial of service. The vulnerability is in the final copy operation where the function assumes the source string length is always within acceptable limits, but no such validation is performed before the strcpy() call.

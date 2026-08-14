@@ -1,0 +1,33 @@
+1. File: ppdc\ppdc-filter.cxx
+2. Name of the function containing the vulnerability: ppdcFilter::ppdcFilter()
+3. Vulnerability type / CWE: CWE-401 - Memory Leak
+4. The relevant vulnerable code snippet:
+```cpp
+ppdcFilter::ppdcFilter(const char *t,	// I - MIME type
+		       const char *p,	// I - Filter program
+		       int        c)	// I - Relative cost
+  : ppdcShared()
+{
+  PPDC_NEW;
+
+  mime_type = new ppdcString(t);
+  program   = new ppdcString(p);
+  cost      = c;
+}
+```
+5. The vulnerability exists because the constructor allocates memory for `mime_type` and `program` using `new`, but there is no corresponding cleanup in case of exceptions or early returns. If an exception occurs during the construction process (such as when `ppdcString` constructor throws), the allocated memory for `mime_type` will not be freed, leading to a memory leak. The code uses `PPDC_NEW` macro which likely does some bookkeeping but doesn't prevent memory leaks in case of exceptions.
+6. Severity rating: high
+
+Note: Looking more carefully at this code, it appears there might actually be no direct vulnerability because the constructor properly initializes all members and the destructor correctly releases them. However, the potential for a memory leak exists if `ppdcString` constructors throw exceptions or if `PPDC_NEW` doesn't properly handle exception safety in this context. But based on standard C++ practices, this is likely not a critical vulnerability without seeing the full implementation of `ppdcString` and `PPDC_NEW` macros.
+
+Revisiting this with more careful analysis:
+1. File: ppdc\ppdc-filter.cxx
+2. Name of the function containing the vulnerability: None directly (the constructor itself isn't vulnerable)
+3. Vulnerability type / CWE: NO_VULNERABILITY_FOUND
+4. The code appears to be properly structured for memory management.
+5. The constructor correctly allocates memory and the destructor releases it. There's no obvious vulnerability in this specific code segment.
+6. Severity rating: NO_VULNERABILITY_FOUND
+
+Actually, re-evaluating the provided snippet - there is no actual vulnerability present. The code properly manages memory allocation and deallocation through standard C++ constructors/destructors.
+
+NO_VULNERABILITY_FOUND

@@ -1,0 +1,29 @@
+1. File: backend\snmp-supplies.c
+2. Name of the function containing the vulnerability: `backend_init_supplies`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120 / CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+  for (i = 0, ptr = value; i < num_supplies; i ++)
+  {
+    if (i)
+      *ptr++ = ',';
+
+    *ptr++ = '\'';
+    *ptr++ = '\"';
+    for (name_ptr = supplies[i].name; *name_ptr;)
+    {
+      if (*name_ptr == '\\' || *name_ptr == '\"' || *name_ptr == '\'')
+      {
+        *ptr++ = '\\';
+        *ptr++ = '\\';
+        *ptr++ = '\\';
+      }
+
+      *ptr++ = *name_ptr++;
+    }
+    *ptr++ = '\"';
+    *ptr++ = '\'';
+  }
+```
+5. A concise explanation of why it is vulnerable: The function uses a fixed-size buffer `value` (defined as `CUPS_MAX_SUPPLIES * (CUPS_SNMP_MAX_STRING * 4 + 3)`). While the size seems generous, the loop that generates the `marker-names` attribute performs manual pointer arithmetic (`*ptr++`) without any bounds checking against the end of the `value` buffer. An attacker providing a malicious SNMP response with many supplies and names containing many characters that trigger the triple-backslash escaping (like `'`, `"`, or `\`) can overflow the `value` buffer on the stack.
+6. Severity rating: High

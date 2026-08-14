@@ -1,0 +1,23 @@
+1. File: ppdc\ppdc-option.cxx
+2. Name of the function containing the vulnerability: `ppdcOption::set_defchoice`
+3. Vulnerability type / CWE: CWE-824: Access of Uninitialized Pointer / Type Confusion (Memory Corruption)
+4. The relevant vulnerable code snippet:
+```cpp
+void
+ppdcOption::set_defchoice(ppdcChoice *c)	// I - Choice
+{
+  if (defchoice)
+    defchoice->release();
+
+  if (c->name)
+    c->name->retain();
+
+  defchoice = c->name;
+}
+```
+5. A concise explanation of why it is vulnerable:
+The function `set_defchoice` takes a pointer to a `ppdcChoice` object (`c`), but it assigns `c->name` (which is a `ppdcString*`) to the member variable `defchoice`. 
+
+Looking at the constructor and destructor, `defchoice` is treated as a `ppdcChoice*` (or at least an object that responds to `release()`). Specifically, in the destructor `~ppdcOption()`, the code calls `defchoice->release()`. If `defchoice` has been assigned a `ppdcString` object via `set_defchoice`, the destructor will call `release()` on a `ppdcString` pointer as if it were a `ppdcChoice` pointer. If these classes have different memory layouts or different `release()` implementations (or if the pointer is used as a `ppdcChoice` elsewhere), this leads to type confusion and potential memory corruption/crashes.
+
+6. Severity rating: High

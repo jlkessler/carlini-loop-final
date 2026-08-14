@@ -1,0 +1,30 @@
+1. File: vcnet\regex\regerror.c
+2. Name of the function containing the vulnerability: `regatoi`
+3. Vulnerability type / CWE: CWE-120: Buffer Overflow (Stack-based)
+4. The relevant vulnerable code snippet:
+```c
+static char *
+regatoi(preg, localbuf)
+const regex_t *preg;
+char *localbuf;
+{
+    // ... (loop code) ...
+    sprintf(localbuf, "%d", r->code);
+    return(localbuf);
+}
+```
+Called from `regerror` where `localbuf` is:
+```c
+char convbuf[50];
+// ...
+if (errcode == REG_ATOI)
+    s = regatoi(preg, convbuf);
+```
+
+5. A concise explanation of why it is vulnerable: The `regatoi` function uses `sprintf` to write an integer (`r->code`) into `localbuf` (which is `convbuf[50]` in the caller). While a standard `int` usually fits in 50 characters, the `rerr` struct is defined with `int code`. If the input `preg->re_endp` allows the loop to select an entry in the `rerrs` table with a very large negative or positive value (or if the table were extended), or if the architecture's integer representation allows for a string longer than 50 characters (though unlikely for a 32/64-bit int), it is a risk. 
+
+However, the more immediate and critical vulnerability is the **lack of bounds checking on `preg->re_endp`**. The function `regatoi` performs `strcmp(r->name, preg->re_endp)`. If `preg->re_endp` is not a null-terminated string, `strcmp` will read out-of-bounds. Furthermore, in `regerror`, if `errcode & REG_ITOA` is true and `r->code >= 0`, `strcpy(convbuf, r->name)` is called. If an entry in `rerrs` had a `name` longer than 49 characters, it would overflow `convbuf` on the stack.
+
+The most critical path is the `sprintf` and `strcpy` into a fixed-size stack buffer `convbuf[50]` without verifying the length of the source data from the `rerrs` table or the formatted integer.
+
+6. Severity rating: Medium

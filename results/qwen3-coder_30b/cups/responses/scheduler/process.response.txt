@@ -1,0 +1,34 @@
+1. File: scheduler\process.c
+2. Name of the function containing the vulnerability: cupsdStartProcess
+3. Vulnerability type / CWE: CWE-78 - Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')
+4. The relevant vulnerable code snippet:
+```c
+if (profile)
+{
+  snprintf(cups_exec, sizeof(cups_exec), "%s/daemon/cups-exec", ServerBin);
+  // ... other code ...
+  real_argv[0] = cups_exec;
+  real_argv[1] = (char *)"-g";
+  real_argv[2] = group_str;
+  real_argv[3] = (char *)"-n";
+  real_argv[4] = nice_str;
+  real_argv[5] = (char *)"-u";
+  real_argv[6] = user_str;
+  real_argv[7] = profile ? profile : "none";
+  real_argv[8] = (char *)command;  // <-- Vulnerable line
+
+  for (i = 0;
+       i < (int)(sizeof(real_argv) / sizeof(real_argv[0]) - 10) && argv[i];
+       i ++)
+    real_argv[i + 9] = argv[i];
+
+  real_argv[i + 9] = NULL;
+
+  argv      = real_argv;
+  exec_path = cups_exec;
+}
+```
+5. The vulnerability exists because the `command` parameter (which comes from user input) is directly passed as an argument to the `cups-exec` helper program without proper sanitization or validation. When a sandbox profile is used, the command is passed as argv[8] to the helper program, which then executes it using execve/execv. If an attacker can control the `command` parameter, they could inject malicious commands.
+6. Severity rating: HIGH
+
+The vulnerability allows for OS command injection when a sandbox profile is used, potentially allowing arbitrary command execution with the privileges of the CUPS daemon. This is particularly dangerous because the CUPS daemon typically runs with elevated privileges and could allow attackers to execute arbitrary code on the system.

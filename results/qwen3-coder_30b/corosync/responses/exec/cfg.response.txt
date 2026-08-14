@@ -1,0 +1,37 @@
+1. File: exec\cfg.c
+
+2. Name of the function containing the vulnerability: `message_handler_req_exec_cfg_killnode`
+
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+static void message_handler_req_exec_cfg_killnode (
+        const void *message,
+        unsigned int nodeid)
+{
+	const struct req_exec_cfg_killnode *req_exec_cfg_killnode = message;
+	cs_name_t reason;
+
+	ENTER();
+	log_printf(LOGSYS_LEVEL_DEBUG, "request to kill node %d(us=%d): %s",
+		req_exec_cfg_killnode->nodeid, api->totem_nodeid_get(), reason.value);
+        if (req_exec_cfg_killnode->nodeid == api->totem_nodeid_get()) {
+		marshall_from_mar_name_t(&reason, &req_exec_cfg_killnode->reason);
+		log_printf(LOGSYS_LEVEL_NOTICE, "Killed by node %d: %s",
+			   nodeid, reason.value);
+		corosync_fatal_error(COROSYNC_FATAL_ERROR_EXIT);
+	}
+	LEAVE();
+}
+```
+
+5. The vulnerability exists because the `reason` variable is declared as a local `cs_name_t` structure but is never properly initialized before being used in the `log_printf` statement. The `marshall_from_mar_name_t` function is called to populate `reason`, but there's no validation that the data from `req_exec_cfg_killnode->reason` is within expected bounds. Additionally, the `log_printf` calls use the `reason.value` field directly without any bounds checking, which could lead to a buffer overflow if the reason string exceeds the allocated buffer size for `reason.value`.
+
+6. Severity rating: Critical
+
+The vulnerability is critical because:
+1. It's a stack-based buffer overflow that can be exploited to execute arbitrary code
+2. The function handles remote input from network messages (executive message handlers)
+3. The overflow occurs in a privileged context (executive handler for cluster management)
+4. An attacker could send a specially crafted killnode request with a malicious reason string to overwrite stack memory and potentially gain control of the system

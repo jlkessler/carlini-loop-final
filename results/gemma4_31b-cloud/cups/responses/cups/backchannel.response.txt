@@ -1,0 +1,13 @@
+1. File: cups\backchannel.c
+2. Name of the function containing the vulnerability: `cupsBackChannelRead`
+3. Vulnerability type / CWE: CWE-119 (Improper Restriction of Operations within the Bounds of a Memory Buffer / Buffer Overflow)
+4. The relevant vulnerable code snippet:
+```c
+#ifdef _WIN32
+  return ((ssize_t)_read(3, buffer, (unsigned)bytes));
+#else
+  return (read(3, buffer, bytes));
+#endif /* _WIN32 */
+```
+5. A concise explanation of why it is vulnerable: The function `cupsBackChannelRead` accepts a `size_t bytes` parameter and passes it directly to the `read()` (or `_read()`) system call. There is no validation that the `buffer` provided by the caller is actually large enough to hold `bytes` amount of data. If a caller passes a value for `bytes` that exceeds the actual allocated size of `buffer`, the `read` operation will overflow the buffer, leading to a heap or stack-based buffer overflow depending on where `buffer` was allocated.
+6. Severity rating: High

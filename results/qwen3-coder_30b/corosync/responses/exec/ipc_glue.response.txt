@@ -1,0 +1,145 @@
+1. File: exec\ipc_glue.c
+
+2. Name of the function containing the vulnerability: `pid_to_name`
+
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+static char * pid_to_name (pid_t pid, char *out_name, size_t name_len)
+{
+	char *name;
+	char *rest;
+	FILE *fp;
+	char fname[32];
+	char buf[256];
+
+	snprintf (fname, 32, "/proc/%d/stat", pid);
+	fp = fopen (fname, "r");
+	if (!fp) {
+		return NULL;
+	}
+
+	if (fgets (buf, sizeof (buf), fp) == NULL) {
+		fclose (fp);
+		return NULL;
+	}
+	fclose (fp);
+
+	name = strrchr (buf, '(');
+	if (!name) {
+		return NULL;
+	}
+
+	/* move past the bracket */
+	name++;
+
+	rest = strrchr (buf, ')');
+
+	if (rest == NULL || rest[1] != ' ') {
+		return NULL;
+	}
+
+	*rest = '\0';
+	/* move past the NULL and space */
+	rest += 2;
+
+	/* copy the name */
+	strncpy (out_name, name, name_len);
+	out_name[name_len - 1] = '\0';
+	return out_name;
+}
+```
+
+5. A concise explanation of why it is vulnerable: The function `pid_to_name` is vulnerable to a stack-based buffer overflow because it uses `strncpy` without ensuring that the source string (`name`) is null-terminated before copying it to `out_name`. Although `strncpy` is used, the code assumes that `name` points to a null-terminated string within `buf`, but there's no guarantee that the string extracted from `/proc/PID/stat` will be properly null-terminated, especially when dealing with long process names. Additionally, if the process name in `/proc/PID/stat` is longer than `name_len - 1`, the function may not properly null-terminate `out_name` due to the way `strncpy` behaves with source strings that are exactly or longer than the specified length.
+
+6. Severity rating: HIGH
+
+However, upon closer inspection, I see there's actually a more serious vulnerability in the `cs_ipcs_connection_created` function:
+
+1. File: exec\ipc_glue.c
+
+2. Name of the function containing the vulnerability: `cs_ipcs_connection_created`
+
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow / CWE-787: Out-of-bounds Write
+
+4. The relevant vulnerable code snippet:
+```c
+static void cs_ipcs_connection_created(qb_ipcs_connection_t *c)
+{
+    // ... earlier code ...
+    int32_t size = sizeof(struct cs_ipcs_conn_context);
+    char key_name[ICMAP_KEYNAME_MAXLEN];
+    // ... more code ...
+    
+    size += corosync_service[service]->private_data_size;
+    context = calloc(1, size);
+    if (context == NULL) {
+        qb_ipcs_disconnect(c);
+        return;
+    }
+    
+    // ... later code ...
+    
+    snprintf(key_name, ICMAP_KEYNAME_MAXLEN, "runtime.connections.%s:%u:%p",
+            proc_name, stats.client_pid, c);
+    set_proc_name = 1;
+}
+```
+
+5. A concise explanation of why it is vulnerable: The vulnerability occurs when `pid_to_name()` function returns a non-NULL value but the process name extracted from `/proc/PID/stat` might be longer than the buffer allocated for `proc_name` (32 bytes). When `snprintf` tries to format the string into `key_name`, if `proc_name` is not properly null-terminated due to an overly long process name, it can cause a buffer overflow in the `snprintf` call or lead to memory corruption.
+
+6. Severity rating: CRITICAL
+
+Actually, re-examining the code more carefully, there's no clear evidence of direct buffer overflow vulnerabilities. However, the function `pid_to_name` could potentially be vulnerable if process names exceed expected bounds:
+
+1. File: exec\ipc_glue.c
+
+2. Name of the function containing the vulnerability: `pid_to_name`
+
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+static char * pid_to_name (pid_t pid, char *out_name, size_t name_len)
+{
+    // ... earlier code ...
+    char buf[256];
+    // ... later code ...
+    
+    /* copy the name */
+    strncpy (out_name, name, name_len);
+    out_name[name_len - 1] = '\0';
+    return out_name;
+}
+```
+
+5. A concise explanation of why it is vulnerable: The function `pid_to_name` has a potential vulnerability where if `name` points to a string that is exactly `name_len` characters long, the `strncpy` followed by explicit null termination could lead to issues. However, this is not actually a clear buffer overflow as `strncpy` with correct parameters should be safe.
+
+Looking at all functions, I see no direct exploitable vulnerability but the code has some questionable practices in memory management and string handling.
+
+However, upon careful analysis of the actual vulnerabilities present:
+
+1. File: exec\ipc_glue.c
+
+2. Name of the function containing the vulnerability: `cs_ipcs_connection_created`
+
+3. Vulnerability type / CWE: CWE-787: Out-of-bounds Write
+
+4. The relevant vulnerable code snippet:
+```c
+char proc_name[32];
+// ...
+if (pid_to_name (stats.client_pid, proc_name, sizeof(proc_name))) {
+    snprintf(key_name, ICMAP_KEYNAME_MAXLEN, "runtime.connections.%s:%u:%p",
+            proc_name, stats.client_pid, c);
+}
+```
+
+5. A concise explanation of why it is vulnerable: The vulnerability occurs in `cs_ipcs_connection_created` where `proc_name` is a fixed 32-byte buffer but `pid_to_name` may not properly null-terminate strings that are exactly or close to the buffer size limit, potentially leading to out-of-bounds writes when used in `snprintf`.
+
+6. Severity rating: HIGH
+
+NO_VULNERABILITY_FOUND
+
+The code does not contain any clear exploitable vulnerabilities based on the provided functions and their implementations. The string handling appears to be reasonably safe with proper bounds checking.

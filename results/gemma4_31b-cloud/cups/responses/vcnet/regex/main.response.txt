@@ -1,0 +1,16 @@
+1. File: vcnet\regex\main.c
+2. Name of the function containing the vulnerability: try
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+	char f0copy[1000];
+	char f2copy[1000];
+
+	strcpy(f0copy, f0);
+	// ...
+	strcpy(f2copy, f2);
+```
+5. A concise explanation of why it is vulnerable:
+The `try` function uses `strcpy` to copy the input strings `f0` and `f2` into fixed-size stack buffers `f0copy` and `f2copy` (each 1000 bytes). There are no bounds checks performed on the lengths of `f0` or `f2` before the copy. Since these strings originate from the `regress` function, which reads from a file/stdin into `inbuf` (1000 bytes) but then passes pointers from the `split` function, a specially crafted input file can provide strings that exceed 1000 bytes, leading to a stack-based buffer overflow. This can be used to overwrite the return address and hijack control flow.
+
+6. Severity rating: Critical

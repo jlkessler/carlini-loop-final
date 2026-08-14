@@ -1,0 +1,14 @@
+1. File: backend\network.c
+2. Name of the function containing the vulnerability: backendNetworkSideCB
+3. Vulnerability type / CWE: Out-of-bounds Write / Buffer Overflow (CWE-787)
+4. The relevant vulnerable code snippet:
+```c
+	    for (dataptr = data + strlen(data) + 1;
+	         count > 0 && dataptr < (data + sizeof(data) - 1);
+	         count --, dataptr += strlen(dataptr))
+	      strlcpy(dataptr, snmp_value, sizeof(data) - (size_t)(dataptr - data));
+```
+5. A concise explanation of why it is vulnerable:
+The code attempts to append `snmp_value` (from an environment variable) to the `data` buffer. The loop condition checks if `dataptr < (data + sizeof(data) - 1)`, but `strlcpy` copies the string *including* a null terminator. If `dataptr` is exactly `data + sizeof(data) - 1`, `strlcpy` will write the first character of `snmp_value` at the last index and then write a null terminator at `data[sizeof(data)]`, which is one byte past the end of the buffer. Furthermore, the `dataptr += strlen(dataptr)` increment can move the pointer beyond the buffer limits if the previous `strlcpy` filled the buffer up to the edge, potentially leading to an out-of-bounds read or write in subsequent iterations or calculations.
+
+6. Severity rating: High

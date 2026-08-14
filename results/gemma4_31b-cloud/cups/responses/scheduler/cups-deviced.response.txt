@@ -1,0 +1,16 @@
+1. File: scheduler\cups-deviced.c
+2. Name of the function containing the vulnerability: `get_device`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+    for (ptr ++, make_model = ptr; *ptr && *ptr != '\"'; ptr ++)
+    {
+      if (*ptr == '\\' && ptr[1])
+        _cups_strcpy(ptr, ptr + 1);
+    }
+```
+(This pattern is repeated for `make_model`, `info`, `device_id`, and `location`)
+5. A concise explanation of why it is vulnerable:
+The `get_device` function reads a line from a backend pipe into a 2048-byte buffer (`temp`). It then parses this line to extract device attributes. When it encounters a backslash (`\`), it uses `_cups_strcpy(ptr, ptr + 1)` to perform character escaping (replacing the backslash with the subsequent character). However, the loop condition `*ptr && *ptr != '\"'` continues to increment `ptr`. If a malicious backend provides a line with a large number of escaped characters or a specially crafted sequence of backslashes at the end of the buffer, the logic fails to ensure that `ptr` remains within the bounds of the `temp` array. Because the escaping logic modifies the buffer in-place and the loop relies on finding a closing quote or a null terminator, an attacker-controlled backend can cause `ptr` to advance past the end of the `temp` buffer, leading to an out-of-bounds write.
+
+6. Severity rating: High

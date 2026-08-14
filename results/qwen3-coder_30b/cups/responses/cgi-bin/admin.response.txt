@@ -1,0 +1,70 @@
+1. File: cgi-bin/admin.c
+2. Name of the function containing the vulnerability: do_config_server
+3. Vulnerability type / CWE: CWE-94 - Improper Control of Generation of Code ('Code Injection')
+4. The relevant vulnerable code snippet:
+```c
+else if (cgiGetVariable("SAVECHANGES") && cgiGetVariable("CUPSDCONF"))
+  {
+   /*
+    * Save hand-edited config file...
+    */
+
+    http_status_t status;		/* PUT status */
+    char	tempfile[1024];		/* Temporary new cupsd.conf */
+    int		tempfd;			/* Temporary file descriptor */
+    cups_file_t	*temp;			/* Temporary file */
+    const char	*start,			/* Start of line */
+		*end;			/* End of line */
+
+
+   /*
+    * Create a temporary file for the new cupsd.conf file...
+    */
+
+    if ((tempfd = cupsTempFd(tempfile, sizeof(tempfile))) < 0)
+    {
+      // ... error handling
+      return;
+    }
+
+    if ((temp = cupsFileOpenFd(tempfd, "w")) == NULL)
+    {
+      // ... error handling
+      close(tempfd);
+      unlink(tempfile);
+      return;
+    }
+
+   /*
+    * Copy the cupsd.conf text from the form variable...
+    */
+
+    start = cgiGetVariable("CUPSDCONF");
+    while (start)
+    {
+      if ((end = strstr(start, "\r\n")) == NULL)
+        if ((end = strstr(start, "\n")) == NULL)
+	  end = start + strlen(start);
+
+      cupsFileWrite(temp, start, (size_t)(end - start));
+      cupsFilePutChar(temp, '\n');
+
+      if (*end == '\r')
+        start = end + 2;
+      else if (*end == '\n')
+        start = end + 1;
+      else
+        start = NULL;
+    }
+
+    cupsFileClose(temp);
+
+   /*
+    * Upload the configuration file to the server...
+    */
+
+    status = cupsPutFile(http, "/admin/conf/cupsd.conf", tempfile);
+```
+5. This vulnerability exists because the code directly writes user-provided input (from the "CUPSDCONF" CGI variable) into a temporary file without any sanitization or validation. An attacker could inject malicious configuration directives that would be written to the cupsd.conf file and executed by the CUPS daemon, potentially leading to privilege escalation or arbitrary code execution.
+
+6. Severity rating: critical

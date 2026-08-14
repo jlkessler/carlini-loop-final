@@ -1,0 +1,20 @@
+1. File: filter\rastertoepson.c
+2. Name of the function containing the vulnerability: `CompressData`
+3. Vulnerability type / CWE: Heap-based Buffer Overflow (CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+    while (line_ptr < (line_end - 1) &&
+           line_ptr[0] != line_ptr[1] &&
+           count < 127)
+    {
+          line_ptr ++;
+          count ++;
+    }
+
+    *comp_ptr++ = (unsigned char)(count - 1);
+
+    memcpy(comp_ptr, start, (size_t)count);
+    comp_ptr += count;
+```
+5. A concise explanation of why it is vulnerable: In the TIFF pack-bits encoding section of `CompressData`, the code identifies a sequence of non-repeated bytes. It calculates a `count` of these bytes (up to 127). However, the destination buffer `CompBuffer` is allocated in `StartPage` using `calloc(2, header->cupsWidth + 1)`. If the input `line` contains many non-repeated sequences, the `memcpy` and the increment of `comp_ptr` can easily exceed the allocated size of `CompBuffer` (approximately $2 \times \text{width}$), as the TIFF encoding for non-repeated sequences can potentially expand the data size or simply exceed the small multiplier provided during allocation.
+6. Severity rating: High

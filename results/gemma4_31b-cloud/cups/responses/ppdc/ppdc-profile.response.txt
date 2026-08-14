@@ -1,0 +1,9 @@
+1. File: ppdc\ppdc-profile.cxx
+2. Name of the function containing the vulnerability: `ppdcProfile::ppdcProfile`
+3. Vulnerability type / CWE: CWE-125: Out-of-bounds Read
+4. The relevant vulnerable code snippet:
+```cpp
+memcpy(profile, p, sizeof(profile));
+```
+5. A concise explanation of why it is vulnerable: The constructor accepts a pointer `p` to a float array (the 3x3 transform matrix). The code uses `memcpy` to copy `sizeof(profile)` bytes from the memory pointed to by `p` into the `profile` member variable. However, there is no validation to ensure that the buffer pointed to by `p` actually contains at least `sizeof(profile)` bytes. If a caller passes a pointer to a smaller buffer, `memcpy` will read past the end of the source buffer, leading to an out-of-bounds read.
+6. Severity rating: Medium

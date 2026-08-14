@@ -1,0 +1,10 @@
+1. File: lib\sam.c
+2. Name of the function containing the vulnerability: `sam_cmap_update_key`
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+snprintf(key_name, CMAP_KEYNAME_MAXLEN, "%s%s", sam_internal_data.cmap_pid_path,
+        "recovery");
+```
+5. The vulnerability exists because `sam_internal_data.cmap_pid_path` is constructed using `snprintf` without proper bounds checking. If the length of `sam_internal_data.cmap_pid_path` (which is derived from `getpid()`) combined with the fixed string "recovery" exceeds `CMAP_KEYNAME_MAXLEN`, it will cause a buffer overflow. The `cmap_pid_path` is populated via `snprintf(sam_internal_data.cmap_pid_path, CMAP_KEYNAME_MAXLEN, "resources.process.%d.", getpid());` in `sam_cmap_register()`. Since `getpid()` returns a process ID (typically 32-bit), and the format string adds 18 characters ("resources.process.%d."), the maximum length of `cmap_pid_path` could exceed `CMAP_KEYNAME_MAXLEN` if this limit is small, causing a buffer overflow when used in subsequent `snprintf` calls.
+6. Severity rating: HIGH

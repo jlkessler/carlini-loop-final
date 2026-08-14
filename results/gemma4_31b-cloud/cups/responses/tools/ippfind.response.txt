@@ -1,0 +1,28 @@
+1. File: tools\ippfind.c
+2. Name of the function containing the vulnerability: `exec_program`
+3. Vulnerability type / CWE: Command Injection / CWE-78
+4. The relevant vulnerable code snippet:
+```c
+  if ((pid = fork()) == 0)
+  {
+   /*
+    * Child comes here...
+    */
+
+    execve(program, myargv, myenvp);
+    exit(1);
+  }
+```
+(Supported by the substitution logic earlier in the function):
+```c
+          if (!keyword[0] || !strcmp(keyword, "service_uri"))
+	    strlcpy(tptr, service->uri, sizeof(temp) - (size_t)(tptr - temp));
+	  else if (!strcmp(keyword, "service_domain"))
+	    strlcpy(tptr, service->domain, sizeof(temp) - (size_t)(tptr - temp));
+          // ... other substitutions ...
+```
+
+5. A concise explanation of why it is vulnerable:
+The `ippfind` utility allows users to specify an external program to execute via the `--exec` or `-x` options. This function implements a substitution mechanism where placeholders like `{service_uri}` or `{service_name}` are replaced with data retrieved from discovered Bonjour/DNS-SD services. Because the data coming from the network (service names, URIs, TXT records) is untrusted and not sanitized, a malicious actor can broadcast a specially crafted DNS-SD service. If a user runs `ippfind` with an `--exec` command that uses these substitutions, the malicious service data is injected directly into the arguments of the executed program. While `execve` avoids shell expansion, the vulnerability allows an attacker to control the arguments passed to an arbitrary binary, potentially leading to privilege escalation or unauthorized execution if the target binary has vulnerabilities or provides dangerous flags.
+
+6. Severity rating: High

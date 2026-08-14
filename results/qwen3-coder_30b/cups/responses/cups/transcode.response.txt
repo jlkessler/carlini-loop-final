@@ -1,0 +1,24 @@
+1. File: cups\transcode.c
+2. Name of the function containing the vulnerability: cupsCharsetToUTF8
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+if (map_to_utf8 != (iconv_t)-1)
+  {
+    char *altdestptr = (char *)dest;	/* Silence bogus GCC type-punned */
+
+    srclen       = strlen(src);
+    outBytesLeft = (size_t)maxout - 1;
+
+    iconv(map_to_utf8, (char **)&src, &srclen, &altdestptr, &outBytesLeft);
+    *altdestptr = '\0';
+
+    _cupsMutexUnlock(&map_mutex);
+
+    return ((int)(altdestptr - (char *)dest));
+  }
+```
+5. This code is vulnerable because it uses the iconv() function without proper bounds checking on the output buffer. The `outBytesLeft` variable is calculated as `maxout - 1`, but this doesn't account for the fact that iconv() may write more bytes than expected due to character set conversion (e.g., when converting from a legacy encoding to UTF-8, one input character might produce multiple output bytes). If the conversion results in more bytes than allocated, it will overflow the destination buffer.
+6. Severity rating: high
+
+The vulnerability is serious because it can lead to memory corruption and potentially arbitrary code execution when an attacker controls the input data that gets converted from legacy charset to UTF-8. The issue occurs in the `cupsCharsetToUTF8` function where the output buffer size calculation doesn't properly account for variable-length character encoding conversions.

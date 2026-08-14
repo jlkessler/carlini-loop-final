@@ -1,0 +1,20 @@
+1. File: include\corosync\corotypes.h
+2. Name of the function containing the vulnerability: cs_timestamp_get
+3. Vulnerability type / CWE: CWE-190 (Integer Overflow or Wraparound)
+4. The relevant vulnerable code snippet:
+```c
+#if defined _POSIX_MONOTONIC_CLOCK && _POSIX_MONOTONIC_CLOCK >= 0
+	struct timespec ts;
+
+	clock_gettime (CLOCK_MONOTONIC, &ts);
+	result = (ts.tv_sec * CS_TIME_NS_IN_SEC) + (uint64_t)ts.tv_nsec;
+#else
+	struct timeval time_from_epoch;
+
+	gettimeofday (&time_from_epoch, 0);
+	result = ((time_from_epoch.tv_sec * CS_TIME_NS_IN_SEC) +
+		(time_from_epoch.tv_usec * CS_TIME_NS_IN_USEC));
+#endif
+```
+5. A concise explanation of why it is vulnerable: In the `#else` block, `time_from_epoch.tv_sec` (typically a `time_t`, which is often a signed 32-bit or 64-bit integer) is multiplied by `CS_TIME_NS_IN_SEC` (1,000,000,000). If `tv_sec` is large enough, this multiplication can overflow before being assigned to the `uint64_t result`. Furthermore, if `tv_sec` is negative (representing time before the epoch), the signed multiplication and subsequent addition to an unsigned 64-bit integer can lead to unexpected wrap-around values, potentially causing logic errors in time-sensitive operations (like timeouts or sequencing).
+6. Severity rating: medium

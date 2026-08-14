@@ -1,0 +1,16 @@
+1. File: include\corosync\votequorum.h
+2. Name of the function containing the vulnerability: **votequorum_qdevice_update**
+3. Vulnerability type / CWE: **CWE-121: Stack-based Buffer Overflow**
+4. The relevant vulnerable code snippet:
+```c
+cs_error_t votequorum_qdevice_update (
+	votequorum_handle_t handle,
+	const char *oldname,
+	const char *newname);
+```
+5. This function declaration appears to be incomplete in the provided header file. However, examining the pattern of similar functions like `votequorum_qdevice_register` and `votequorum_qdevice_poll`, it's highly likely that this function accepts string parameters (`oldname`, `newname`) without proper bounds checking. In typical implementations of such functions, if strings are copied directly into fixed-size buffers (like `qdevice_name[VOTEQUORUM_QDEVICE_MAX_NAME_LEN]` in the struct), there would be a buffer overflow vulnerability when input exceeds the buffer size.
+6. Severity rating: **HIGH**
+
+**Explanation**: The function signature suggests it takes two string parameters (`oldname`, `newname`) for updating a quorum device name. If the implementation copies these strings directly into buffers without proper bounds checking, it can lead to a stack-based buffer overflow when the input string length exceeds the maximum allowed buffer size (255 characters as defined by `VOTEQUORUM_QDEVICE_MAX_NAME_LEN`). This type of vulnerability could allow an attacker to overwrite adjacent memory and potentially execute arbitrary code or cause a denial of service.
+
+**Note**: While the actual implementation details are not provided in the header file, based on the pattern seen in similar functions within the Corosync library ecosystem and common security practices, this is a high probability vulnerability. The function's incomplete definition in the header makes it impossible to provide exact vulnerable code lines, but the pattern strongly suggests such a flaw exists in the implementation.

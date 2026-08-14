@@ -1,0 +1,16 @@
+1. File: exec\cpg.c
+2. Name of the function containing the vulnerability: `message_handler_req_exec_cpg_downlist`
+3. Vulnerability type / CWE: Heap-based Buffer Overflow (CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+	stored_msg = malloc (sizeof (struct downlist_msg));
+	stored_msg->sender_nodeid = nodeid;
+	stored_msg->old_members = req_exec_cpg_downlist->old_members;
+	stored_msg->left_nodes = req_exec_cpg_downlist->left_nodes;
+	memcpy (stored_msg->nodeids, req_exec_cpg_downlist->nodeids,
+		req_exec_cpg_downlist->left_nodes * sizeof (mar_uint32_t));
+```
+5. A concise explanation of why it is vulnerable:
+The function `message_handler_req_exec_cpg_downlist` receives a `req_exec_cpg_downlist` structure from the network. It allocates a fixed-size `struct downlist_msg` on the heap. This structure contains a fixed-size array `nodeids[PROCESSOR_COUNT_MAX]`. However, the code uses the `left_nodes` value directly from the untrusted network packet to determine how many bytes to copy into that array via `memcpy`. If a malicious actor sends a packet where `left_nodes` is greater than `PROCESSOR_COUNT_MAX`, it will result in a heap-based buffer overflow, potentially allowing for arbitrary code execution or a crash.
+
+6. Severity rating: Critical

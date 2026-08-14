@@ -1,0 +1,22 @@
+1. File: exec\mon.c
+
+2. Name of the function containing the vulnerability: `percent_mem_used_get`
+
+3. Vulnerability type / CWE: CWE-476 NULL Pointer Dereference
+
+4. The relevant vulnerable code snippet:
+```c
+if (mem_stats == NULL || swap_stats != NULL) {
+    log_printf (LOGSYS_LEVEL_ERROR, "Unable to get memory stats: %s",
+        sg_str_error(sg_get_error()));
+    return -1;
+}
+total = mem_stats->total + swap_stats->total;
+freemem = mem_stats->free + swap_stats->free;
+```
+
+5. The vulnerability exists because the code checks if `mem_stats == NULL` but then proceeds to use `swap_stats` without checking if it's NULL first. If `mem_stats` is NULL but `swap_stats` is not NULL, the condition `mem_stats == NULL || swap_stats != NULL` evaluates to true and the function continues execution. However, when `swap_stats` is not NULL but contains invalid data, dereferencing `swap_stats->total` and `swap_stats->free` can lead to undefined behavior or crashes.
+
+6. Severity rating: high
+
+The vulnerability is a NULL pointer dereference that could lead to denial of service or potentially arbitrary code execution if an attacker can manipulate the system state to cause the function to dereference invalid memory locations. The error handling logic is flawed - it should check both pointers for NULL before dereferencing them.

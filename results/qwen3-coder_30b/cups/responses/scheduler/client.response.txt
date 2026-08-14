@@ -1,0 +1,97 @@
+1. File: scheduler\client.c
+2. Name of the function containing the vulnerability: `pipe_command`
+3. Vulnerability type / CWE: CWE-78 - Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')
+4. The relevant vulnerable code snippet:
+```c
+static int				/* O - Process ID */
+pipe_command(cupsd_client_t *con,	/* I - Client connection */
+             int            infile,	/* I - Standard input for command */
+             int            *outfile,	/* O - Standard output for command */
+	     char           *command,	/* I - Command to run */
+	     char           *options,	/* I - Options for command */
+	     int            root)	/* I - Run as root? */
+{
+  // ... code ...
+  argv[0] = command;
+
+  if (options)
+    strlcpy(argbuf, options, sizeof(argbuf));
+  else
+    argbuf[0] = '\0';
+
+  // ... more code ...
+  
+  argc = 1;
+
+  if (*commptr)
+  {
+    argv[argc ++] = commptr;
+
+    for (; *commptr && argc < 99; commptr ++)
+    {
+     /*
+      * Break arguments whenever we see a + or space...
+      */
+
+      if (*commptr == ' ' || *commptr == '+')
+      {
+	while (*commptr == ' ' || *commptr == '+')
+	  *commptr++ = '\0';
+
+       /*
+	* If we don't have a blank string, save it as another argument...
+	*/
+
+	if (*commptr)
+	{
+	  argv[argc] = commptr;
+	  argc ++;
+	}
+	else
+	  break;
+      }
+      // ... more parsing code ...
+    }
+  }
+
+  argv[argc] = NULL;
+
+  // ... more code ...
+
+  if (cupsdStartProcess(command, argv, envp, infile, fds[1], CGIPipes[1],
+			-1, -1, root, DefaultProfile, NULL, &pid) < 0)
+  {
+   /*
+    * Error - can't fork!
+    */
+
+    cupsdLogMessage(CUPSD_LOG_ERROR, "[CGI] Unable to start %s - %s", argv[0],
+                    strerror(errno));
+
+    cupsdClosePipe(fds);
+    pid = 0;
+  }
+  else
+  {
+   /*
+    * Fork successful - return the PID...
+    */
+
+    if (con->username[0])
+      cupsdAddCert(pid, con->username, con->type);
+
+    cupsdLogMessage(CUPSD_LOG_DEBUG, "[CGI] Started %s (PID %d)", command, pid);
+
+    *outfile = fds[0];
+    close(fds[1]);
+  }
+
+  return (pid);
+}
+```
+
+5. This vulnerability occurs because the `pipe_command` function directly uses user-supplied input (`options` parameter) to construct command-line arguments for a CGI script without proper sanitization or validation. The options string is parsed and passed directly to `cupsdStartProcess` as part of the argument array (`argv`). An attacker can inject OS commands by manipulating the `options` parameter, which gets split into arguments and executed via the system call.
+
+6. Severity rating: **Critical**
+
+The vulnerability allows for arbitrary command execution on the server with the privileges of the CUPS daemon process (typically root), making it a critical security flaw that could lead to complete system compromise.

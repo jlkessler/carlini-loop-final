@@ -1,0 +1,28 @@
+1. File: scheduler\quotas.c
+2. Name of the function containing the vulnerability: cupsdUpdateQuota
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+if ((ptr = strchr(match.username, '@')) != NULL)
+    *ptr = '\0';			/* Strip @domain/@KDC */
+
+if ((q = (cupsd_quota_t *)cupsArrayFind(p->quotas, &match)) != NULL)
+    return (q);
+else
+    return (add_quota(p, username));
+```
+5. The vulnerability exists in the `cupsdUpdateQuota` function where the `match.username` is modified by null-terminating at '@' character without proper bounds checking. If the input `username` is longer than the buffer allocated for `match.username`, a buffer overflow can occur during the `strlcpy` operation, as `strlcpy` does not null-terminate if the source string is longer than the destination buffer size.
+
+6. Severity rating: HIGH
+
+Wait, let me recheck this more carefully.
+
+Actually, looking at the code again and considering that `match.username` is a field within `cupsd_quota_t`, I need to look at the actual vulnerability.
+
+The real vulnerability is in the comparison function `compare_quotas` and how it's used with `cupsArrayFind`. The issue is that when searching for a quota, the code uses `strlcpy` on `match.username` without ensuring that the destination buffer is large enough, potentially leading to stack overflow or memory corruption.
+
+However, upon closer inspection, I see there's no direct buffer overflow in this specific code. Let me analyze more carefully:
+
+Actually, re-examining this code, there's no clear vulnerability in the provided snippet. The `strlcpy` usage appears correct and the buffer sizes are handled properly according to the standard CUPS code patterns.
+
+NO_VULNERABILITY_FOUND

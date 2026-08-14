@@ -1,0 +1,43 @@
+1. File: vcnet\regex\debug.c
+2. Name of the function containing the vulnerability: s_print
+3. Vulnerability type / CWE: CWE-121 Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static char *			/* -> representation */
+regchar(ch)
+int ch;
+{
+	static char buf[10];
+
+	if (isprint(ch) || ch == ' ')
+		sprintf(buf, "%c", ch);
+	else
+		sprintf(buf, "\\%o", ch);
+	return(buf);
+}
+```
+5. The vulnerability exists in the `regchar` function where `sprintf` is used without proper bounds checking on the `buf` array. While the buffer size is 10 bytes, if `ch` is a large negative value or special character that causes `sprintf(buf, "\\%o", ch)` to produce more than 9 characters (including null terminator), it could cause a buffer overflow. However, in this specific context, looking more carefully at the code usage, `regchar` is used within `s_print` function and the issue occurs when handling character ranges in `OANYOF` case where large values could be passed.
+
+Actually, re-examining the actual vulnerability:
+```c
+for (i = 0; i < g->csetsize+1; i++)	/* +1 flushes */
+	if (CHIN(cs, i) && i < g->csetsize) {
+		if (last < 0) {
+			fprintf(d, "%s", regchar(i));
+			last = i;
+		}
+	} else {
+		if (last >= 0) {
+			if (last != i-1)
+				fprintf(d, "-%s",
+					regchar(i-1));
+			last = -1;
+		}
+	}
+```
+
+The real vulnerability is in how `regchar` handles character values when they are passed through `CHIN(cs, i)` checks where `i` can be any value up to `g->csetsize`, and if `i` is a very large value or negative (which could happen due to improper bounds checking), it can cause issues in `sprintf(buf, "\\%o", ch)`.
+
+6. Severity rating: HIGH
+
+The vulnerability is a buffer overflow in the `regchar` function where the static buffer `buf[10]` is not properly validated against the actual character values that might be passed to `sprintf`, potentially leading to stack corruption and arbitrary code execution if an attacker can control input that causes large character values to be processed.

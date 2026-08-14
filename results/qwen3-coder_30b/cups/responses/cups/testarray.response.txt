@@ -1,0 +1,43 @@
+1. File: cups\testarray.c
+2. Name of the function containing the vulnerability: `load_words`
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static int				/* O - 1 on success, 0 on failure */
+load_words(const char   *filename,	/* I - File to load */
+           cups_array_t *array)		/* I - Array to add to */
+{
+  FILE		*fp;			/* Test file */
+  char		word[256];		/* Word from file */
+
+
+  if ((fp = fopen(filename, "r")) == NULL)
+  {
+    perror(filename);
+    return (0);
+  }
+
+  while (fscanf(fp, "%255s", word) == 1)
+  {
+    if (!cupsArrayFind(array, word))
+      cupsArrayAdd(array, strdup(word));
+  }
+
+  fclose(fp);
+
+  return (1);
+}
+```
+5. The vulnerability exists in the `fscanf` format specifier `%255s`. While it's designed to read at most 255 characters into a 256-byte buffer (`word[256]`), there is no check for null termination or additional safety measures during string processing within the `cupsArrayAdd` and `strdup` functions. However, more critically, the format string used in `fscanf` with `%255s` is actually correct - it will not overflow the buffer.
+
+The real vulnerability lies in how `load_words` function interacts with the array operations without proper error checking or handling for potential memory corruption issues during `strdup()` calls when dealing with very large input files. But upon closer inspection, there's no direct stack overflow here.
+
+Actually re-evaluating this code more carefully:
+The vulnerability is in the `main()` function at the line where it tests `_cupsArrayNewStrings(" \t\nfoo bar\tboo\nfar", ' ')` and then iterates through results without proper bounds checking in the comparison logic, but that's not a direct buffer overflow.
+
+However, looking more carefully at the actual vulnerability:
+The primary vulnerability is that `load_words()` function uses `fscanf(fp, "%255s", word)` which can potentially cause issues if there are no spaces between words and they exceed 255 characters in length - but even this would be truncated properly by the format specifier. 
+
+Upon further analysis: No direct buffer overflow is present in the provided code.
+
+6. Severity rating: NO_VULNERABILITY_FOUND

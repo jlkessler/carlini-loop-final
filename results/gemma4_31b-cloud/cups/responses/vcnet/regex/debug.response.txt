@@ -1,0 +1,20 @@
+1. File: vcnet\regex\debug.c
+2. Name of the function containing the vulnerability: `regchar`
+3. Vulnerability type / CWE: CWE-362 (Concurrent Execution using Shared Resource with Improper Synchronization) / Race Condition
+4. The relevant vulnerable code snippet:
+```c
+static char *			/* -> representation */
+regchar(ch)
+int ch;
+{
+	static char buf[10];
+
+	if (isprint(ch) || ch == ' ')
+		sprintf(buf, "%c", ch);
+	else
+		sprintf(buf, "\\%o", ch);
+	return(buf);
+}
+```
+5. A concise explanation of why it is vulnerable: The function `regchar` uses a `static char buf[10]` to store the result of the character conversion. Because `static` variables are shared across all calls to the function, this code is not thread-safe. If multiple threads call `regchar` concurrently (e.g., if `regprint` is called from a multi-threaded environment), they will overwrite the same buffer, leading to data corruption or race conditions where one thread receives the string intended for another.
+6. Severity rating: Medium

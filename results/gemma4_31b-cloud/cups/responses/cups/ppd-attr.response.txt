@@ -1,0 +1,30 @@
+1. File: cups\ppd-attr.c
+2. Name of the function containing the vulnerability: `_ppdNormalizeMakeAndModel`
+3. Vulnerability type / CWE: Buffer Overflow / CWE-120 (or CWE-121: Stack-based Buffer Overflow if the buffer is on the stack)
+4. The relevant vulnerable code snippet:
+```c
+  else if (!_cups_strncasecmp(buffer, "Hewlett-Packard hp ", 19))
+  {
+   /*
+    * Just put "HP" on the front...
+    */
+
+    buffer[0] = 'H';
+    buffer[1] = 'P';
+    _cups_strcpy(buffer + 2, buffer + 18);
+  }
+  else if (!_cups_strncasecmp(buffer, "Hewlett-Packard ", 16))
+  {
+   /*
+    * Just put "HP" on the front...
+    */
+
+    buffer[0] = 'H';
+    buffer[1] = 'P';
+    _cups_strcpy(buffer + 2, buffer + 15);
+  }
+```
+5. A concise explanation of why it is vulnerable:
+The function uses `_cups_strcpy` to move data within the `buffer` based on offsets. When it encounters strings like "Hewlett-Packard ", it attempts to overwrite the start of the buffer with "HP" and shift the remaining part of the string forward. However, `_cups_strcpy` does not perform bounds checking. While it is moving data from a higher address to a lower address within the same buffer (a "left-shift" overlap), if the logic were applied in a context where the source and destination overlap or if the internal `_cups_strcpy` does not handle overlapping memory correctly (similar to `strcpy` vs `memmove`), it is risky. More importantly, the logic assumes that the `buffer` contains a null-terminated string that was safely placed there by `strlcpy` or `snprintf`. The most critical issue is that `_cups_strcpy` is used here to perform a string move on an overlapping region; if `_cups_strcpy` is a wrapper for `strcpy`, it results in undefined behavior when memory regions overlap. Furthermore, the function lacks sufficient validation that the resulting modifications stay within the `bufsize` provided by the caller if the logic were slightly different, though the immediate vulnerability here is the unsafe overlapping copy.
+
+6. Severity rating: Medium

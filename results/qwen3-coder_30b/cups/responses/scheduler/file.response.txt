@@ -1,0 +1,23 @@
+1. File: scheduler\file.c
+2. Name of the function containing the vulnerability: cupsdCleanFiles
+3. Vulnerability type / CWE: CWE-22 - Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')
+4. The relevant vulnerable code snippet:
+```c
+while ((dent = cupsDirRead(dir)) != NULL)
+{
+  if (pattern && fnmatch(pattern, dent->filename, 0))
+    continue;
+
+  snprintf(filename, sizeof(filename), "%s/%s", path, dent->filename);
+
+  if (S_ISDIR(dent->fileinfo.st_mode))
+  {
+    cupsdCleanFiles(filename, pattern);
+    status = rmdir(filename);
+  }
+  else
+    status = cupsdUnlinkOrRemoveFile(filename);
+```
+5. The vulnerability exists because the function does not validate or sanitize directory traversal inputs when constructing file paths. An attacker could manipulate the `dent->filename` to include parent directory references (`..`) which would allow them to traverse outside of the intended directory and potentially delete or modify files outside of the target path.
+
+6. Severity rating: high

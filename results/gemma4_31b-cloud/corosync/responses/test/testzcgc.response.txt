@@ -1,0 +1,17 @@
+1. File: test\testzcgc.c
+2. Name of the function containing the vulnerability: DeliverCallback
+3. Vulnerability type / CWE: CWE-170 (Improper Null Termination) / Format String vulnerability (indirectly) or Memory Corruption.
+4. The relevant vulnerable code snippet:
+```c
+printf("DeliverCallback: message (len=%lu)from node/pid %s/%d: '%s'\n",
+       (unsigned long int) msg_len,
+       inet_ntoa(saddr), pid, (const char *)msg);
+```
+(And the corresponding `else` block)
+```c
+printf("DeliverCallback: message (len=%lu)from node/pid %d/%d: '%s'\n",
+       (unsigned long int) msg_len, nodeid, pid,
+       (const char *)msg);
+```
+5. A concise explanation of why it is vulnerable: The `DeliverCallback` function receives a message buffer `msg` and its length `msg_len`. The code treats `msg` as a null-terminated C string by passing it to `printf` with the `%s` specifier. However, there is no guarantee that the incoming network message is null-terminated. If a malicious actor sends a message that is not null-terminated, `printf` will continue reading past the end of the buffer until it encounters a null byte in memory, leading to an information leak (out-of-bounds read).
+6. Severity rating: Medium

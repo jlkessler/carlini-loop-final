@@ -1,0 +1,15 @@
+1. File: cups\tls-gnutls.c
+2. Name of the function containing the vulnerability: `httpLoadCredentials`
+3. Vulnerability type / CWE: Heap-based Buffer Overflow (CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+      decoded = alloc_data - num_data;
+      httpDecode64_2((char *)data + num_data, &decoded, line);
+      num_data += (size_t)decoded;
+```
+5. A concise explanation of why it is vulnerable:
+In the `httpLoadCredentials` function, the code manages a heap buffer `data` to store decoded certificate data. When it comes time to decode a Base64 line, the code calculates the remaining space in the buffer using `decoded = alloc_data - num_data`. However, `httpDecode64_2` (based on standard CUPS implementations) takes the address of `decoded` as an **in/out** parameter. The function uses the value of `decoded` as the maximum length to write, but if the Base64 decoding process produces more data than the buffer can hold or if `httpDecode64_2` does not strictly adhere to the provided limit in a way that prevents overflow during internal processing, the `num_data += (size_t)decoded` line can lead to an inconsistent state. 
+
+More critically, the logic for expanding the buffer `if ((num_data + strlen(line)) >= alloc_data)` is flawed. `strlen(line)` is the size of the *encoded* string, whereas the buffer is intended for *decoded* binary data. While decoded data is typically smaller than Base64, the check `(num_data + strlen(line))` does not account for the actual bytes written by `httpDecode64_2` if the input `line` contains unexpected characters or if the decoding logic writes beyond the calculated `decoded` limit. If `httpDecode64_2` writes more than `alloc_data - num_data` bytes, it will overflow the heap buffer.
+
+6. Severity rating: High

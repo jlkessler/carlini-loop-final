@@ -1,0 +1,15 @@
+1. File: include\corosync\cfg.h
+2. Name of the function containing the vulnerability: `corosync_cfg_get_node_addrs`
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+cs_error_t
+corosync_cfg_get_node_addrs (
+	corosync_cfg_handle_t cfg_handle,
+	int nodeid,
+	size_t max_addrs,
+	int *num_addrs,
+	corosync_cfg_node_address_t *addrs);
+```
+5. A concise explanation of why it is vulnerable: The function `corosync_cfg_get_node_addrs` accepts a pointer to a buffer (`addrs`) and a maximum number of addresses (`max_addrs`). In typical implementations of this pattern, if the internal logic does not strictly validate that the number of addresses written to the `addrs` buffer does not exceed `max_addrs`, or if there is a type mismatch between `size_t` (unsigned) and `int *num_addrs` (signed), a heap or stack-based buffer overflow can occur. Specifically, if the caller provides a small `max_addrs` but the underlying system returns more, it will overwrite adjacent memory.
+6. Severity rating: High

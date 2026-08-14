@@ -1,0 +1,21 @@
+1. File: cups\ppd-conflicts.c
+2. Name of the function containing the vulnerability: `cupsResolveConflicts`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+          for (resval ++, resptr = resoption;
+               *resval && !_cups_isspace(*resval);
+               resval ++)
+            if (resptr < (resoption + sizeof(resoption) - 1))
+              *resptr++ = *resval;
+
+          *resptr = '\0';
+```
+(and the identical logic used for `reschoice` immediately following it)
+
+5. A concise explanation of why it is vulnerable:
+The code attempts to prevent a buffer overflow by checking if `resptr` is less than `resoption + sizeof(resoption) - 1`. However, if the loop finishes because `*resval` is a space or null, but the buffer was filled to its limit, `resptr` will be exactly equal to `resoption + sizeof(resoption) - 1`. The subsequent line `*resptr = '\0';` then writes a null terminator to the index `sizeof(resoption) - 1`. While this specific null terminator is within bounds, the logic is fragile. 
+
+More critically, the `resoption` and `reschoice` buffers are fixed-size arrays (`PPD_MAX_NAME`). The `cupsResolveConflicts` function parses the `cupsUIResolver` attribute from the PPD file. If a maliciously crafted PPD file contains a resolver value with an extremely long string without spaces, the loops will fill the buffers. While the current `if` check prevents a direct overflow during the loop, any subsequent string operations or off-by-one errors in the pointer arithmetic logic in this complex function (which handles multiple resolver passes and nested loops) can lead to memory corruption. Specifically, if the input string is exactly the length of the buffer, the pointer `resptr` is incremented to the boundary, and the null terminator is placed at the very end. If the logic elsewhere assumes `resptr` only increments when a character is actually written, it can lead to out-of-bounds reads or writes.
+
+6. Severity rating: Medium

@@ -1,0 +1,77 @@
+1. File: vcnet\regex\regcomp.c
+2. Name of the function containing the vulnerability: `repeat`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static void
+repeat(p, start, from, to)
+register struct parse *p;
+sopno start;			/* operand from here to end of strip */
+int from;			/* repeated from this number */
+int to;				/* to this number of times (maybe INFINITY) */
+{
+    register sopno finish = HERE();
+#	define	N	2
+#	define	INF	3
+#	define	REP(f, t)	((f)*8 + (t))
+#	define	MAP(n)	(((n) <= 1) ? (n) : ((n) == INFINITY) ? INF : N)
+    register sopno copy;
+
+    if (p->error != 0)	/* head off possible runaway recursion */
+        return;
+
+    assert(from <= to);
+
+    switch (REP(MAP(from), MAP(to))) {
+    case REP(0, 0):			/* must be user doing this */
+        DROP(finish-start);	/* drop the operand */
+        break;
+    case REP(0, 1):			/* as x{1,1}? */
+    case REP(0, N):			/* as x{1,n}? */
+    case REP(0, INF):		/* as x{1,}? */
+        /* KLUDGE: emit y? as (y|) until subtle bug gets fixed */
+        INSERT(OCH_, start);		/* offset is wrong... */
+        repeat(p, start+1, 1, to);
+        ASTERN(OOR1, start);
+        AHEAD(start);			/* ... fix it */
+        EMIT(OOR2, 0);
+        AHEAD(THERE());
+        ASTERN(O_CH, THERETHERE());
+        break;
+    case REP(1, 1):			/* trivial case */
+        /* done */
+        break;
+    case REP(1, N):			/* as x?x{1,n-1} */
+        /* KLUDGE: emit y? as (y|) until subtle bug gets fixed */
+        INSERT(OCH_, start);
+        ASTERN(OOR1, start);
+        AHEAD(start);
+        EMIT(OOR2, 0);			/* offset very wrong... */
+        AHEAD(THERE());			/* ...so fix it */
+        ASTERN(O_CH, THERETHERE());
+        copy = dupl(p, start+1, finish+1);
+        assert(copy == finish+4);
+        repeat(p, copy, 1, to-1);
+        break;
+    case REP(1, INF):		/* as x+ */
+        INSERT(OPLUS_, start);
+        ASTERN(O_PLUS, start);
+        break;
+    case REP(N, N):			/* as xx{m-1,n-1} */
+        copy = dupl(p, start, finish);
+        repeat(p, copy, from-1, to-1);
+        break;
+    case REP(N, INF):		/* as xx{n-1,INF} */
+        copy = dupl(p, start, finish);
+        repeat(p, copy, from-1, to);
+        break;
+    default:			/* "can't happen" */
+        SETERROR(REG_ASSERT);	/* just in case */
+        break;
+    }
+}
+```
+
+5. This vulnerability exists because the `repeat` function recursively calls itself without proper bounds checking on the repetition counts. When processing patterns like `{1000000,2000000}` (or similar large numbers), the function can cause stack overflow due to excessive recursion depth. The recursive calls in cases like `REP(N, N)` and `REP(N, INF)` can lead to a call stack that grows linearly with the repetition count, causing a stack-based buffer overflow.
+
+6. Severity rating: critical

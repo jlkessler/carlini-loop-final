@@ -1,0 +1,21 @@
+1. File: cgi-bin\template.c
+2. Name of the function containing the vulnerability: `cgi_copy`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+for (s = compare; (ch = getc(in)) != EOF;)
+  if (ch == '?')
+    break;
+  else if (s >= (compare + sizeof(compare) - 1))
+    continue;
+  else if (ch == '#')
+  {
+    snprintf(s, sizeof(compare) - (size_t)(s - compare), "%d", element + 1);
+    s += strlen(s);
+  }
+```
+5. The vulnerability exists because the code does not properly validate or limit the size of data being copied into the `compare` buffer. When processing variable references in template expressions, the code uses `snprintf` with a calculated size that could be manipulated to cause an integer overflow, leading to buffer overflows when writing to the `compare` array.
+
+6. Severity rating: **Critical**
+
+The vulnerability is critical because it can lead to arbitrary code execution through buffer overflow, especially when combined with other potential weaknesses in the template processing system. The lack of proper bounds checking on user-controlled input makes this exploitable for remote code execution.

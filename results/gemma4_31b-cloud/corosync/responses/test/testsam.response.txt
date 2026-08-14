@@ -1,0 +1,18 @@
+1. File: test\testsam.c
+2. Name of the function containing the vulnerability: `test6_signal`
+3. Vulnerability type / CWE: CWE-362: Concurrent Execution using Shared Resource with Improper Synchronization (Race Condition)
+4. The relevant vulnerable code snippet:
+```c
+static void test6_signal (int sig) {
+	cs_error_t error;
+
+	printf ("%s\n", __FUNCTION__);
+	test6_sig_delivered++;
+
+	if ((error = sam_data_store (&test6_sig_delivered, sizeof (test6_sig_delivered))) != CS_OK) {
+		fprintf (stderr, "Can't store data! Error : %d\n", error);
+	}
+}
+```
+5. A concise explanation of why it is vulnerable: The function `test6_signal` is a signal handler that modifies and reads the global variable `test6_sig_delivered` without any synchronization mechanisms (like atomic operations or signal masking). Since signal handlers can interrupt the main program flow at any time, and multiple signals could potentially trigger the handler, this creates a race condition. Furthermore, `printf` and `fprintf` are not async-signal-safe functions, meaning calling them inside a signal handler can lead to deadlocks or memory corruption if the main program was interrupted while inside a `stdio` function.
+6. Severity rating: medium

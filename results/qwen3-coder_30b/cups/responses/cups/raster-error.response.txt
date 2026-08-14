@@ -1,0 +1,28 @@
+1. File: cups\raster-error.c
+2. Name of the function containing the vulnerability: `_cupsRasterAddError`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+if ((size_t)bytes >= sizeof(s))
+  return;
+
+if (bytes > (ssize_t)(buf->end - buf->current))
+{
+ ...
+  size = (size_t)(buf->end - buf->start + 2 * bytes + 1024);
+  ...
+  if (buf->start)
+    temp = realloc(buf->start, size);
+  else
+    temp = malloc(size);
+
+  if (!temp)
+    return;
+ ...
+}
+```
+5. The vulnerability occurs because the code does not properly validate that `bytes` is a positive value before using it in calculations. If `vsnprintf` returns a negative value or zero, `bytes` could be interpreted as a large unsigned value when cast to `size_t`, leading to an integer overflow when calculating `size`. This can result in a heap-based buffer overflow during `realloc()` or `malloc()` operations.
+
+Additionally, the code assumes that `vsnprintf` will always return a valid positive number, but if it fails (returns negative), the program continues execution with invalid values, potentially leading to memory corruption.
+
+6. Severity rating: **Critical**

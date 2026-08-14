@@ -1,0 +1,20 @@
+1. File: filter\commandtops.c
+2. Name of the function containing the vulnerability: auto_configure
+3. Vulnerability type / CWE: CWE-78 - Improper Neutralization of Special Elements used in OS Command Injection
+4. The relevant vulnerable code snippet:
+```c
+printf("/cups_query_keyword (?%s) def\n", option->keyword);
+					/* Set keyword for error reporting */
+fputs("{ (", stdout);
+for (valptr = attr->value; *valptr; valptr ++)
+{
+  if (*valptr == '(' || *valptr == ')' || *valptr == '\\')
+    putchar('\\');
+  putchar(*valptr);
+}
+fputs(") cvx exec } stopped { cups_handleerror } if clear\n", stdout);
+```
+5. The vulnerability exists because the code directly incorporates user-supplied data (option->keyword and attr->value) into PostScript commands without proper sanitization or escaping. The option->keyword is used directly in a printf statement, and the attr->value is processed but not fully escaped for PostScript context, allowing attackers to inject malicious PostScript code through specially crafted PPD files.
+6. Severity rating: critical
+
+This vulnerability allows an attacker with control over the PPD file (which is typically provided by the user or system administrator) to execute arbitrary PostScript commands on the printer, potentially leading to privilege escalation, data exfiltration, or other malicious actions. The injection occurs during the auto-configuration process when querying printer options, making it a high-risk vulnerability for systems using CUPS with untrusted PPD files.

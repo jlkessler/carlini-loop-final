@@ -1,0 +1,14 @@
+1. File: include\corosync\ipc_cfg.h
+2. Name of the function containing the vulnerability: N/A (Structure Definition)
+3. Vulnerability type / CWE: CWE-119: Improper Restriction of Operations within the Bounds of a Memory Buffer (Specifically, a Zero-Length Array / Flexible Array Member misuse)
+4. The relevant vulnerable code snippet:
+```c
+struct res_lib_cfg_get_node_addrs {
+        struct qb_ipc_response_header header __attribute__((aligned(8)));
+	unsigned int family;
+	unsigned int num_addrs;
+	char addrs[TOTEMIP_ADDRLEN][0];
+};
+```
+5. A concise explanation of why it is vulnerable: The `res_lib_cfg_get_node_addrs` struct defines `addrs` as a zero-length array `[TOTEMIP_ADDRLEN][0]`. While often used as a "flexible array member," using `[0]` is a GNU extension and not standard C. More importantly, if the code processing this structure trusts the `num_addrs` field to determine how many addresses to read from or write to the `addrs` buffer without strictly validating the actual size of the received IPC message, it can lead to an out-of-bounds read or write (buffer overflow/over-read) on the heap or stack.
+6. Severity rating: High

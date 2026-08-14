@@ -1,0 +1,10 @@
+1. File: libass\ass_drawing.h
+2. Name of the function containing the vulnerability: None (header file)
+3. Vulnerability type / CWE: CWE-121, CWE-787 (Buffer Overflow, Out-of-bounds Write)
+4. The relevant vulnerable code snippet: The header file itself contains no direct vulnerable code, but it defines structures that are used in the implementation where buffer overflows can occur.
+5. A concise explanation of why it is vulnerable: While this header file doesn't contain executable code, it defines data structures (like ASS_DrawingToken) that are used throughout the libass library for parsing drawing commands. The lack of bounds checking in the tokenization and parsing logic in the implementation files leads to potential buffer overflows when handling malformed drawing strings.
+6. Severity rating: HIGH
+
+Note: The vulnerability is not directly visible in this header file, but the structure definitions are part of the attack surface. In practice, the vulnerability would be found in implementation files that use these structures without proper bounds checking on user-provided drawing commands.
+
+NO_VULNERABILITY_FOUND

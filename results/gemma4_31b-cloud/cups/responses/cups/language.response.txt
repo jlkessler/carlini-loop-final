@@ -1,0 +1,15 @@
+1. File: cups\language.c
+2. Name of the function containing the vulnerability: `_cupsAppleLanguage`
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+    if (!strcmp(locale, apple_language_locale[i].locale))
+    {
+      strlcpy(language, apple_language_locale[i].language, sizeof(language));
+      break;
+    }
+```
+5. A concise explanation of why it is vulnerable:
+The function `_cupsAppleLanguage` accepts a pointer `char *language` and a size `size_t langsize`. However, inside the loop that checks the `apple_language_locale` table, the code uses `sizeof(language)` as the size argument for `strlcpy`. Since `language` is a pointer (`char *`), `sizeof(language)` returns the size of the pointer (typically 4 or 8 bytes) rather than the size of the destination buffer (`langsize`). If the mapped language string (e.g., "zh-Hant_CN") is longer than the size of a pointer, it will lead to a buffer overflow if the actual buffer provided by the caller is smaller than the string being copied but larger than the pointer size, or it will simply truncate the string incorrectly. More critically, this pattern indicates a misuse of `sizeof` on a pointer, leading to incorrect bounds enforcement.
+
+6. Severity rating: Medium

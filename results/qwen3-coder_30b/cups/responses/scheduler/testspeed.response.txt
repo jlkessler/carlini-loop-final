@@ -1,0 +1,58 @@
+1. File: scheduler\testspeed.c
+2. Name of the function containing the vulnerability: do_test
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static int				/* O - Exit status */
+do_test(const char        *server,	/* I - Server to use */
+        int               port,		/* I - Port number to use */
+        http_encryption_t encryption,	/* I - Encryption to use */
+	int               requests,	/* I - Number of requests to send */
+	const char        *opstring,	/* I - Operation string */
+	int               verbose)	/* I - Verbose output? */
+{
+  ...
+  static ipp_op_t ops[5] =		/* Operations to test... */
+		{
+		  IPP_PRINT_JOB,
+		  CUPS_GET_DEFAULT,
+		  CUPS_GET_PRINTERS,
+		  CUPS_GET_CLASSES,
+		  IPP_GET_JOBS
+		};
+  ...
+  if (opstring)
+    op = ippOpValue(opstring);
+  else
+    op = ops[i % (int)(sizeof(ops) / sizeof(ops[0]))];
+```
+
+5. The vulnerability exists because the code uses `ippOpValue(opstring)` to convert a string operation name to an IPP operation value, but there's no bounds checking or validation of the input string. If `opstring` contains a string that is not recognized by `ippOpValue()`, it could return an invalid value that gets used as an array index or in a switch statement, leading to undefined behavior.
+
+However, looking more carefully at the actual vulnerable code structure and considering the real-world context:
+
+The critical vulnerability is in the handling of user input through `opstring` parameter that can be passed directly to `ippOpValue()` without proper validation, which can lead to out-of-bounds access when used as an array index.
+
+6. Severity rating: high
+
+Actually, re-examining this more carefully, there's a better vulnerability:
+
+The real vulnerability is in the command-line argument parsing where user input from `-o` option is directly passed to `ippOpValue()` without validation. This could lead to buffer overflows or other memory corruption issues if the operation string is maliciously crafted.
+
+However, looking at the code more carefully, there isn't a clear stack buffer overflow, but rather an input validation issue that can cause unexpected behavior.
+
+Actually, looking again - the most serious vulnerability is:
+
+1. File: scheduler\testspeed.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-78 - OS Command Injection
+4. The relevant vulnerable code snippet:
+```c
+if (opstring)
+  execlp(argv[0], argv[0], options, "0", reqstr, "-o", opstring,
+         serverstr, (char *)NULL);
+```
+
+5. The vulnerability exists because `opstring` is directly passed to `execlp()` without any sanitization or validation. If a malicious user provides an operation string that contains shell metacharacters, it could be executed by the shell when the child process calls `execlp()`. This allows arbitrary command execution.
+
+6. Severity rating: critical

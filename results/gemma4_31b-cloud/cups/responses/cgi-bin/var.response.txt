@@ -1,0 +1,17 @@
+1. File: cgi-bin\var.c
+2. Name of the function containing the vulnerability: `cgiCheckVariables`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+  while (*names != '\0')
+  {
+    while (*names == ' ' || *names == ',')
+      names ++;
+
+    for (s = name; *names != '\0' && *names != ' ' && *names != ','; s ++, names ++)
+      *s = *names;
+
+    *s = 0;
+```
+5. A concise explanation of why it is vulnerable: The function `cgiCheckVariables` uses a fixed-size stack buffer `name[255]`. It copies characters from the `names` input pointer into this buffer using a `for` loop without checking if the number of characters exceeds the buffer's size (255 bytes). An attacker providing a specially crafted string of more than 255 characters without spaces or commas can overwrite the stack, potentially leading to arbitrary code execution.
+6. Severity rating: Critical

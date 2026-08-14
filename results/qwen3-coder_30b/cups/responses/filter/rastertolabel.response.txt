@@ -1,0 +1,30 @@
+1. File: filter\rastertolabel.c
+2. Name of the function containing the vulnerability: `OutputLine`
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+void
+OutputLine(ppd_file_t         *ppd,	/* I - PPD file */
+           cups_page_header2_t *header,	/* I - Page header */
+           unsigned           y)	/* I - Line number */
+{
+  ...
+  switch (ModelNumber)
+  {
+    case ZEBRA_ZPL :
+       /*
+	* Determine if this row is the same as the previous line.
+        * If so, output a ':' and return...
+        */
+
+        if (LastSet)
+	{
+	  if (!memcmp(Buffer, LastBuffer, header->cupsBytesPerLine))
+	  {
+	    putchar(':');
+	    return;
+	  }
+	}
+```
+5. The vulnerability exists because `header->cupsBytesPerLine` is used as the size parameter in `memcmp()` call without any validation or bounds checking against the actual allocated size of `LastBuffer`. If `header->cupsBytesPerLine` exceeds the allocated size of `LastBuffer`, it results in a buffer overflow when comparing memory regions. The `LastBuffer` is allocated based on `header->cupsBytesPerLine` in `StartPage()` function, but there's no validation to ensure this value doesn't exceed safe limits.
+6. Severity rating: critical

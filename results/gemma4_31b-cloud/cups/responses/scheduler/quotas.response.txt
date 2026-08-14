@@ -1,0 +1,16 @@
+1. File: scheduler\quotas.c
+2. Name of the function containing the vulnerability: `cupsdUpdateQuota`
+3. Vulnerability type / CWE: Null Pointer Dereference (CWE-476)
+4. The relevant vulnerable code snippet:
+```c
+    if ((attr = ippFindAttribute(job->attrs, "time-at-completion",
+                                 IPP_TAG_INTEGER)) == NULL)
+      if ((attr = ippFindAttribute(job->attrs, "time-at-processing",
+                                   IPP_TAG_INTEGER)) == NULL)
+        attr = ippFindAttribute(job->attrs, "time-at-creation",
+                                IPP_TAG_INTEGER);
+
+    if (attr->values[0].integer < curtime)
+```
+5. A concise explanation of why it is vulnerable: The function attempts to find a timestamp attribute among three possible options: "time-at-completion", "time-at-processing", and "time-at-creation". However, it does not check if the final attempt to find "time-at-creation" returns `NULL`. If none of these three attributes exist in the job's attributes, `attr` will be `NULL`, and the subsequent access to `attr->values[0].integer` will cause a null pointer dereference, leading to a crash (Denial of Service).
+6. Severity rating: high

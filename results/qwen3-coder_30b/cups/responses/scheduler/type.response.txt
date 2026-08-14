@@ -1,0 +1,49 @@
+1. File: scheduler\type.c
+2. Name of the function containing the vulnerability: mime_check_rules
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+case MIME_MAGIC_CONTAINS :
+   /*
+    * Load the buffer if necessary...
+    */
+
+    if (fb->offset < 0 || rules->offset < fb->offset ||
+	(rules->offset + rules->region) > (fb->offset + fb->length))
+    {
+     /*
+      * Reload file buffer...
+      */
+
+        cupsFileSeek(fb->fp, rules->offset);
+	fb->length = cupsFileRead(fb->fp, (char *)fb->buffer,
+	                          sizeof(fb->buffer));
+	fb->offset = rules->offset;
+
+	DEBUG_printf(("4mime_check_rules: MIME_MAGIC_CONTAINS fb->length=%d", fb->length));
+    }
+
+   /*
+    * Compare the buffer against the string.  If the file is too
+    * short then don't compare - it can't match...
+    */
+
+    if ((rules->offset + rules->length) > (fb->offset + fb->length))
+      result = 0;
+    else
+    {
+      if (fb->length > rules->region)
+	region = rules->region - rules->length;
+      else
+	region = fb->length - rules->length;
+
+      for (n = 0; n < region; n ++)
+	if ((result = (memcmp(fb->buffer + rules->offset - fb->offset + n, rules->value.stringv, (size_t)rules->length) == 0)) != 0)
+	  break;
+    }
+    break;
+```
+5. The vulnerability exists in the MIME_MAGIC_CONTAINS case where there's a logic error in calculating the `region` variable. When `fb->length > rules->region`, it calculates `region = rules->region - rules->length`, which can result in a negative value or incorrect region size. This leads to an incorrect loop iteration count, potentially causing buffer overread or memory corruption when comparing strings.
+6. Severity rating: critical
+
+The vulnerability is critical because it can lead to arbitrary code execution through buffer overreads that may corrupt memory and allow attackers to manipulate program flow. The incorrect calculation of the comparison region in the MIME_MAGIC_CONTAINS case creates a scenario where memory beyond the intended buffer boundaries could be accessed during string comparisons, potentially leading to crashes or exploitation.

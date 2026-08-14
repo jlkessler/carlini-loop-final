@@ -1,0 +1,13 @@
+1. File: include\corosync\logsys.h
+2. Name of the function containing the vulnerability: `LOGSYS_PERROR` (macro)
+3. Vulnerability type / CWE: CWE-134: Use of Externally-Controlled Format String (Format String Vulnerability)
+4. The relevant vulnerable code snippet:
+```c
+#define LOGSYS_PERROR(err_num, level, fmt, args...) do {						\
+		char _error_str[LOGSYS_MAX_PERROR_MSG_LEN];						\
+		const char *_error_ptr = qb_strerror_r(err_num, _error_str, sizeof(_error_str));	\
+		qb_log(level, fmt ": %s (%d)", ##args, _error_ptr, err_num);				\
+	} while(0)
+```
+5. A concise explanation of why it is vulnerable: The `LOGSYS_PERROR` macro takes a `fmt` argument and passes it directly as the format string to `qb_log`. If an attacker can control the content of the `fmt` parameter, they can inject format specifiers (e.g., `%s`, `%x`, `%n`) to read from the stack or write to arbitrary memory locations, leading to information disclosure or remote code execution.
+6. Severity rating: High

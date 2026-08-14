@@ -1,0 +1,13 @@
+1. File: common_lib\error_conversion.c
+2. Name of the function containing the vulnerability: qb_to_cs_error
+3. Vulnerability type / CWE: CWE-190: Integer Overflow or Wraparound
+4. The relevant vulnerable code snippet:
+```c
+	if (result >= 0) {
+		return CS_OK;
+	}
+	res = -result;
+```
+5. A concise explanation of why it is vulnerable:
+The function takes an `int result` as input. In C, the `int` type is typically a signed 32-bit integer. The minimum value for a signed 32-bit integer is `-2,147,483,648` (`INT_MIN`). When the code executes `res = -result;` with `result` equal to `INT_MIN`, the operation results in an integer overflow because the positive equivalent (`2,147,483,648`) cannot be represented in a signed 32-bit integer. This leads to undefined behavior, and on most systems, `res` will remain negative (returning `INT_MIN`), causing the `switch` statement to hit the `default` case and return `CS_ERR_LIBRARY`. While not directly exploitable for code execution in this specific snippet, it is a logic error resulting from an unchecked integer negation.
+6. Severity rating: low

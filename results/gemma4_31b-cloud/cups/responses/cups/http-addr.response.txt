@@ -1,0 +1,24 @@
+1. File: cups\http-addr.c
+2. Name of the function containing the vulnerability: `httpAddrListen`
+3. Vulnerability type / CWE: CWE-276: Incorrect Default Permissions (Insecure File Permissions)
+4. The relevant vulnerable code snippet:
+```c
+    mask = umask(0);
+
+   /*
+    * Bind the domain socket...
+    */
+
+    status = bind(fd, (struct sockaddr *)addr, (socklen_t)httpAddrLength(addr));
+
+   /*
+    * Restore the umask and fix permissions...
+    */
+
+    umask(mask);
+    chmod(addr->un.sun_path, 0140777);
+```
+5. A concise explanation of why it is vulnerable:
+The function creates a Unix domain socket and explicitly sets the `umask` to 0 before calling `bind()`, which creates the socket file with default permissions that are typically world-writable. Furthermore, it explicitly calls `chmod` with `0140777` (which, depending on the base, is intended to be `0777`). Setting a socket file to be world-readable, world-writable, and world-executable allows any local user on the system to connect to the socket, potentially bypassing authentication or interacting with the CUPS service in ways not intended by the administrator.
+
+6. Severity rating: Medium

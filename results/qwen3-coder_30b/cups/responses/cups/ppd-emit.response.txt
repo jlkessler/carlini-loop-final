@@ -1,0 +1,34 @@
+1. File: cups\ppd-emit.c
+2. Name of the function containing the vulnerability: `ppdEmitString`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+/*
+ * Count the number of bytes that are required to hold all of the
+ * option code...
+ */
+
+for (i = 0, bufsize = 1; i < count; i ++)
+{
+  // ... code that adds to bufsize ...
+}
+
+/*
+ * Allocate memory...
+ */
+
+DEBUG_printf(("2ppdEmitString: Allocating %d bytes for string...",
+              (int)bufsize));
+
+if ((buffer = calloc(1, bufsize)) == NULL)
+{
+  free(choices);
+  return (NULL);
+}
+```
+
+5. The vulnerability exists because the code calculates `bufsize` by summing up various size contributions from different options and parameters, but it doesn't properly validate or limit these additions. An attacker can craft a PPD file with maliciously large parameter values or many custom parameters that cause integer overflow during `bufsize` calculation, leading to insufficient memory allocation for the buffer. When the code later writes data into this undersized buffer, it results in a buffer overflow.
+
+6. Severity rating: Critical
+
+The vulnerability is critical because it allows for arbitrary code execution through buffer overflow when processing specially crafted PPD files, which could be used in a CTF challenge to gain unauthorized access or cause denial of service on systems using CUPS.

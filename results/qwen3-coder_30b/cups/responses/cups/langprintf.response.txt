@@ -1,0 +1,26 @@
+1. File: cups\langprintf.c
+2. Name of the function containing the vulnerability: `_cupsLangPrintFilter`
+3. Vulnerability type / CWE: CWE-121 Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+int					/* O - Number of bytes written */
+_cupsLangPrintFilter(
+    FILE       *fp,			/* I - File to write to */
+    const char *prefix,			/* I - Non-localized message prefix */
+    const char *message,		/* I - Message string to use */
+    ...)				/* I - Additional arguments as needed */
+{
+  ...
+  char		temp[2048],		/* Temporary format buffer */
+		buffer[2048],		/* Message buffer */
+		output[8192];		/* Output buffer */
+  va_list 	ap;			/* Pointer to additional arguments */
+  ...
+  va_start(ap, message);
+  snprintf(temp, sizeof(temp), "%s: %s\n", prefix,
+	   _cupsLangString(cg->lang_default, message));
+  vsnprintf(buffer, sizeof(buffer), temp, ap);
+  va_end(ap);
+```
+5. The vulnerability exists because `temp` is constructed using `snprintf` with a fixed-size buffer of 2048 bytes, but the format string in `temp` can be controlled by `prefix` and `_cupsLangString(cg->lang_default, message)`. If these values are sufficiently long, they can cause `snprintf(temp, sizeof(temp), "%s: %s\n", prefix, _cupsLangString(cg->lang_default, message))` to write beyond the bounds of `temp`. The subsequent `vsnprintf(buffer, sizeof(buffer), temp, ap)` call then uses this potentially corrupted format string, which can lead to a stack-based buffer overflow when `ap` contains arguments that don't match the (potentially malformed) format string in `temp`.
+6. Severity rating: critical

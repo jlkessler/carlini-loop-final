@@ -1,0 +1,43 @@
+1. File: examples\ppdx.c
+2. Name of the function containing the vulnerability: ppdxReadData
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+do
+{
+ // ...
+ if ((error = inflate(&decomp, Z_NO_FLUSH)) < Z_OK)
+ {
+   fprintf(stderr, "ERROR: inflate returned %d (%s)\n", error, decomp.msg);
+   break;
+ }
+
+ if (decomp.avail_out == 0)
+ {
+   if (alloc_size < 2048)
+     temp_size = alloc_size * 2;
+   else if (alloc_size < PPDX_MAX_DATA)
+     temp_size = alloc_size + 2048;
+   else
+     break;
+
+   if ((temp = realloc(data, temp_size + 1)) == NULL)
+   {
+     free(data);
+     return (NULL);
+   }
+
+   decomp.next_out  = temp + (decomp.next_out - data);
+   decomp.avail_out = temp_size - alloc_size;
+   data             = temp;
+   alloc_size       = temp_size;
+ }
+}
+while (decomp.avail_in > 0);
+```
+
+5. The vulnerability occurs in the decompression loop where the code reallocates memory based on `temp_size - alloc_size` without proper bounds checking. If `alloc_size` is close to `PPDX_MAX_DATA`, the calculation `temp_size - alloc_size` can underflow or result in insufficient space, leading to buffer overflows when writing decompressed data.
+
+6. Severity rating: HIGH
+
+The vulnerability allows for potential buffer overflow during decompression of maliciously crafted PPD data, which could lead to arbitrary code execution when the data is processed by the CUPS printing system. The issue stems from improper bounds checking in memory reallocation logic when handling compressed data chunks.

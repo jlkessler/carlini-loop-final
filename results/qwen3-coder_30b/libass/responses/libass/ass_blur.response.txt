@@ -1,0 +1,20 @@
+1. File: libass\ass_blur.c
+2. Name of the function containing the vulnerability: ass_gaussian_blur
+3. Vulnerability type / CWE: CWE-129 - Improper Validation of Array Index
+4. The relevant vulnerable code snippet:
+```c
+int w = bm->w, h = bm->h;
+int offset = ((2 * (blur.prefilter + blur.filter) + 17) << blur.level) - 5;
+int end_w = ((w + offset) & ~((1 << blur.level) - 1)) - 4;
+int end_h = ((h + offset) & ~((1 << blur.level) - 1)) - 4;
+
+const int stripe_width = 1 << (engine->align_order - 1);
+int size = end_h * ((end_w + stripe_width - 1) & ~(stripe_width - 1));
+int16_t *tmp = ass_aligned_alloc(2 * stripe_width, 4 * size, false);
+if (!tmp)
+    return false;
+```
+5. The vulnerability occurs because `blur.level` can be arbitrarily large (controlled by the input `r2` parameter in `ass_gaussian_blur`). When `blur.level` is large, `(1 << blur.level)` becomes extremely large, causing `end_w` and `end_h` to become very large values. This leads to a massive `size` calculation that can overflow or cause memory allocation failures. Even if allocation succeeds, the subsequent operations with such large arrays will likely crash or behave unpredictably.
+6. Severity rating: Critical
+
+The vulnerability allows for potential denial of service or arbitrary code execution through carefully crafted input parameters that cause integer overflows and excessive memory allocations.

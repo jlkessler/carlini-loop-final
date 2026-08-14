@@ -1,0 +1,38 @@
+1. File: monitor\tbcp.c
+2. Name of the function containing the vulnerability: psgets
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+while ((size_t)(bufptr - buf) < len)
+{
+  if ((ch = getc(fp)) == EOF)
+    break;
+
+  if (ch == '\r')
+  {
+   /*
+    * Got a CR; see if there is a LF as well...
+    */
+
+    ch = getc(fp);
+
+    if (ch != EOF && ch != '\n')
+    {
+      ungetc(ch, fp); /* Nope, save it for later... */
+      ch = '\r';
+    }
+    else
+      *bufptr++ = '\r';
+    break;
+  }
+  else if (ch == '\n')
+    break;
+  else
+    *bufptr++ = (char)ch;
+}
+```
+5. The vulnerability exists in the psgets function where it processes input characters from a file stream without proper bounds checking. When handling a carriage return character ('\r'), the code attempts to read the next character to check for a line feed ('\\n'). If that character is not a line feed, it uses ungetc() to push it back into the stream and then sets ch = '\r'. However, this logic can be exploited in a way where the buffer pointer (bufptr) continues to increment without proper bounds checking, potentially leading to a stack-based buffer overflow when the input data exceeds the allocated buffer size of 1024 bytes.
+
+6. Severity rating: high
+
+Note: The vulnerability is more subtle and requires deeper analysis of how the psgets function handles line endings and buffering, particularly around the interaction between ungetc(), the break statements, and the buffer length management. While not immediately obvious, this could potentially allow for stack corruption under specific conditions with crafted input data.

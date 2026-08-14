@@ -1,0 +1,26 @@
+1. File: compare\compare.c
+2. Name of the function containing the vulnerability: `load_font`
+3. Vulnerability type / CWE: CWE-122 - Heap-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+char *buf = malloc(size);
+if (!buf) {
+    fclose(fp);
+    return false;
+}
+
+long pos = 0;
+while (pos < size) {
+    size_t n = fread(buf + pos, 1, size - pos, fp);
+    if (!n) {
+        free(buf);
+        fclose(fp);
+        return false;
+    }
+    pos += n;
+}
+```
+5. The vulnerability occurs because the code does not validate that `size` (obtained from `ftell(fp)`) is within reasonable bounds before allocating memory for `buf`. If a maliciously crafted font file has an extremely large size value, it could cause `malloc(size)` to allocate an enormous amount of memory or fail due to system limits. Additionally, the code does not check if `fread` actually reads the expected amount of data, which could lead to buffer overflows if the file is truncated or malformed.
+6. Severity rating: HIGH
+
+The vulnerability stems from improper input validation and lack of size checks in the font loading process, potentially allowing for denial-of-service attacks through excessive memory allocation or more serious exploits depending on how the loaded font data is subsequently processed.

@@ -1,0 +1,16 @@
+1. File: notifier\mailto.c
+2. Name of the function containing the vulnerability: `email_message`
+3. Vulnerability type / CWE: SMTP Injection (CWE-94 / CWE-20)
+4. The relevant vulnerable code snippet:
+```c
+    cupsFilePrintf(fp, "MAIL FROM:%s\r\n", mailtoFrom);
+    // ...
+    cupsFilePrintf(fp, "RCPT TO:%s\r\n", to);
+    // ...
+    cupsFilePrintf(fp, "From: %s%s", mailtoFrom, nl);
+    cupsFilePrintf(fp, "Subject: %s %s%s", mailtoSubject, subject, nl);
+    // ...
+    cupsFilePrintf(fp, "To: %s%s", to, nl);
+```
+5. A concise explanation of why it is vulnerable: The function `email_message` takes the `to` argument (derived from `argv[1]`) and other configuration variables (like `mailtoFrom`) and injects them directly into SMTP commands and email headers using `cupsFilePrintf` without any validation or sanitization of newline characters (`\r` or `\n`). An attacker who can control the recipient address or the configuration file can inject additional SMTP commands (e.g., adding more `RCPT TO` commands to send spam) or manipulate email headers (e.g., injecting `Bcc:` headers) by inserting CRLF sequences into these strings.
+6. Severity rating: High

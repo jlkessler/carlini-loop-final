@@ -1,0 +1,13 @@
+1. File: exec\totempg.c
+2. Name of the function containing the vulnerability: `totempg_deliver_fn`
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+	msg_count = mcast->msg_count;
+	datasize = sizeof (struct totempg_mcast) +
+		msg_count * sizeof (unsigned short);
+
+	memcpy (header, msg, datasize);
+```
+5. A concise explanation of why it is vulnerable: The function `totempg_deliver_fn` takes a message (`msg`) and extracts `msg_count` from the `totempg_mcast` header. It then calculates `datasize` based on this user-controlled `msg_count` and performs a `memcpy` into a fixed-size stack buffer `char header[FRAME_SIZE_MAX]`. Because there is no validation to ensure that `datasize` does not exceed `FRAME_SIZE_MAX`, a remote attacker can send a specially crafted packet with a large `msg_count` to trigger a stack-based buffer overflow, potentially leading to arbitrary code execution.
+6. Severity rating: Critical

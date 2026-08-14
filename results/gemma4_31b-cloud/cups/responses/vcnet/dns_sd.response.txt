@@ -1,0 +1,10 @@
+1. File: vcnet\dns_sd.c
+2. Name of the function containing the vulnerability: dnssd_init
+3. Vulnerability type / CWE: CWE-426: String-Based Path Traversal / DLL Hijacking (Unquoted Search Path/Absolute Path missing)
+4. The relevant vulnerable code snippet:
+```c
+HINSTANCE	dll_handle = LoadLibraryA("dnssd.dll");
+```
+5. A concise explanation of why it is vulnerable:
+The function `dnssd_init` calls `LoadLibraryA` with a relative path (`"dnssd.dll"`). On Windows, when a DLL is loaded without a fully qualified path, the system searches for the DLL in a specific order (Application directory, system directories, current working directory, etc.). An attacker who can place a malicious `dnssd.dll` in the application's directory or any directory in the search path can achieve arbitrary code execution when the application initializes the DNS-SD wrapper.
+6. Severity rating: High

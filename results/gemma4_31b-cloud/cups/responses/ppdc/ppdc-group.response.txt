@@ -1,0 +1,19 @@
+1. File: ppdc\ppdc-group.cxx
+2. Name of the function containing the vulnerability: `ppdcGroup::~ppdcGroup()`
+3. Vulnerability type / CWE: CWE-476: NULL Pointer Dereference
+4. The relevant vulnerable code snippet:
+```cpp
+ppdcGroup::~ppdcGroup()
+{
+  PPDC_DELETEVAL(name ? name->value : NULL);
+
+  name->release();
+  text->release();
+  options->release();
+
+  name = text = 0;
+  options = 0;
+}
+```
+5. A concise explanation of why it is vulnerable: The destructor checks if `name` is NULL before passing its value to `PPDC_DELETEVAL`, but it immediately proceeds to call `name->release()`, `text->release()`, and `options->release()` without any NULL checks. If the `ppdcGroup` object was partially initialized or if any of these members are NULL, the program will crash due to a null pointer dereference.
+6. Severity rating: Medium

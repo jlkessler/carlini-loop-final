@@ -1,0 +1,38 @@
+1. File: scheduler\network.c
+2. Name of the function containing the vulnerability: `cupsdNetIFUpdate`
+3. Vulnerability type / CWE: Heap-based Buffer Overflow (CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+    if (addr->ifa_addr->sa_family == AF_INET)
+    {
+     /*
+      * Copy IPv4 addresses...
+      */
+
+      memcpy(&(temp->address), addr->ifa_addr, sizeof(struct sockaddr_in));
+      memcpy(&(temp->mask), addr->ifa_netmask, sizeof(struct sockaddr_in));
+
+      if (addr->ifa_dstaddr)
+	memcpy(&(temp->broadcast), addr->ifa_dstaddr,
+	       sizeof(struct sockaddr_in));
+    }
+#ifdef AF_INET6
+    else
+    {
+     /*
+      * Copy IPv6 addresses...
+      */
+
+      memcpy(&(temp->address), addr->ifa_addr, sizeof(struct sockaddr_in6));
+      memcpy(&(temp->mask), addr->ifa_netmask, sizeof(struct sockaddr_in6));
+
+      if (addr->ifa_dstaddr)
+	memcpy(&(temp->broadcast), addr->ifa_dstaddr,
+	       sizeof(struct sockaddr_in6));
+    }
+#endif
+```
+5. A concise explanation of why it is vulnerable:
+The function allocates memory for `temp` using `calloc(1, sizeof(cupsd_netif_t) + hostlen)`. This allocation is based on the size of the `cupsd_netif_t` structure. However, the subsequent `memcpy` calls use `sizeof(struct sockaddr_in6)` when an IPv6 address is encountered. If the members of `cupsd_netif_t` (specifically `address`, `mask`, and `broadcast`) are defined as `struct sockaddr_in` (IPv4) or a smaller fixed-size buffer rather than `struct sockaddr_in6`, the `memcpy` will write past the end of the allocated structure, leading to a heap buffer overflow. In many CUPS versions, `cupsd_netif_t` is designed for IPv4, and the blind copy of a larger IPv6 structure overflows the heap.
+
+6. Severity rating: High

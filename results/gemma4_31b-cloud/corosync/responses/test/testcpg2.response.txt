@@ -1,0 +1,17 @@
+1. File: test\testcpg2.c
+2. Name of the function containing the vulnerability: confch
+3. Vulnerability type / CWE: CWE-125: Out-of-bounds Read
+4. The relevant vulnerable code snippet:
+```c
+static void confch(
+	cpg_handle_t handle,
+	const struct cpg_name *group_name,
+	const struct cpg_address *member_list, size_t member_list_entries,
+	const struct cpg_address *left_list, size_t left_list_entries,
+	const struct cpg_address *joined_list, size_t joined_list_entries)
+{
+	printf("confchg nodeid %x\n", member_list[0].nodeid);
+}
+```
+5. A concise explanation of why it is vulnerable: The function `confch` accesses the first element of the `member_list` array (`member_list[0]`) without first verifying that `member_list_entries` is greater than zero. If the callback is triggered with an empty member list, this will result in an out-of-bounds read, potentially leading to a program crash (Segmentation Fault).
+6. Severity rating: Medium

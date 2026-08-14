@@ -1,0 +1,19 @@
+1. File: scheduler\testmime.c
+
+2. Name of the function containing the vulnerability: `add_ppd_filter`
+
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+if (sscanf(filter, "%15[^/]/%255s%*[ \t]%15[^/]/%255s%d%*[ \t]%1023[^\n]",
+             super, type, dsuper, dtype, &cost, program) == 6)
+{
+    snprintf(dest, sizeof(dest), "test/%s/%s", dsuper, dtype);
+```
+
+5. The vulnerability exists because the `sscanf` function uses format specifiers like `%15[^/]/%255s` which limit the number of characters read into `super` and `type` buffers. However, when constructing the destination string with `snprintf(dest, sizeof(dest), "test/%s/%s", dsuper, dtype)`, there's no validation that `dsuper` and `dtype` are properly null-terminated or within safe bounds before being used in the `snprintf`. If these buffers contain malformed data or are not properly bounded by sscanf, they could lead to buffer overflows. Additionally, when `sscanf` returns 4 instead of 6 (the second case), `desttype` is set to `filtertype` without any checks on the actual content of `super` and `type`.
+
+6. Severity rating: HIGH
+
+This vulnerability could allow an attacker to cause a buffer overflow when processing specially crafted PPD filter strings, potentially leading to arbitrary code execution. The format string handling in `sscanf` combined with unchecked string operations in `snprintf` creates a path for stack corruption that can be exploited remotely if the application processes untrusted PPD files.

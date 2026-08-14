@@ -1,0 +1,15 @@
+1. File: cgi-bin\classes.c
+2. Name of the function containing the vulnerability: `do_class_op`
+3. Vulnerability type / CWE: CWE-77 - Command Injection
+4. The relevant vulnerable code snippet:
+```c
+httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), "ipp", NULL,
+                 "localhost", 0, "/classes/%s", printer);
+ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri",
+             NULL, uri);
+```
+5. The vulnerability exists because the `printer` parameter (which comes from user input via `pclass` in `main()`) is directly interpolated into a URI string without proper sanitization or validation. When `do_class_op()` is called with user-controlled data, this data flows directly into `httpAssembleURIf()` and then into the IPP request's `printer-uri` attribute, potentially allowing an attacker to inject malicious commands or manipulate the printer URI.
+
+6. Severity rating: HIGH
+
+This is a high severity vulnerability because it allows for command injection through the IPP protocol. An attacker could potentially manipulate the `printer` parameter to execute arbitrary commands on the system, especially if the CUPS implementation doesn't properly validate or sanitize the printer names in the URI. The vulnerability is particularly dangerous because it can lead to remote code execution or privilege escalation.

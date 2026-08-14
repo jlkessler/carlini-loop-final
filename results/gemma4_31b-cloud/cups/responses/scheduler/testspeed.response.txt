@@ -1,0 +1,28 @@
+1. File: scheduler\testspeed.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection') / Argument Injection
+4. The relevant vulnerable code snippet:
+```c
+    for (i = 0; i < children; i ++)
+    {
+      fflush(stdout);
+
+      if ((pid = fork()) == 0)
+      {
+       /*
+	* Child goes here...
+	*/
+
+        if (opstring)
+	  execlp(argv[0], argv[0], options, "0", reqstr, "-o", opstring,
+	         serverstr, (char *)NULL);
+        else
+	  execlp(argv[0], argv[0], options, "0", reqstr, serverstr, (char *)NULL);
+
+	exit(errno);
+      }
+```
+5. A concise explanation of why it is vulnerable:
+The program uses `execlp` to execute itself (via `argv[0]`) to create child worker processes. It passes user-controlled strings (`opstring` and `serverstr`) directly as arguments to the new process. Because `execlp` searches the PATH and the arguments are passed without validation, a user can provide an `opstring` (via the `-o` flag) or a `server` name that starts with a hyphen (e.g., `-o "-some-other-flag"`) to inject additional command-line arguments into the child process. While not a direct shell injection (since `execlp` does not invoke `/bin/sh`), it allows for **Argument Injection**, which can lead to unexpected program behavior or privilege escalation depending on the available flags of the binary.
+
+6. Severity rating: Medium

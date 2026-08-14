@@ -1,0 +1,33 @@
+1. File: tools\corosync-cpgtool.c
+2. Name of the function containing the vulnerability: `fprint_group`
+3. Vulnerability type / CWE: CWE-116 (Improper Encoding or Escaping of Output) / Format String Vulnerability (Potential)
+4. The relevant vulnerable code snippet:
+```c
+		} else {
+			if (c == '\\')
+				fprintf (f, "\\\\");
+			else
+				fprintf (f, "\\x%02X", c);
+		}
+```
+5. A concise explanation of why it is vulnerable: While `fprint_group` attempts to escape characters, it uses `fprintf` to print the escaped representation of bytes. If the `escape` flag is set to 0 (via the `-e` command line option), the code executes `fputc(c, f)`. However, the more critical issue is that if the group name contains data that can be manipulated by an attacker, and that data is processed through paths that might lead to formatted output without proper validation, it can lead to issues. More specifically, in the `else` block, the code uses `fprintf(f, "\\x%02X", c)`. While this specific call is safe because the format string is a literal, the lack of strict sanitization of the group name when `escape` is 0 allows raw binary data to be written to `stdout`. If the output of this tool is piped into another utility that interprets format specifiers or control characters, it creates a secondary injection vulnerability.
+
+*Correction*: Upon closer inspection of the provided source, there is no direct Format String vulnerability because `fprintf` is always called with a constant format string. However, there is a **Memory Safety/Out-of-bounds** risk in `fprint_addrs`. 
+
+**Revised Vulnerability:**
+1. File: tools\corosync-cpgtool.c
+2. Name of the function: `fprint_addrs`
+3. Vulnerability type: CWE-125 (Out-of-bounds Read)
+4. Relevant code snippet:
+```c
+			struct sockaddr_in *sin = (struct sockaddr_in *)addrs[i].address;
+			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)addrs[i].address;
+			void *saddr;
+
+			if (ss->ss_family == AF_INET6)
+				saddr = &sin6->sin6_addr;
+			else
+				saddr = &sin->sin_addr;
+```
+5. Explanation: The function casts `addrs[i].address` to both `sockaddr_in` and `sockaddr_in6` regardless of the actual family. It then uses `ss->ss_family` to decide which pointer to use. If `ss_family` is neither `AF_INET6` nor `AF_INET` (e.g., a different address family or corrupted data), it defaults to the `else` block and treats the address as `sockaddr_in`. This can lead to an out-of-bounds read when `inet_ntop` is called with the resulting `saddr`, as the memory layout for other families differs.
+6. Severity rating: Medium

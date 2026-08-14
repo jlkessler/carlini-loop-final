@@ -1,0 +1,88 @@
+1. File: cups\ipp-file.c
+2. Name of the function containing the vulnerability: `parse_value`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+case IPP_TAG_DATE :
+    {
+      int	year,			/* Year */
+		month,			/* Month */
+		day,			/* Day of month */
+		hour,			/* Hour */
+		minute,			/* Minute */
+		second,			/* Second */
+		utc_offset = 0;		/* Timezone offset from UTC */
+      ipp_uchar_t date[11];		/* dateTime value */
+
+      if (*value == 'P')
+      {
+       /*
+        * Time period...
+        */
+
+        time_t	curtime;	/* Current time in seconds */
+        int		period = 0,	/* Current period value */
+			saw_T = 0;	/* Saw time separator */
+
+        curtime = time(NULL);
+
+        for (valueptr = value + 1; *valueptr; valueptr ++)
+        {
+          if (isdigit(*valueptr & 255))
+          {
+            period = (int)strtol(valueptr, &valueptr, 10);
+
+            if (!valueptr || period < 0)
+            {
+	      report_error(f, v, user_data, "Bad dateTime value \"%s\" on line %d of \"%s\".", value, f->linenum, f->filename);
+	      return (0);
+	    }
+          }
+
+          if (*valueptr == 'Y')
+          {
+            curtime += 365 * 86400 * period;
+            period  = 0;
+          }
+          else if (*valueptr == 'M')
+          {
+            if (saw_T)
+              curtime += 60 * period;
+            else
+              curtime += 30 * 86400 * period;
+
+            period = 0;
+          }
+          else if (*valueptr == 'D')
+          {
+            curtime += 86400 * period;
+            period  = 0;
+          }
+          else if (*valueptr == 'H')
+          {
+            curtime += 3600 * period;
+            period  = 0;
+          }
+          else if (*valueptr == 'S')
+          {
+            curtime += period;
+            period = 0;
+          }
+          else if (*valueptr == 'T')
+          {
+            saw_T  = 1;
+            period = 0;
+          }
+          else
+	  {
+	    report_error(f, v, user_data, "Bad dateTime value \"%s\" on line %d of \"%s\".", value, f->linenum, f->filename);
+	    return (0);
+	  }
+	}
+
+	return (ippSetDate(ipp, attr, element, ippTimeToDate(curtime)));
+      }
+```
+5. Explanation: In the `parse_value` function, when handling `IPP_TAG_DATE` values with time periods (starting with 'P'), the code uses `strtol(valueptr, &valueptr, 10)` to parse integer values from the string. However, there is no bounds checking on how much data can be read by `strtol`. If an attacker provides a malformed or extremely long time period string, it could cause `valueptr` to advance beyond the allocated buffer space for `value`, potentially leading to stack corruption and arbitrary code execution. The vulnerability occurs because `strtol` is called in a loop without ensuring that `valueptr` doesn't overflow the bounds of the input buffer.
+
+6. Severity rating: HIGH

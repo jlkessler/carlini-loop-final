@@ -1,0 +1,21 @@
+1. File: test\stress_cpgcontext.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-401: Memory Leak
+4. The relevant vulnerable code snippet:
+```c
+	for (j = 0; j < ITERATIONS; j++) {
+		for (i = 0; i < INSTANCES; i++) {
+			context[i] = malloc (20);
+			res = cpg_context_set (handle[i], context[i]);
+            // ...
+		}
+
+		for (i = 0; i < INSTANCES; i++) {
+			res = cpg_context_get (handle[i], &ctx);
+            // ...
+			free (ctx);
+		}
+	}
+```
+5. A concise explanation of why it is vulnerable: The program is designed as a stress test. In each of the `ITERATIONS` (1,000,000), it allocates memory for `INSTANCES` (100) pointers using `malloc`. While it calls `free(ctx)` after retrieving the pointer via `cpg_context_get`, this only frees the memory for the *current* iteration's context. However, if `cpg_context_set` does not internally free the previous context associated with the handle, or if the loop structure creates a mismatch in ownership, the program consumes massive amounts of memory. More importantly, in the context of a "stress test" for a library, if the library's `cpg_context_set` simply overwrites a pointer without freeing the old one, this test reveals a leak in the library; but as written, the test itself is highly unstable. Specifically, if `cpg_context_set` fails or if the logic changes, the allocated `context[i]` is leaked. In this specific loop, it allocates $10^8$ small blocks. If the underlying library `cpg_context_set` doesn't manage the memory (which it typically doesn't, as the user provides the pointer), the `free(ctx)` handles the cleanup for the current loop, but any failure in `cpg_context_get` or an early `exit(-1)` leads to massive leaks.
+6. Severity rating: medium

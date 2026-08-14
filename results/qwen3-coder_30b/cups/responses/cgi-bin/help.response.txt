@@ -1,0 +1,26 @@
+1. File: cgi-bin\help.c
+
+2. Name of the function containing the vulnerability: `main`
+
+3. Vulnerability type / CWE: Path Traversal (CWE-22)
+
+4. The relevant vulnerable code snippet:
+```c
+if ((helpfile = getenv("PATH_INFO")) != NULL)
+{
+  helpfile ++;
+
+  if (!*helpfile)
+    helpfile = NULL;
+}
+
+...
+
+snprintf(filename, sizeof(filename), "%s/help/%s", docroot, helpfile);
+```
+
+5. The vulnerability exists because the code directly uses the `PATH_INFO` environment variable from the HTTP request without proper validation or sanitization. When `PATH_INFO` is set (which happens when a URL like `/help/../../../etc/passwd` is accessed), the code increments the pointer to skip the first character, but this does not prevent directory traversal attacks. An attacker can manipulate `PATH_INFO` to navigate outside the intended directory (`docroot/help/`) and access arbitrary files on the system.
+
+6. Severity rating: critical
+
+This vulnerability allows an attacker to perform path traversal attacks and potentially read arbitrary files on the server, which could lead to sensitive information disclosure or further exploitation. The lack of proper input validation makes it trivial for an attacker to exploit this vulnerability.

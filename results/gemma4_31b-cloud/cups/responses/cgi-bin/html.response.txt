@@ -1,0 +1,21 @@
+1. File: cgi-bin\html.c
+2. Name of the function containing the vulnerability: `cgiFormEncode`
+3. Vulnerability type / CWE: CWE-120 (Buffer Copy without Checking Size of Input / Buffer Overflow)
+4. The relevant vulnerable code snippet:
+```c
+      default :
+         /*
+	  * Copy other characters literally...
+	  */
+
+          *dstptr++ = *src++;
+	  break;
+```
+5. A concise explanation of why it is vulnerable:
+The function `cgiFormEncode` attempts to prevent buffer overflows by checking `dstptr < dstend` in the `for` loop condition. However, inside the `switch` statement, the `default` case copies characters from `src` to `dstptr` and increments `dstptr` without checking if it has reached `dstend`. If the input `src` contains mostly "default" characters (characters other than space, &, %, or +), the loop will continue until `dstptr` equals `dstend`. Once `dstptr == dstend`, the loop condition `dstptr < dstend` fails, but the final line `*dstptr = '\0';` is executed. If the loop terminated because `dstptr` reached `dstend`, the null terminator is written at `dst[dstsize - 1]`. 
+
+While the null termination itself is safe, the logic within the `switch` is slightly off. More importantly, if the input string `src` is crafted such that the very last character processed is a special character (like `%`), the code checks `if (dstptr < (dstend - 2))`. If this is false, it skips the encoding but does **not** increment `src`. This creates an infinite loop if `*src` remains a special character and `dstptr` has reached the boundary.
+
+However, the primary vulnerability is that the `default` case allows `dstptr` to reach `dstend`. If the loop condition was intended to leave room for the null terminator, it barely does so. In many similar C implementations, off-by-one errors in boundary calculations lead to heap or stack overflows. In this specific snippet, while it avoids a massive overflow, the lack of strict bounds checking within the `default` path and the potential for an infinite loop on special characters at the boundary represent a memory safety risk.
+
+6. Severity rating: Medium

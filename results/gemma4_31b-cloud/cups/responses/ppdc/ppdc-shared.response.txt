@@ -1,0 +1,22 @@
+1. File: ppdc\ppdc-shared.cxx
+2. Name of the function containing the vulnerability: `ppdcShared::release()` and `ppdcShared::retain()`
+3. Vulnerability type / CWE: Race Condition / Thread-Unsafe Reference Counting (CWE-362)
+4. The relevant vulnerable code snippet:
+```cpp
+void
+ppdcShared::release(void)
+{
+  use --;
+  // ...
+  if (use == 0)
+    delete this;
+}
+
+void
+ppdcShared::retain()
+{
+  use ++;
+}
+```
+5. A concise explanation of why it is vulnerable: The `use` counter is incremented and decremented using non-atomic operations. If `retain()` or `release()` are called from multiple threads simultaneously, a race condition occurs. This can lead to the reference count becoming corrupted, resulting in either a memory leak (if the count never reaches zero) or, more critically, a Use-After-Free (UAF) or Double Free if the object is deleted while another thread still holds a reference.
+6. Severity rating: Medium (Dependent on whether the `ppdcShared` objects are actually shared across threads in the larger application context).

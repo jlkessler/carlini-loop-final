@@ -1,0 +1,15 @@
+1. File: scheduler\ipp.c
+2. Name of the function containing the vulnerability: `add_job_subscriptions`
+3. Vulnerability type / CWE: Buffer Overflow / CWE-120
+4. The relevant vulnerable code snippet:
+```c
+      if (user_data)
+      {
+	sub->user_data_len = user_data->values[0].unknown.length;
+	memcpy(sub->user_data, user_data->values[0].unknown.data,
+	       (size_t)sub->user_data_len);
+      }
+```
+5. A concise explanation of why it is vulnerable: The function `add_job_subscriptions` copies data from the `notify-user-data` attribute into the `sub->user_data` buffer using `memcpy`. While there is a check earlier in the function to ensure `attr->values[0].unknown.length` is not greater than 63, this check is applied to the `attr` variable within the while loop. However, the `user_data` pointer is assigned to `attr` if the length is $\le 63$, but the actual memory copy occurs later using `sub->user_data_len`. If the `cupsd_subscription_t` structure's `user_data` field is smaller than 63 bytes, or if the logic allowing the assignment of `user_data` is bypassed or modified in different versions of the struct, this leads to a heap-based buffer overflow. More critically, the validation logic for `notify-user-data` is only performed if the attribute is encountered in a specific order; if the attribute is present but the loop continues or the pointer is mishandled, the size constraint may not be effectively enforced against the destination buffer `sub->user_data`.
+
+6. Severity rating: High

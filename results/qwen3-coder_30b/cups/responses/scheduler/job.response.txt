@@ -1,0 +1,42 @@
+1. File: scheduler\job.c
+2. Name of the function containing the vulnerability: cupsdContinueJob
+3. Vulnerability type / CWE: CWE-122 - Heap-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+if (job->printer->remote)
+  job->current_file = job->num_files;
+else
+  job->current_file ++;
+
+ /*
+  * Now create processes for all of the filters...
+  */
+
+for (i = 0, slot = 0, filter = (mime_filter_t *)cupsArrayFirst(filters);
+     filter;
+     i ++, filter = (mime_filter_t *)cupsArrayNext(filters))
+{
+  // ... code that sets up pipes and creates processes ...
+  
+  pid = cupsdStartProcess(command, argv, envp, filterfds[!slot][0],
+                          filterfds[slot][1], job->status_pipes[1],
+		          job->back_pipes[0], job->side_pipes[0], 0,
+			  job->profile, job, job->filters + i);
+
+  // ... more code ...
+
+  if (argv[6])
+  {
+    free(argv[6]);
+    argv[6] = NULL;
+  }
+
+  slot = !slot;
+}
+```
+
+5. The vulnerability exists because the code assumes that `job->current_file` will never exceed `job->num_files`, but in the case of remote jobs, it's set to `job->num_files` directly without proper bounds checking. When `cupsdStartProcess` is called for a remote job, it may cause an out-of-bounds access or buffer overflow because `argv[6]` (which points to a filename) can be freed and then accessed later when `job->current_file` equals `job->num_files`, leading to use-after-free or heap corruption.
+
+6. Severity rating: HIGH
+
+The vulnerability is a heap-based buffer overflow that could potentially lead to arbitrary code execution, especially since it involves process creation with potentially malformed arguments, and the code does not properly validate bounds when dealing with remote job processing scenarios.

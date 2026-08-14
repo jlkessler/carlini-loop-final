@@ -1,0 +1,20 @@
+1. File: exec\vsf_quorum.c
+2. Name of the function containing the vulnerability: `quorum_api_set_quorum`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+static int quorum_view_list[PROCESSOR_COUNT_MAX];
+...
+static void quorum_api_set_quorum(const unsigned int *view_list,
+				  size_t view_list_entries,
+				  int quorum, struct memb_ring_id *ring_id)
+{
+	...
+	quorum_view_list_entries = view_list_entries;
+	memcpy(&quorum_ring_id, ring_id, sizeof (quorum_ring_id));
+	memcpy(quorum_view_list, view_list, sizeof(unsigned int)*view_list_entries);
+	...
+}
+```
+5. A concise explanation of why it is vulnerable: The function `quorum_api_set_quorum` accepts a `view_list_entries` size parameter and uses it to perform a `memcpy` into the global array `quorum_view_list`. However, there is no bounds check to ensure that `view_list_entries` is less than or equal to `PROCESSOR_COUNT_MAX`. If an attacker or a malicious quorum provider provides a value larger than `PROCESSOR_COUNT_MAX`, it will result in a stack or data segment buffer overflow, potentially allowing for arbitrary code execution or a denial of service.
+6. Severity rating: Critical

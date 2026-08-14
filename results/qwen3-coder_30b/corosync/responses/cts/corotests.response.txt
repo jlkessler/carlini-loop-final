@@ -1,0 +1,43 @@
+1. File: cts\corotests.py
+2. Name of the function containing the vulnerability: `CpgCfgChgOnNodeRestart.failure_action`
+3. Vulnerability type / CWE: CWE-78 - Command Injection
+4. The relevant vulnerable code snippet:
+```python
+def failure_action(self):
+    self.CM.log("2: isolating node " + self.wobbly)
+    self.CM.isolate_node(self.wobbly)
+    self.CM.log("3: Killing corosync on " + self.wobbly)
+    self.CM.rsh(self.wobbly, "killall -9 corosync")
+    self.CM.rsh(self.wobbly, "rm -f /var/run/corosync.pid")
+    self.CM.rsh(self.wobbly, "rm -f /dev/shm/qb-corosync-blackbox*")
+    self.CM.ShouldBeStatus[self.wobbly] = "down"
+    self.CM.log("4: unisolating node " + self.wobbly)
+    self.CM.unisolate_node (self.wobbly)
+    self.CM.log("5: starting corosync on " + self.wobbly)
+    self.CM.StartaCM(self.wobbly)
+    time.sleep(5)
+    self.CM.log("6: starting cpg on all nodes")
+    self.CM.start_cpg = True
+    for node in self.CM.Env["nodes"]:
+        self.CM.cpg_agent[node] = CpgTestAgent(node, self.CM.Env)
+        self.CM.cpg_agent[node].start()
+        self.CM.cpg_agent[node].cpg_join(self.cpg_name)
+
+    self.wobbly_id = self.CM.cpg_agent[self.wobbly].cpg_local_get()
+    self.CM.cpg_agent[self.listener].record_config_events(truncate=True)
+
+    self.CM.log("7: isolating node " + self.wobbly)
+    self.CM.isolate_node(self.wobbly)
+    self.CM.log("8: Killing corosync on " + self.wobbly)
+    self.CM.rsh(self.wobbly, "killall -9 corosync")
+    self.CM.rsh(self.wobbly, "rm -f /var/run/corosync.pid")
+    self.CM.ShouldBeStatus[self.wobbly] = "down"
+    self.CM.log("9: unisolating node " + self.wobbly)
+    self.CM.unisolate_node (self.wobbly)
+    self.CM.log("10: starting corosync on " + self.wobbly)
+    self.CM.StartaCM(self.wobbly)
+```
+
+5. This code is vulnerable to command injection because the `self.wobbly` variable, which represents a node name, is directly concatenated into shell commands without any sanitization or validation. An attacker who can control the node names in the environment could inject malicious commands by manipulating the node identifiers.
+
+6. Severity rating: HIGH

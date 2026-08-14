@@ -1,0 +1,16 @@
+1. File: libass\ass_strtod.c
+2. Name of the function containing the vulnerability: `ass_strtod`
+3. Vulnerability type / CWE: Out-of-bounds Read (CWE-125)
+4. The relevant vulnerable code snippet:
+```c
+    dblExp = 1.0;
+    for (d = (double *) powersOf10; exp != 0; exp >>= 1, d += 1) {
+        if (exp & 01) {
+            dblExp *= *d;
+        }
+    }
+```
+5. A concise explanation of why it is vulnerable:
+The function `ass_strtod` calculates the floating-point value of an exponent by iterating through the `powersOf10` array. The `powersOf10` array contains 9 elements (indices 0-8). The loop continues as long as `exp != 0`, incrementing the pointer `d` in each iteration. If `exp` is large enough (specifically, if the highest bit set in `exp` is at position 9 or higher), the pointer `d` will increment beyond the bounds of the `powersOf10` array. While there is a check `if (exp > maxExponent) { exp = maxExponent; }`, the `maxExponent` is set to 511. In binary, 511 is `111111111` (9 bits). If `exp` is 511, the loop will run 9 times, accessing `powersOf10[0]` through `powersOf10[8]`. However, if `maxExponent` were slightly larger or if the logic for `exp` were bypassed/modified, this is a classic OOB read. More critically, in the current code, if `exp` is exactly 511, the loop runs for `exp = 511, 255, 127, 63, 31, 15, 7, 3, 1`. That is 9 iterations. The array `powersOf10` has exactly 9 elements. However, if `maxExponent` is ever increased without updating the array, or if a logic error allows `exp` to exceed 511, the pointer `d` will read memory past the end of the array, leading to a crash or information leakage.
+
+6. Severity rating: Medium

@@ -1,0 +1,17 @@
+1. File: ppdc\ppdc-attr.cxx
+2. Name of the function containing the vulnerability: `ppdcAttr::~ppdcAttr()`
+3. Vulnerability type / CWE: CWE-416: Use After Free / Double Free
+4. The relevant vulnerable code snippet:
+```cpp
+ppdcAttr::~ppdcAttr()
+{
+  PPDC_DELETE;
+
+  name->release();
+  selector->release();
+  text->release();
+  value->release();
+}
+```
+5. A concise explanation of why it is vulnerable: The destructor calls the `PPDC_DELETE` macro before releasing the member objects (`name`, `selector`, `text`, `value`). If `PPDC_DELETE` performs memory deallocation or marks the object as deleted, the subsequent calls to `->release()` on the member pointers constitute a Use-After-Free. Additionally, if `PPDC_DELETE` is a custom memory management macro that handles the cleanup of the object's members, the explicit calls to `release()` would result in a Double Free.
+6. Severity rating: High

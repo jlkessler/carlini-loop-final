@@ -1,0 +1,38 @@
+1. File: test\stress_cpgcontext.c
+
+2. Name of the function containing the vulnerability: main
+
+3. Vulnerability type / CWE: CWE-401 - Memory Leak
+
+4. The relevant vulnerable code snippet:
+```c
+for (j = 0; j < ITERATIONS; j++) {
+    for (i = 0; i < INSTANCES; i++) {
+        context[i] = malloc (20);
+        res = cpg_context_set (handle[i], context[i]);
+        if (res != CS_OK) {
+            printf ("FAIL %d\n", res);
+            exit (-1);
+        }
+    }
+
+    for (i = 0; i < INSTANCES; i++) {
+        res = cpg_context_get (handle[i], &ctx);
+        if (res != CS_OK) {
+            printf ("FAIL %d\n", res);
+            exit (-1);
+        }
+        if (ctx != context[i]) {
+            printf ("FAIL\n");
+            exit (-1);
+        }
+        free (ctx);
+    }
+}
+```
+
+5. The code allocates memory using malloc() for each iteration of the outer loop (ITERATIONS = 1,000,000), but only frees it once per iteration in the inner loop. However, the issue is that while `context[i]` is allocated and set, then retrieved and freed, there's no mechanism to prevent memory leaks from accumulating over time due to the high frequency of allocations/deallocations. More critically, if any of the `cpg_context_set()` calls fail, the allocated memory is never freed.
+
+6. Severity rating: high
+
+The vulnerability represents a significant memory leak potential in a long-running process or stress test scenario. While not immediately exploitable for arbitrary code execution, it can lead to system instability and resource exhaustion under sustained load. The repeated allocation without proper error handling for cleanup creates a substantial risk in production environments where this code might be used.

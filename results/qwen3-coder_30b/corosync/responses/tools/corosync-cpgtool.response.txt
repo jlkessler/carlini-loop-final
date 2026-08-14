@@ -1,0 +1,32 @@
+1. File: tools\corosync-cpgtool.c
+
+2. Name of the function containing the vulnerability: `fprint_group`
+
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+static void fprint_group (FILE *f, int escape, const struct cpg_name *group) {
+	int i;
+	char c;
+
+	for (i = 0; i < group->length; i++) {
+		c = group->value[i];
+
+		if (!escape || (c >= ' ' && c < 0x7f && c != '\\')) {
+			fputc (c, f);
+		} else {
+			if (c == '\\')
+				fprintf (f, "\\\\");
+			else
+				fprintf (f, "\\x%02X", c);
+		}
+	}
+}
+```
+
+5. A concise explanation of why it is vulnerable: The function `fprint_group` processes the group name without validating that `group->length` is within bounds or that `group->value` points to a valid memory region. If `group->length` is larger than the allocated buffer for `group->value`, or if the memory pointed to by `group->value` is not properly null-terminated or accessible, the function can access memory beyond the intended buffer boundaries, leading to potential buffer overflow.
+
+6. Severity rating: HIGH
+
+The vulnerability is high severity because it can lead to arbitrary code execution or denial of service through a stack-based buffer overflow when processing group names from the CPG API. The function does not validate input parameters before using them in loops and memory accesses, making it susceptible to buffer overflows if the CPG API returns malformed data.

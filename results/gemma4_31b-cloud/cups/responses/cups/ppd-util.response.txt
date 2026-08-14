@@ -1,0 +1,14 @@
+1. File: cups\ppd-util.c
+2. Name of the function containing the vulnerability: `cupsGetPPD3`
+3. Vulnerability type / CWE: CWE-59: Improper File Permission Assignment / Symlink Race Condition (Arbitrary File Overwrite)
+4. The relevant vulnerable code snippet:
+```c
+  if (buffer[0])
+    fd = open(buffer, O_CREAT | O_TRUNC | O_WRONLY, 0600);
+  else
+    fd = cupsTempFd(tempfile, sizeof(tempfile));
+```
+5. A concise explanation of why it is vulnerable:
+The function `cupsGetPPD3` allows a caller to provide a pre-existing filename in the `buffer` parameter. If `buffer[0]` is non-zero, the code opens that specific path using `O_CREAT | O_TRUNC | O_WRONLY`. There is no validation to ensure the path is in a secure directory or that the file is not a symbolic link. A local attacker could create a symlink at the location specified in `buffer` pointing to a sensitive system file (e.g., `/etc/passwd` or a configuration file). When `cupsGetPPD3` is called, it will follow the symlink and overwrite the target file with the contents of the PPD retrieved from the server, leading to an arbitrary file overwrite.
+
+6. Severity rating: High

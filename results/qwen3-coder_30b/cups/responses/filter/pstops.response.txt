@@ -1,0 +1,85 @@
+1. File: filter\pstops.c
+2. Name of the function containing the vulnerability: `parse_text`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static char *				/* O - Value or NULL on error */
+parse_text(const char *start,		/* I - Start of text value */
+           char       **end,		/* O - End of text value */
+	   char       *buffer,		/* I - Buffer */
+           size_t     bufsize)		/* I - Size of buffer */
+{
+  char	*bufptr,			/* Pointer in buffer */
+	*bufend;			/* End of buffer */
+  int	level;				/* Parenthesis level */
+
+
+ /*
+  * Skip leading whitespace...
+  */
+
+  while (isspace(*start & 255))
+    start ++;
+
+ /*
+  * Then copy the value...
+  */
+
+  level  = 0;
+  bufptr = buffer;
+  bufend = buffer + bufsize - 1;
+
+  while (*start && bufptr < bufend)
+  {
+    if (isspace(*start & 255) && !level)
+      break;
+
+    *bufptr++ = *start;
+
+    if (*start == '(')
+      level ++;
+    else if (*start == ')')
+    {
+      if (!level)
+      {
+        start ++;
+        break;
+      }
+      else
+        level --;
+    }
+    else if (*start == '\\')
+    {
+     /*
+      * Copy escaped character...
+      */
+
+      int	i;			/* Looping var */
+
+
+      for (i = 1;
+           i <= 3 && isdigit(start[i] & 255) && bufptr < bufend;
+	   *bufptr++ = start[i], i ++);
+    }
+
+    start ++;
+  }
+
+  *bufptr = '\0';
+
+ /*
+  * Return the value and new pointer into the line...
+  */
+
+  if (end)
+    *end = (char *)start;
+
+  if (bufptr == bufend)
+    return (NULL);
+  else
+    return (buffer);
+}
+```
+5. The vulnerability exists because the function does not properly validate the length of input text when parsing DSC comments. Specifically, the `parse_text` function copies characters from the input string to a fixed-size buffer without checking if the input exceeds the buffer size. This can lead to a stack-based buffer overflow when processing maliciously crafted PostScript files with excessively long text values in DSC comments.
+
+6. Severity rating: critical

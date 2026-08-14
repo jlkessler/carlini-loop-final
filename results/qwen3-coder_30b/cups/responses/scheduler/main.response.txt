@@ -1,0 +1,70 @@
+1. File: scheduler\main.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-20 - Improper Input Validation
+4. The relevant vulnerable code snippet:
+```c
+for (i = 1; i < argc; i ++)
+{
+  if (!strcmp(argv[i], "--help"))
+    usage(0);
+  else if (argv[i][0] == '-')
+  {
+    for (opt = argv[i] + 1; *opt != '\0'; opt ++)
+    {
+      switch (*opt)
+      {
+        // ... other cases ...
+        case 'c' : /* Configuration file */
+          i ++;
+          if (i >= argc)
+          {
+            _cupsLangPuts(stderr, _("cupsd: Expected config filename "
+                                    "after \"-c\" option."));
+            usage(1);
+          }
+
+          if (argv[i][0] == '/')
+          {
+           /*
+            * Absolute directory...
+            */
+
+            cupsdSetString(&ConfigurationFile, argv[i]);
+          }
+          else
+          {
+           /*
+            * Relative directory...
+            */
+
+            char *current;  /* Current directory */
+
+           /*
+            * Allocate a buffer for the current working directory to
+            * reduce run-time stack usage; this approximates the
+            * behavior of some implementations of getcwd() when they
+            * are passed a NULL pointer.
+            */
+
+            if ((current = malloc(1024)) == NULL)
+            {
+              _cupsLangPuts(stderr,
+                            _("cupsd: Unable to get current directory."));
+              return (1);
+            }
+
+            if (!getcwd(current, 1024))
+            {
+              _cupsLangPuts(stderr,
+                            _("cupsd: Unable to get current directory."));
+              free(current);
+              return (1);
+            }
+
+            cupsdSetStringf(&ConfigurationFile, "%s/%s", current, argv[i]);
+            free(current);
+          }
+          break;
+```
+5. The vulnerability exists in the command-line argument parsing logic where the `-c` option processes configuration file paths. When a relative path is provided (not starting with '/'), it constructs an absolute path by concatenating the current working directory with the relative path. However, there's no validation to prevent directory traversal attacks or ensure that the resulting path doesn't escape the intended directory structure. An attacker could potentially manipulate the `argv[i]` argument to include sequences like "../" to traverse directories and access unauthorized files or configurations.
+6. Severity rating: HIGH

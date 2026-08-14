@@ -1,0 +1,38 @@
+1. File: cups\ipp-support.c
+2. Name of the function containing the vulnerability: `ippAttributeString`
+3. Vulnerability type / CWE: Buffer overflow (CWE-121), Integer overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+case IPP_TAG_STRING :
+    for (ptr = val->unknown.data, end = ptr + val->unknown.length;
+         ptr < end; ptr ++)
+    {
+      if (*ptr == '\\' || _cups_isspace(*ptr))
+      {
+        if (buffer && bufptr < bufend)
+          *bufptr = '\\';
+        bufptr ++;
+        
+        if (buffer && bufptr < bufend)
+          *bufptr = *ptr;
+        bufptr ++;
+      }
+      else if (!isprint(*ptr & 255))
+      {
+        if (buffer && bufptr < bufend)
+          bufptr += snprintf(bufptr, (size_t)(bufend - bufptr + 1), "\\%03o", *ptr & 255);
+        else
+          bufptr += snprintf(temp, sizeof(temp), "\\%03o", *ptr & 255);
+      }
+      else
+      {
+        if (buffer && bufptr < bufend)
+          *bufptr = *ptr;
+        bufptr ++;
+      }
+    }
+```
+5. The vulnerability occurs when processing IPP_TAG_STRING attributes where `val->unknown.length` is attacker-controlled and can be very large. The code performs multiple operations that increment `bufptr` without proper bounds checking against `bufend`. When `val->unknown.length` is large, `bufptr` can exceed `bufend`, causing a buffer overflow. Additionally, if `val->unknown.length` is close to the maximum value of size_t, adding it to `ptr` in the loop condition `ptr < end` can cause integer overflow, leading to an infinite loop or other undefined behavior.
+6. Severity rating: Critical
+
+This vulnerability can lead to remote code execution if an attacker can control the IPP request with a large `val->unknown.length` value, as it allows for arbitrary buffer overflows in the `ippAttributeString` function.

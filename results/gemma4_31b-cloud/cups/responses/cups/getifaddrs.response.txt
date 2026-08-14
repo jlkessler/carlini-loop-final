@@ -1,0 +1,20 @@
+1. File: cups\getifaddrs.c
+2. Name of the function containing the vulnerability: _cups_getifaddrs
+3. Vulnerability type / CWE: Out-of-bounds Read / CWE-125
+4. The relevant vulnerable code snippet:
+```c
+  for (bufptr = buffer, bufend = buffer + conf.ifc_len;
+       bufptr < bufend;
+       bufptr += ifpsize)
+  {
+   /*
+    * Get the current interface information...
+    */
+
+    ifp     = (struct ifreq *)bufptr;
+    ifpsize = sizeof(ifp->ifr_name) + sockaddr_len(&(ifp->ifr_addr));
+```
+5. A concise explanation of why it is vulnerable:
+The loop iterates through the `buffer` using `ifpsize` as the increment. However, `ifpsize` is calculated *inside* the loop based on data read from the buffer (`sockaddr_len(&(ifp->ifr_addr))`). Because `conf.ifc_len` is updated by the `ioctl(sock, SIOCGIFCONF, &conf)` call to reflect the actual amount of data returned, a maliciously crafted or corrupted network interface configuration could provide a very small `ifpsize` (or zero, though the code attempts a minimum check later). More importantly, if the last entry in the buffer is truncated, the calculation of `ifpsize` can read past the end of the `buffer` boundary (`bufend`) because it accesses `ifp->ifr_addr` before checking if the remaining bytes in the buffer are sufficient to hold the `sockaddr` structure.
+
+6. Severity rating: Medium

@@ -1,0 +1,22 @@
+1. File: cups\request.c
+2. Name of the function containing the vulnerability: `cupsDoFileRequest`
+3. Vulnerability type / CWE: CWE-22 - Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')
+4. The relevant vulnerable code snippet:
+```c
+if (filename)
+{
+  if ((infile = open(filename, O_RDONLY | O_BINARY)) < 0)
+  {
+    _cupsSetError(errno == ENOENT ? IPP_STATUS_ERROR_NOT_FOUND : IPP_STATUS_ERROR_NOT_AUTHORIZED,
+                  NULL, 0);
+
+    ippDelete(request);
+
+    return (NULL);
+  }
+}
+```
+5. The vulnerability exists because the `cupsDoFileRequest` function directly passes the user-provided `filename` parameter to the `open()` system call without any validation or sanitization of the path. This allows an attacker to specify arbitrary file paths, potentially leading to unauthorized access to files outside of intended directories, including sensitive system files.
+6. Severity rating: HIGH
+
+This is a high severity vulnerability because it allows for potential path traversal attacks that could lead to unauthorized file access, which might expose sensitive information or allow for further exploitation depending on the system configuration and permissions.

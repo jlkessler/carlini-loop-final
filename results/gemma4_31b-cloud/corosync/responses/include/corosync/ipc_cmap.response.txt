@@ -1,0 +1,16 @@
+1. File: include\corosync\ipc_cmap.h
+2. Name of the function containing the vulnerability: N/A (Header file defining data structures)
+3. Vulnerability type / CWE: CWE-119 (Improper Restriction of Operations within the Bounds of a Memory Buffer) / Potential Buffer Overflow or Out-of-bounds Read.
+4. The relevant vulnerable code snippet:
+```c
+struct req_lib_cmap_set {
+	struct qb_ipc_request_header header __attribute__((aligned(8)));
+	mar_name_t key_name __attribute__((aligned(8)));
+	mar_size_t value_len __attribute__((aligned(8)));
+	mar_uint8_t type __attribute__((aligned(8)));
+	mar_uint8_t value[] __attribute__((aligned(8)));
+};
+```
+(Also seen in `res_lib_cmap_get` and `res_lib_cmap_notify_callback`)
+5. A concise explanation of why it is vulnerable: The header defines several structures used for IPC (Inter-Process Communication) that utilize flexible array members (e.g., `mar_uint8_t value[]`). These structures rely on a length field (like `value_len`) provided by the sender to determine the size of the subsequent data. If the receiving code does not strictly validate `value_len` against the actual size of the received network packet/buffer before accessing the `value` array, it can lead to an out-of-bounds read or a heap-based buffer overflow. Because these are IPC structures, an untrusted process capable of sending these requests could trigger a crash or execute arbitrary code in the receiving process.
+6. Severity rating: High

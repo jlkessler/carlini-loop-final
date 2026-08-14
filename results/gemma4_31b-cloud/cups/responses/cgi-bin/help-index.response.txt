@@ -1,0 +1,22 @@
+1. File: cgi-bin\help-index.c
+2. Name of the function containing the vulnerability: `help_load_file`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+      text = ptr;
+      while ((ptr = strchr(text, '<')) == NULL)
+      {
+	ptr = text + strlen(text);
+	if (ptr >= (line + sizeof(line) - 2))
+	  break;
+
+        *ptr++ = ' ';
+
+        if (!cupsFileGets(fp, ptr, sizeof(line) - (size_t)(ptr - line) - 1))
+	  break;
+      }
+
+      *ptr = '\0';
+```
+5. A concise explanation of why it is vulnerable: The function reads from a file into the `line` buffer (size 1024). When it encounters a link or title, it attempts to collect the text following the tag. If the text spans multiple lines, it uses `cupsFileGets` to append data to the `line` buffer. However, the pointer arithmetic and the length calculation in `cupsFileGets` are flawed. Specifically, the check `if (ptr >= (line + sizeof(line) - 2))` combined with `*ptr++ = ' '` and the subsequent `cupsFileGets` can lead to an off-by-one or boundary error. More critically, the loop continues to write into the `line` buffer without sufficient guards against the total length of the accumulated `text` across multiple `cupsFileGets` calls if the input is crafted to avoid the `<` character, potentially overflowing the stack buffer.
+6. Severity rating: High

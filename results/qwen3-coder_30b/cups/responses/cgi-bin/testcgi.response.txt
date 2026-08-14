@@ -1,0 +1,14 @@
+1. File: cgi-bin\testcgi.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-78 - OS Command Injection
+4. The relevant vulnerable code snippet:
+```c
+freopen("multipart.dat", "rb", stdin);
+putenv("CONTENT_TYPE=multipart/form-data; "
+       "boundary=---------------------------1977426492562745908748943111");
+putenv("REQUEST_METHOD=POST");
+```
+5. This code is vulnerable because it directly uses user-supplied data from the multipart form data (specifically the boundary parameter) in a way that could lead to command injection if the CGI library doesn't properly sanitize this input before using it in system calls or shell operations. The boundary value comes from the HTTP header and could potentially be manipulated by an attacker to inject malicious commands, especially if the CGI library uses this boundary value in shell commands without proper sanitization.
+6. Severity rating: HIGH
+
+Note: While the code snippet itself doesn't show direct command execution, the vulnerability lies in how the CGI library processes the boundary parameter from the environment variables, which can lead to OS command injection if not properly handled by the underlying CUPS CGI implementation. The test program demonstrates a typical vulnerable pattern where user-controllable data is used in system calls without proper sanitization.

@@ -1,0 +1,19 @@
+1. File: scheduler\client.c
+2. Name of the function containing the vulnerability: `pipe_command`
+3. Vulnerability type / CWE: CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')
+4. The relevant vulnerable code snippet:
+```c
+  if (options)
+    strlcpy(argbuf, options, sizeof(argbuf));
+  else
+    argbuf[0] = '\0';
+
+  // ... (parsing logic that splits argbuf into argv based on ' ' or '+') ...
+
+  if (cupsdStartProcess(command, argv, envp, infile, fds[1], CGIPipes[1],
+			-1, -1, root, DefaultProfile, NULL, &pid) < 0)
+```
+5. A concise explanation of why it is vulnerable:
+The `pipe_command` function takes the `options` string (derived from the URI) and parses it into an `argv` array. While it attempts to separate arguments by spaces and plus signs, it does not adequately sanitize the input. More importantly, the logic allows the URI's query string or path information to be passed directly into the `argv` array used by `cupsdStartProcess`. Depending on the implementation of `cupsdStartProcess` and the nature of the CGI binaries being executed, an attacker can inject additional arguments into the command line of the executed process. Since some of these commands may be run with elevated privileges (the `root` parameter), this could lead to arbitrary command execution or unauthorized access to system resources.
+
+6. Severity rating: High

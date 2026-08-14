@@ -1,0 +1,26 @@
+1. File: cups\thread.c
+2. Name of the function containing the vulnerability: `_cupsMutexLock`
+3. Vulnerability type / CWE: Double-Checked Locking Pattern (DCLP) / Race Condition (CWE-362)
+4. The relevant vulnerable code snippet:
+```c
+void
+_cupsMutexLock(_cups_mutex_t *mutex)	/* I - Mutex */
+{
+  if (!mutex->m_init)
+  {
+    _cupsGlobalLock();
+
+    if (!mutex->m_init)
+    {
+      InitializeCriticalSection(&mutex->m_criticalSection);
+      mutex->m_init = 1;
+    }
+
+    _cupsGlobalUnlock();
+  }
+
+  EnterCriticalSection(&mutex->m_criticalSection);
+}
+```
+5. A concise explanation of why it is vulnerable: The function implements a Double-Checked Locking pattern to lazily initialize the mutex. In C, without explicit memory barriers or atomic operations, the compiler or CPU can reorder the assignment `mutex->m_init = 1` to occur before the `InitializeCriticalSection` call has completed. A second thread could see `m_init == 1`, skip the initialization block, and call `EnterCriticalSection` on an uninitialized or partially initialized critical section, leading to undefined behavior or a crash.
+6. Severity rating: Medium

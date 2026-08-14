@@ -1,0 +1,10 @@
+1. File: cups\testadmin.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: Uninitialized Variable (CWE-457)
+4. The relevant vulnerable code snippet:
+```c
+  http = httpConnect2(cupsServer(), ippPort(), NULL, AF_UNSPEC,
+                      cupsEncryption(), 1, 30000, NULL);
+```
+5. A concise explanation of why it is vulnerable: The variable `i` is declared but not initialized. It is then used as an argument in the call to `httpConnect2` (as the 6th parameter, representing a timeout or similar setting depending on the API definition). Because `i` contains an indeterminate value from the stack, the behavior of the connection attempt is undefined and could lead to unexpected crashes or timing issues. (Note: while `i` is later used as a loop counter, its first use is in the function call).
+6. Severity rating: low

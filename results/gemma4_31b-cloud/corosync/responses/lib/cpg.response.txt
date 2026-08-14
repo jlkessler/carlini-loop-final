@@ -1,0 +1,15 @@
+1. File: lib\cpg.c
+2. Name of the function containing the vulnerability: `cpg_mcast_joined`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+	struct iovec iov[64];
+	// ...
+	iov[0].iov_base = (void *)&req_lib_cpg_mcast;
+	iov[0].iov_len = sizeof (struct req_lib_cpg_mcast);
+	memcpy (&iov[1], iovec, iov_len * sizeof (struct iovec));
+```
+5. A concise explanation of why it is vulnerable:
+The function defines a fixed-size array `iov[64]` on the stack. However, it accepts `iov_len` as a parameter from the caller without any bounds checking. The `memcpy` operation copies `iov_len * sizeof(struct iovec)` bytes starting at `iov[1]`. If `iov_len` is 64 or greater, the `memcpy` will write past the end of the `iov` array, leading to a stack-based buffer overflow. This can be used to overwrite the return address and gain control of the execution flow.
+
+6. Severity rating: Critical

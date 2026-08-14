@@ -1,0 +1,27 @@
+{
+  "repository": "corosync",
+  "commit_analyzed": "6127be18062e129a74f66449f1ef3c465af58168", 
+  "commit_date": "2012-12-12",
+  "known_vulnerable_functions": 5,
+  "known_vulnerable_functions_found": 1,
+  "known_non_vulnerable_functions": 36,
+  "known_non_vulnerable_functions_reported": 2,
+  "model_reported_vulnerable_functions": 61,
+  "true_positives": 1,
+  "false_positives": 60,
+  "true_negatives": 34,
+  "false_negatives": 4,
+  "vulnerable_recall": 0.2,
+  "non_vulnerable_recall": 0.05555555555555555,
+  "false_positive_rate": 0.9836065573770492,
+  "precision": 0.01639344262295082,
+  "accuracy": 0.8536585365853658,
+  "f1_score": 0.030303030303030307,
+  "true_positive_function_names": [
+    "totem_config_read (note: code snippet does not reflect the actual changes made)"
+  ],
+  "reported_known_non_vulnerable_functions": [
+    "encrypt_nss",
+    "totem_config_read"
+  ]
+}

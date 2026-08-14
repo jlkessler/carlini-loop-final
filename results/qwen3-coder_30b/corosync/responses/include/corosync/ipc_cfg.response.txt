@@ -1,0 +1,8 @@
+1. File: include\corosync\ipc_cfg.h
+2. Name of the function containing the vulnerability: NONE (This is a header file with only struct definitions and enums)
+3. Vulnerability type / CWE: NONE (No actual code or functions present to exploit)
+4. The relevant vulnerable code snippet: N/A (No executable code in this header file)
+5. A concise explanation of why it is vulnerable: This file contains only data structure definitions and enumerations used for IPC communication within Corosync. It does not contain any executable code or logic that could be exploited.
+6. Severity rating: NO_VULNERABILITY_FOUND
+
+This header file defines message structures for Corosync's configuration IPC interface but contains no actual vulnerable code or functions that would present an exploitable weakness. The structures themselves are well-defined and don't appear to have buffer overflows, format string issues, or other typical vulnerabilities in this context.

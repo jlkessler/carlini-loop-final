@@ -1,0 +1,21 @@
+1. File: cups\snmp.c
+2. Name of the function containing the vulnerability: `_cupsSNMPRead`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+if ((bytes = recvfrom(fd, buffer, sizeof(buffer), 0, (void *)&address,
+                        &addrlen)) < 0)
+{
+  DEBUG_printf(("5_cupsSNMPRead: Returning NULL (%s)", strerror(errno)));
+
+  return (NULL);
+}
+
+asn1_decode_snmp(buffer, (size_t)bytes, packet);
+```
+
+5. The vulnerability exists because `recvfrom` can read more bytes than the `buffer` array can hold, as indicated by the `sizeof(buffer)` check which doesn't validate that `bytes` is less than or equal to `CUPS_SNMP_MAX_PACKET`. This allows for a buffer overflow when `bytes` exceeds the allocated size of `buffer`, since `asn1_decode_snmp` will attempt to process all `bytes` regardless of buffer bounds. Additionally, there's an integer overflow possibility in `asn1_get_length` function which can cause incorrect length calculations.
+
+6. Severity rating: Critical
+
+The vulnerability allows for a potential buffer overflow that could be exploited to execute arbitrary code or cause a denial of service, making it critical severity.

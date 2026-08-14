@@ -1,0 +1,12 @@
+1. File: cts\corolab.py
+2. Name of the function containing the vulnerability: `__main__` (block)
+3. Vulnerability type / CWE: CWE-94: Improper Control of Generation of Code ('Code Injection' / Arbitrary Attribute Assignment)
+4. The relevant vulnerable code snippet:
+```python
+       elif args[i] == "--set":
+           skipthis=1
+           (name, value) = args[i+1].split('=')
+           Environment[name] = value
+```
+5. A concise explanation of why it is vulnerable: The `--set` command-line argument allows a user to provide an arbitrary key-value pair that is directly assigned to the `Environment` object (an instance of `CoroLabEnvironment`). Since this object is passed into the Cluster Manager (`cm = Environment['CMclass'](Environment)`) and other test components, an attacker can overwrite critical configuration settings, class references, or internal state variables. Depending on how the `CtsLab` base class and `CMclass` use these attributes, this can lead to arbitrary code execution or complete system compromise.
+6. Severity rating: High

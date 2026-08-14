@@ -1,0 +1,38 @@
+1. File: filter\rastertolabel.c
+2. Name of the function containing the vulnerability: `PCLCompress`
+3. Vulnerability type / CWE: Heap-based Buffer Overflow (CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+    if (offset >= 31)
+    {
+     /*
+      * Output multi-byte offset...
+      */
+
+      *comp_ptr++ = (unsigned char)(((count - 1) << 5) | 31);
+
+      offset -= 31;
+      while (offset >= 255)
+      {
+        *comp_ptr++ = 255;
+        offset    -= 255;
+      }
+
+      *comp_ptr++ = (unsigned char)offset;
+    }
+    else
+    {
+     /*
+      * Output single-byte offset...
+      */
+
+      *comp_ptr++ = (unsigned char)(((count - 1) << 5) | offset);
+    }
+
+    memcpy(comp_ptr, start, count);
+    comp_ptr += count;
+```
+5. A concise explanation of why it is vulnerable:
+In `StartPage`, `CompBuffer` is allocated with a size of `2 * header->cupsBytesPerLine + 1`. In `PCLCompress`, the code implements a delta-row compression algorithm. When `offset` (the number of matching bytes from the previous line) is 31 or greater, the code writes one or more bytes to `comp_ptr` to represent the offset before performing a `memcpy` of the `count` non-matching bytes. Because the total number of bytes written to `CompBuffer` can exceed the original `cupsBytesPerLine` (due to the overhead of the offset markers and the logic used to calculate `comp_ptr`), it is possible to overflow the heap buffer if a specific pattern of matching and non-matching bytes is provided in the raster data.
+
+6. Severity rating: High

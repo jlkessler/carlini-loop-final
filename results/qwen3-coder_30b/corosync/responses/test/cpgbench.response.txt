@@ -1,0 +1,26 @@
+1. File: test\cpgbench.c
+2. Name of the function containing the vulnerability: cpg_benchmark
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+static char data[ONE_MEG];
+...
+static void cpg_benchmark (
+	cpg_handle_t handle_in,
+	int write_size)
+{
+    ...
+    iov.iov_base = data;
+    iov.iov_len = write_size;
+    ...
+    do {
+        res = cpg_mcast_joined (handle_in, CPG_TYPE_AGREED, &iov, 1);
+    } while (alarm_notice == 0 && (res == CS_OK || res == CS_ERR_TRY_AGAIN));
+```
+5. The vulnerability exists because the `write_size` parameter is not validated against the actual size of the `data` buffer (`ONE_MEG`). If `write_size` exceeds the buffer size, it will cause a buffer overflow when `cpg_mcast_joined` attempts to use this data. Additionally, the loop in `main()` can cause `size` to grow beyond `ONE_MEG` through multiplication by 5, leading to integer overflow.
+6. Severity rating: HIGH
+
+The vulnerability is high severity because:
+1. The buffer size (`ONE_MEG`) is not validated against `write_size`
+2. An attacker could potentially cause a buffer overflow by manipulating the write_size parameter
+3. Integer overflow in the loop can lead to unexpected behavior and potential exploitation

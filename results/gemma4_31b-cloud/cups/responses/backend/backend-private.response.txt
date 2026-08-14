@@ -1,0 +1,9 @@
+1. File: backend\backend-private.h
+2. Name of the function containing the vulnerability: `backendMessage` (macro)
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow') / Potential Denial of Service
+4. The relevant vulnerable code snippet:
+```c
+#  define backendMessage(msg) {const char *s = msg; write(2, s, strlen(s));}
+```
+5. A concise explanation of why it is vulnerable: The `backendMessage` macro is designed to log messages in contexts where standard I/O cannot be used (like signal handlers). While `write()` itself is generally safe, the macro uses `strlen(s)` to determine the length of the string to write. If `msg` is not null-terminated, `strlen` will read past the end of the buffer until it encounters a null byte, leading to an out-of-bounds read. In the context of a signal handler, if this were to trigger a segmentation fault, it would cause the entire backend process to crash (Denial of Service).
+6. Severity rating: low

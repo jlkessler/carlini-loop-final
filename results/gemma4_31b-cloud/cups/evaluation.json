@@ -1,0 +1,37 @@
+{
+  "repository": "cups",
+  "commit_analyzed": "696f74ae67a56ccb9362cc9a1f63fbc197e89875",
+  "commit_date": "2021-10-1",
+  "known_vulnerable_functions": 20,
+  "known_vulnerable_functions_found": 1,
+  "known_non_vulnerable_functions": 426,
+  "known_non_vulnerable_functions_reported": 12,
+  "model_reported_vulnerable_functions": 214,
+  "true_positives": 1,
+  "false_positives": 213,
+  "true_negatives": 414,
+  "false_negatives": 19,
+  "vulnerable_recall": 0.05,
+  "non_vulnerable_recall": 0.028169014084507043,
+  "false_positive_rate": 0.9953271028037384,
+  "precision": 0.004672897196261682,
+  "accuracy": 0.9304932735426009,
+  "f1_score": 0.008547008547008546,
+  "true_positive_function_names": [
+    "asn1_get_oid (note: code snippet does not reflect the actual changes made, and it classifies as cwe 121 when it is really 120)"
+  ],
+  "reported_known_non_vulnerable_functions": [
+    "_ppdCacheCreateWithFile",
+    "add_job_subscriptions",
+    "asn1_get_oid",
+    "cgiCheckVariables",
+    "cupsdAddAlias",
+    "cupsdAddCert",
+    "cupsdContinueJob",
+    "cupsdStartProcess",
+    "http_add_field",
+    "ippReadIO",
+    "move_job",
+    "pipe_command"
+  ]
+}

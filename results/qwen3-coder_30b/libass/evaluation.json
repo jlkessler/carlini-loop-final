@@ -1,0 +1,29 @@
+{
+  "repository": "libass",
+  "commit_analyzed": "16d8d586d5aa4c4501ff092668e73b405821abb6",
+  "commit_date": "2016-09-24",
+  "known_vulnerable_functions": 5,
+  "known_vulnerable_functions_found": 0,
+  "known_non_vulnerable_functions": 195,
+  "known_non_vulnerable_functions_reported": 6,
+  "model_reported_vulnerable_functions": 21,
+  "true_positives": 0,
+  "false_positives": 21,
+  "true_negatives": 189,
+  "false_negatives": 5,
+  "vulnerable_recall": 0.0,
+  "non_vulnerable_recall": 0.03076923076923077,
+  "false_positive_rate": 1.0,
+  "precision": 0.0,
+  "accuracy": 0.945,
+  "f1_score": 0,
+  "true_positive_function_names": [],
+  "reported_known_non_vulnerable_functions": [
+    "ass_gaussian_blur",
+    "ass_read_memory",
+    "get_cached_metrics",
+    "read_file",
+    "render_glyph_i",
+    "resize_read_order_bitmap"
+  ]
+}

@@ -1,0 +1,34 @@
+1. File: backend\snmp-supplies.c
+2. Name of the function containing the vulnerability: `backend_walk_cb`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+else if (_cupsSNMPIsOIDPrefixed(packet, prtMarkerSuppliesDescription))
+  {
+   /*
+    * Get supply name/description...
+    */
+
+    i = packet->object_name[prtMarkerSuppliesDescriptionOffset];
+    if (i < 1 || i > CUPS_MAX_SUPPLIES ||
+        packet->object_type != CUPS_ASN1_OCTET_STRING)
+      return;
+
+    if (i > num_supplies)
+      num_supplies = i;
+
+    switch (charset)
+    {
+      case CUPS_TC_csASCII :
+      case CUPS_TC_csUTF8 :
+      case CUPS_TC_csUnicodeASCII :
+	  strlcpy(supplies[i - 1].name,
+	          (char *)packet->object_value.string.bytes,
+		  sizeof(supplies[0].name));
+          break;
+```
+5. The vulnerability exists because the code doesn't properly validate that `i` is within valid bounds before using it as an array index. While there's a check `if (i < 1 || i > CUPS_MAX_SUPPLIES)`, this check only prevents out-of-bounds access to the `supplies` array, but the value of `i` itself can be manipulated by an attacker through crafted SNMP responses. Additionally, `num_supplies` is not properly initialized or validated before being used in subsequent operations, which could lead to integer overflow issues when incrementing it based on attacker-controlled data.
+
+6. Severity rating: **Critical**
+
+The vulnerability allows for potential buffer overflows and integer overflows when processing SNMP responses containing crafted supply descriptions. An attacker who can control the SNMP responses from a printer could potentially cause memory corruption, leading to arbitrary code execution or denial of service.

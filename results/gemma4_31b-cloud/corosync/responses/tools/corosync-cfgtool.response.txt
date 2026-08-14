@@ -1,0 +1,13 @@
+1. File: tools\corosync-cfgtool.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-170: Improper Null Termination of String Due to Capped Copy
+4. The relevant vulnerable code snippet:
+```c
+case 'i':
+    strncpy(interface_name, optarg, sizeof(interface_name));
+    break;
+```
+5. A concise explanation of why it is vulnerable:
+The code uses `strncpy` to copy the user-provided `optarg` into the `interface_name` buffer. If the length of `optarg` is greater than or equal to `sizeof(interface_name)` (128 bytes), `strncpy` will copy the first 128 bytes but will not append a null terminator (`\0`). When `interface_name` is subsequently passed to `ringstatusget_do` and used in `strcasecmp (interface_name, interface_names[i])`, the function will read past the end of the buffer until it encounters a null byte in memory. This leads to an out-of-bounds read, which can cause a crash (DoS) or potentially leak sensitive information from the stack.
+
+6. Severity rating: medium

@@ -1,0 +1,22 @@
+1. File: include\corosync\ipc_cpg.h
+
+2. Name of the function containing the vulnerability: marshall_to_mar_cpg_name_t
+
+3. Vulnerability type / CWE: CWE-121 Stack-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+static inline void marshall_to_mar_cpg_name_t (
+	mar_cpg_name_t *dest,
+	const struct cpg_name *src)
+{
+	dest->length = src->length;
+	memcpy (&dest->value, &src->value, CPG_MAX_NAME_LENGTH);
+}
+```
+
+5. The vulnerability exists because the code copies `CPG_MAX_NAME_LENGTH` bytes from `src->value` to `dest->value` without validating that `src->length` is less than or equal to `CPG_MAX_NAME_LENGTH`. If `src->length` exceeds `CPG_MAX_NAME_LENGTH`, it will overflow the buffer in `dest->value`.
+
+6. Severity rating: HIGH
+
+The vulnerability allows for a stack-based buffer overflow when handling CPG (Cluster Process Group) names, which could potentially lead to arbitrary code execution if an attacker can control the input data. The lack of bounds checking on the length field makes this a significant security flaw in the Corosync CPG IPC implementation.

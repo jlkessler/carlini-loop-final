@@ -1,0 +1,21 @@
+1. File: backend\dnssd.c
+2. Name of the function containing the vulnerability: `query_callback`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+    for (ptr = key; data < datanext && *data != '='; data ++)
+      *ptr++ = (char)*data;
+    *ptr = '\0';
+```
+5. A concise explanation of why it is vulnerable:
+The `query_callback` function processes DNS TXT records. It reads a length byte `datalen` from the network data. While it checks if `(data + datalen) > dataend` to avoid reading past the end of the record, it fails to check if `datalen` exceeds the size of the `key` buffer (256 bytes). A malicious DNS response can specify a `datalen` up to 255, and if the record contains no `=` character, the loop will write up to 255 bytes plus a null terminator into the `key` buffer. While 255 fits in a 256-byte buffer, the logic for the `value` buffer is more dangerous:
+```c
+      if (data < datanext)
+	memcpy(value, data, (size_t)(datanext - data));
+      value[datanext - data] = '\0';
+```
+If `data` was incremented by the `key` loop and `datanext - data` is large, it can overflow the `value` buffer. More critically, the `key` loop itself is risky. However, the most immediate overflow occurs when processing the `value` buffer; if `datalen` is 255 and the key is very short (e.g., 1 character), `datanext - data` will be approximately 254. If the `value` buffer is also 256, it barely fits. 
+
+The real vulnerability is the logic: `value[datanext - data] = '\0';`. If `datanext - data` is exactly 256, it writes to `value[256]`, which is an off-by-one overflow. Furthermore, the `key` buffer is filled without checking if the loop exceeds 255 iterations before hitting an `=`, though `datalen` limits this to 255. The most severe issue is the lack of bounds checking against the destination buffers when copying variable-length data from the network.
+
+6. Severity rating: High

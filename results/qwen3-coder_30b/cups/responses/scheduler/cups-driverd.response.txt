@@ -1,0 +1,79 @@
+1. File: scheduler\cups-driverd.cxx
+2. Name of the function containing the vulnerability: `cat_ppd`
+3. Vulnerability type / CWE: CWE-78 - Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')
+4. The relevant vulnerable code snippet:
+```c
+else
+{
+   /*
+    * Dynamic PPD, see if we have a driver program to support it...
+    */
+
+    const char	*serverbin;		/* CUPS_SERVERBIN env var */
+    char	*argv[4];		/* Arguments for program */
+
+
+    if ((serverbin = getenv("CUPS_SERVERBIN")) == NULL)
+      serverbin = CUPS_SERVERBIN;
+
+    snprintf(line, sizeof(line), "%s/driver/%s", serverbin, scheme);
+    if (access(line, X_OK))
+    {
+     /*
+      * File does not exist or is not executable...
+      */
+
+      fprintf(stderr, "ERROR: [cups-driverd] Unable to access \"%s\" - %s\n",
+              line, strerror(errno));
+
+      if (request_id > 0)
+      {
+        snprintf(message, sizeof(message), "Unable to access \"%s\" - %s",
+		 line, strerror(errno));
+
+	cupsdSendIPPHeader(IPP_NOT_FOUND, request_id);
+	cupsdSendIPPGroup(IPP_TAG_OPERATION);
+	cupsdSendIPPString(IPP_TAG_CHARSET, "attributes-charset", "utf-8");
+	cupsdSendIPPString(IPP_TAG_LANGUAGE, "attributes-natural-language",
+	                   "en-US");
+        cupsdSendIPPString(IPP_TAG_TEXT, "status-message", message);
+        cupsdSendIPPTrailer();
+      }
+
+      exit(1);
+    }
+
+   /*
+    * Yes, let it cat the PPD file...
+    */
+
+    if (request_id)
+    {
+      cupsdSendIPPHeader(IPP_OK, request_id);
+      cupsdSendIPPGroup(IPP_TAG_OPERATION);
+      cupsdSendIPPString(IPP_TAG_CHARSET, "attributes-charset", "utf-8");
+      cupsdSendIPPString(IPP_TAG_LANGUAGE, "attributes-natural-language",
+			 "en-US");
+      cupsdSendIPPTrailer();
+    }
+
+    argv[0] = scheme;
+    argv[1] = (char *)"cat";
+    argv[2] = (char *)name;
+    argv[3] = NULL;
+
+    if (cupsdExec(line, argv))
+    {
+     /*
+      * Unable to execute driver...
+      */
+
+      fprintf(stderr, "ERROR: [cups-driverd] Unable to execute \"%s\" - %s\n",
+              line, strerror(errno));
+      exit(1);
+    }
+}
+```
+5. A concise explanation of why it is vulnerable: The `cat_ppd` function constructs a command path using `snprintf(line, sizeof(line), "%s/driver/%s", serverbin, scheme)` where `scheme` is directly derived from user input (the PPD name parameter). This untrusted input is then used as part of the command execution via `cupsdExec(line, argv)`. If an attacker can control the `scheme` value to include shell metacharacters or commands, they could inject arbitrary commands that would be executed by the system shell.
+
+6. Severity rating: critical

@@ -1,0 +1,15 @@
+1. File: man\mantohtml.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-119 (Buffer Overflow) / Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+if (!strncmp(line, ".TH ", 4) && section < 0)
+{
+ /*
+  * Grab man page title...
+ */
+
+ sscanf(line + 4, "%s%d", name, &section);
+```
+5. A concise explanation of why it is vulnerable: The `sscanf` function is used to read a string into the `name` buffer without specifying a maximum length (missing width specifier). The `name` buffer is fixed at 1024 bytes. If an input file contains a `.TH` command followed by a string longer than 1023 characters, `sscanf` will write past the end of the `name` buffer on the stack, leading to a buffer overflow.
+6. Severity rating: High

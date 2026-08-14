@@ -1,0 +1,13 @@
+1. File: vcnet\regex\engine.c
+2. Name of the function containing the vulnerability: `matcher`
+3. Vulnerability type / CWE: Integer Overflow leading to Heap-based Buffer Overflow (CWE-190 / CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+if (m->pmatch == NULL)
+    m->pmatch = (regmatch_t *)malloc((m->g->nsub + 1) *
+                    sizeof(regmatch_t));
+```
+5. A concise explanation of why it is vulnerable:
+The `matcher` function calculates the size of the memory allocation for `m->pmatch` by multiplying `(m->g->nsub + 1)` by `sizeof(regmatch_t)`. Because `m->g->nsub` is an integer (derived from the compiled regular expression), a very large value for `nsub` can cause an integer overflow during the multiplication. This results in a small buffer being allocated on the heap. Subsequently, the code enters a loop `for (i = 1; i <= m->g->nsub; i++)` and writes to `m->pmatch[i]`. Since the allocated buffer is smaller than expected, this leads to a heap-based buffer overflow, allowing an attacker to overwrite adjacent heap memory.
+
+6. Severity rating: Critical

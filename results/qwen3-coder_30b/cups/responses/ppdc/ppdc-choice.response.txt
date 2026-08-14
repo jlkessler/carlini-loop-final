@@ -1,0 +1,21 @@
+1. File: ppdc\ppdc-choice.cxx
+2. Name of the function containing the vulnerability: ppdcChoice::ppdcChoice()
+3. Vulnerability type / CWE: CWE-401 - Memory Leak
+4. The relevant vulnerable code snippet:
+```cpp
+ppdcChoice::ppdcChoice(const char *n,	// I - Name of choice
+                       const char *t,	// I - Text of choice
+		       const char *c)	// I - Code of choice
+  : ppdcShared()
+{
+  PPDC_NEW;
+
+  name = new ppdcString(n);
+  text = new ppdcString(t);
+  code = new ppdcString(c);
+}
+```
+5. This code is vulnerable because it allocates memory for three ppdcString objects (name, text, and code) but does not check if these allocations succeed. If any of the `new` operations fail and throw a std::bad_alloc exception, the constructor will exit without properly cleaning up previously allocated memory, leading to memory leaks. The code lacks proper exception handling around the memory allocation calls.
+6. Severity rating: high
+
+Note: Looking more carefully at the code structure, I should note that this appears to be part of a larger codebase with macros like PPDC_NEW and PPDC_DELETE, but there's no explicit exception safety or error checking in the constructor itself for the memory allocations.

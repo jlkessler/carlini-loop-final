@@ -1,0 +1,21 @@
+1. File: scheduler\dirsvc.c
+2. Name of the function containing the vulnerability: `get_auth_info_required`
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+    for (i = 0, bufptr = buffer; i < p->num_auth_info_required; i ++)
+    {
+      if (bufptr >= (buffer + bufsize - 2))
+	break;
+
+      if (i)
+	*bufptr++ = ',';
+
+      strlcpy(bufptr, p->auth_info_required[i], bufsize - (size_t)(bufptr - buffer));
+      bufptr += strlen(bufptr);
+    }
+```
+5. A concise explanation of why it is vulnerable:
+The function iterates through a list of authentication requirements (`p->auth_info_required`) and appends them to a buffer. While it uses `strlcpy` to prevent a direct overflow of the remaining buffer size, the pointer `bufptr` is incremented by `strlen(bufptr)` after every append. If `strlcpy` fills the buffer to its limit, `strlen(bufptr)` will return a value that, when added to `bufptr`, may cause the pointer to exceed the buffer boundary. In the subsequent iteration, the check `if (bufptr >= (buffer + bufsize - 2))` may be bypassed (due to pointer wrap-around or simply by exceeding the limit by a small margin), and the line `*bufptr++ = ',';` will perform an out-of-bounds write to memory.
+
+6. Severity rating: medium

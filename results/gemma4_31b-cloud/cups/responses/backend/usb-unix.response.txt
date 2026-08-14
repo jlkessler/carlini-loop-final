@@ -1,0 +1,24 @@
+1. File: backend\usb-unix.c
+2. Name of the function containing the vulnerability: `open_device`
+3. Vulnerability type / CWE: CWE-22: Improper Limitation of a Pathname to a Restricted Directory ("Path Traversal")
+4. The relevant vulnerable code snippet:
+```c
+#else
+  {
+    if (*use_bc)
+      fd = open(uri + 4, O_RDWR | O_EXCL);
+    else
+      fd = -1;
+
+    if (fd < 0)
+    {
+      fd      = open(uri + 4, O_WRONLY | O_EXCL);
+      *use_bc = 0;
+    }
+
+    return (fd);
+  }
+#endif /* __linux */
+```
+5. A concise explanation of why it is vulnerable: In the `#else` block (which executes on platforms other than Linux or Solaris), the function `open_device` takes the `uri` parameter and opens a file at `uri + 4`. It assumes the URI starts with `usb:`. Because there is no validation or sanitization of the `uri` string beyond skipping the first 4 characters, an attacker can provide a URI such as `usb:/etc/passwd` or `usb:/dev/mem`. The `open()` call will then operate on an arbitrary file on the filesystem, allowing an unauthorized user to read or write to sensitive system files depending on the privileges of the process running the CUPS backend.
+6. Severity rating: Critical

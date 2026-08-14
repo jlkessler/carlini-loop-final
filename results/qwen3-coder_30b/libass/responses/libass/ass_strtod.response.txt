@@ -1,0 +1,14 @@
+1. File: libass\ass_strtod.c
+2. Name of the function containing the vulnerability: ass_strtod
+3. Vulnerability type / CWE: CWE-190 - Integer Overflow or Wraparound
+4. The relevant vulnerable code snippet:
+```c
+while (ass_isdigit(*p)) {
+    exp = exp * 10 + (*p - '0');
+    p += 1;
+}
+```
+5. This code is vulnerable because it performs multiplication and addition to build the exponent value without checking for integer overflow. If the input string contains a very large number of digits that, when converted to an integer, exceeds the maximum value that can be stored in the `exp` variable (typically INT_MAX), the multiplication `exp * 10` will cause an integer overflow, resulting in undefined behavior. This can lead to incorrect exponent values being used in subsequent calculations.
+6. Severity rating: HIGH
+
+The vulnerability occurs in the exponent parsing loop where there's no check for integer overflow when building the exponent value from the input string. If an attacker can control the input string to contain a very long sequence of digits, it could cause the `exp` variable to overflow, leading to incorrect floating-point calculations and potentially exploitable behavior.

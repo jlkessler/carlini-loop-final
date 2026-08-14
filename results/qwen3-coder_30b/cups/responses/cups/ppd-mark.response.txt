@@ -1,0 +1,30 @@
+1. File: cups\ppd-mark.c
+2. Name of the function containing the vulnerability: ppd_mark_choices
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static void
+ppd_mark_choices(ppd_file_t *ppd,	/* I - PPD file */
+                 const char *s)		/* I - "*Option Choice ..." string */
+{
+  int		i,			/* Looping var */
+		num_options;		/* Number of options */
+  cups_option_t	*options,		/* Options */
+		*option;		/* Current option */
+
+
+  if (!s)
+    return;
+
+  options     = NULL;
+  num_options = _ppdParseOptions(s, 0, &options, 0);
+
+  for (i = num_options, option = options; i > 0; i --, option ++)
+    ppd_mark_option(ppd, option->name, option->value);
+
+  cupsFreeOptions(num_options, options);
+}
+```
+5. The vulnerability exists because the `_ppdParseOptions` function is called without proper bounds checking on the input string `s`. This can lead to buffer overflows when parsing malformed PPD strings, especially since `cups_option_t` structures are allocated based on the parsed content without sufficient validation of the input length or format. The `ppd_mark_choices` function directly uses the output from `_ppdParseOptions` without additional sanitization, making it vulnerable to stack-based buffer overflows.
+
+6. Severity rating: Critical

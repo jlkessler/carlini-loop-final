@@ -1,0 +1,24 @@
+1. File: systemv\lpinfo.c
+2. Name of the function containing the vulnerability: `show_models`
+3. Vulnerability type / CWE: CWE-121 Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+if (include_schemes)
+{
+  option.name  = "include-schemes";
+  option.value = (char *)include_schemes;
+
+  cupsEncodeOptions2(request, 1, &option, IPP_TAG_OPERATION);
+}
+
+if (exclude_schemes)
+{
+  option.name  = "include-schemes";  // BUG: Should be "exclude-schemes"
+  option.value = (char *)exclude_schemes;
+
+  cupsEncodeOptions2(request, 1, &option, IPP_TAG_OPERATION);
+}
+```
+5. The vulnerability occurs because in the `show_models` function, when processing the `--exclude-schemes` option, the code incorrectly sets `option.name` to `"include-schemes"` instead of `"exclude-schemes"`. This causes the IPP request to have incorrect attribute names, potentially leading to buffer overflows or other memory corruption issues when the IPP server processes these malformed attributes.
+
+6. Severity rating: high

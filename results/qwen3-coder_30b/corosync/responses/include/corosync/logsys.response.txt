@@ -1,0 +1,28 @@
+1. File: include\corosync\logsys.h
+
+2. Name of the function containing the vulnerability: LOGSYS_DECLARE_SUBSYS
+
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+#define LOGSYS_DECLARE_SUBSYS(subsys)					\
+__attribute__ ((constructor))						\
+static void logsys_subsys_init (void)					\
+{									\
+	LOGSYS_DECLARE_SECTION;						\
+	logsys_subsys_id =						\
+		_logsys_subsys_create ((subsys), __FILE__);		\
+	if (logsys_subsys_id == -1) {					\
+		fprintf (stderr,					\
+		"Unable to create logging subsystem: %s.\n", subsys);	\
+		exit (-1);						\
+	}								\
+}
+```
+
+5. The vulnerability exists in the macro LOGSYS_DECLARE_SUBSYS which uses the `subsys` parameter directly without proper bounds checking or sanitization. If an attacker can control the value of `subsys` during compilation or at runtime, they could potentially overflow a buffer in `_logsys_subsys_create()` function (which is not shown but referenced). The `__FILE__` macro is also used which could be exploited if the file path is controlled by an attacker.
+
+6. Severity rating: HIGH
+
+The vulnerability is high severity because it involves a stack-based buffer overflow that can lead to arbitrary code execution, especially since it's a constructor function that runs during program initialization and uses untrusted input from the macro parameter. The attack surface expands when considering that `subsys` could be manipulated through build system variables or other means.

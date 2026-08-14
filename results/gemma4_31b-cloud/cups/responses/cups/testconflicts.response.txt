@@ -1,0 +1,18 @@
+1. File: cups\testconflicts.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-125: Out-of-bounds Read (Potential) / Logic Error in string parsing
+4. The relevant vulnerable code snippet:
+```c
+    for (ptr = line; isspace(*ptr & 255); ptr ++);
+    for (optr = ptr; *ptr && *ptr != '='; ptr ++);
+    if (!*ptr)
+      break;
+    for (*ptr++ = '\0', cptr = ptr; *ptr && !isspace(*ptr & 255); ptr ++);
+    if (!*ptr)
+      break;
+    *ptr++ = '\0';
+```
+5. A concise explanation of why it is vulnerable:
+The manual string parsing logic fails to properly account for the boundaries of the `line` buffer. Specifically, if the input provided via `fgets` does not contain a space or a null terminator after the `=` sign, the loop `for (*ptr++ = '\0', cptr = ptr; *ptr && !isspace(*ptr & 255); ptr ++);` will continue reading past the end of the `line` buffer until it happens to encounter a byte that satisfies the `isspace` condition or a null terminator in memory. This leads to an out-of-bounds read. Furthermore, the subsequent `*ptr++ = '\0';` can result in an out-of-bounds write (buffer overflow) if the loop exited because it hit a null terminator outside the buffer.
+
+6. Severity rating: Medium

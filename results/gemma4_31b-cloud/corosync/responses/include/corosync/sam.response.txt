@@ -1,0 +1,19 @@
+1. File: include\corosync\sam.h
+2. Name of the function containing the vulnerability: `sam_recovery_policy_t` (Enum definition)
+3. Vulnerability type / CWE: CWE-697: Insufficient Comparison / Logic Error (Duplicate Enum Values)
+4. The relevant vulnerable code snippet:
+```c
+typedef enum {
+	SAM_RECOVERY_POLICY_QUIT = 1,
+	SAM_RECOVERY_POLICY_RESTART = 2,
+	SAM_RECOVERY_POLICY_QUORUM = 0x08,
+	SAM_RECOVERY_POLICY_QUORUM_QUIT = SAM_RECOVERY_POLICY_QUORUM | SAM_RECOVERY_POLICY_QUIT,
+	SAM_RECOVERY_POLICY_QUORUM_RESTART = SAM_RECOVERY_POLICY_QUORUM | SAM_RECOVERY_POLICY_RESTART,
+	SAM_RECOVERY_POLICY_CMAP = 0x10,
+	SAM_RECOVERY_POLICY_CONFDB = 0x10,
+} sam_recovery_policy_t;
+```
+5. A concise explanation of why it is vulnerable:
+The enum `sam_recovery_policy_t` assigns the same value (`0x10`) to both `SAM_RECOVERY_POLICY_CMAP` and `SAM_RECOVERY_POLICY_CONFDB`. If the implementation logic relies on distinguishing between these two policies (e.g., using a `switch` statement or equality check), it will be impossible to differentiate between them. This can lead to incorrect recovery logic being executed, where the system treats a `CONFDB` request as a `CMAP` request or vice-versa, potentially causing unexpected system behavior or failure to execute the intended recovery path.
+
+6. Severity rating: low

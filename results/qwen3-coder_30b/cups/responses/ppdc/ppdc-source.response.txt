@@ -1,0 +1,58 @@
+1. File: ppdc\ppdc-source.cxx
+2. Name of the function containing the vulnerability: `ppdcSource::find_include`
+3. Vulnerability type / CWE: CWE-22 - Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')
+4. The relevant vulnerable code snippet:
+```c
+char *					// O - Found path or NULL
+ppdcSource::find_include(
+    const char *f,			// I - Include filename
+    const char *base,			// I - Current directory
+    char       *n,			// I - Path buffer
+    int        nlen)			// I - Path buffer length
+{
+  ppdcString	*dir;			// Include directory
+  char		temp[1024],		// Temporary path
+		*ptr;			// Pointer to end of path
+
+
+  // Range check input...
+  if (!f || !*f || !n || nlen < 2)
+    return (0);
+
+  // Check the first character to see if we have <name> or "name"...
+  if (*f == '<')
+  {
+    // Remove the surrounding <> from the name...
+    strlcpy(temp, f + 1, sizeof(temp));
+    ptr = temp + strlen(temp) - 1;
+
+    if (*ptr != '>')
+    {
+      _cupsLangPrintf(stderr,
+                      _("ppdc: Invalid #include/#po filename \"%s\"."), n);
+      return (0);
+    }
+
+    *ptr = '\0';
+    f    = temp;
+  }
+  else
+  {
+    // Check for the local file relative to the current directory...
+    if (base && *base && f[0] != '/')
+      snprintf(n, (size_t)nlen, "%s/%s", base, f);
+    else
+      strlcpy(n, f, (size_t)nlen);
+
+    if (!access(n, 0))
+      return (n);
+    else if (*f == '/')
+    {
+      // Absolute path that doesn't exist...
+      return (0);
+    }
+  }
+```
+5. This vulnerability exists because the code allows arbitrary file inclusion through the `#include` directive in PPD files without proper validation of the filename. When a filename is provided to `find_include`, it's directly used to construct paths, allowing attackers to specify paths that traverse directories outside the intended scope (e.g., using "../" sequences) and potentially read arbitrary files on the system.
+
+6. Severity rating: HIGH

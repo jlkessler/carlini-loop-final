@@ -1,0 +1,20 @@
+1. File: cups\getputfile.c
+2. Name of the function containing the vulnerability: cupsGetFile
+3. Vulnerability type / CWE: CWE-22 - Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')
+4. The relevant vulnerable code snippet:
+```c
+if ((fd = open(filename, O_WRONLY | O_EXCL | O_TRUNC)) < 0)
+{
+ /*
+  * Couldn't open the file!
+  */
+
+  http->error = errno;
+
+  return (HTTP_STATUS_ERROR);
+}
+```
+5. This vulnerability exists because cupsGetFile() directly uses the filename parameter from the HTTP request without any validation or sanitization of path components. An attacker can manipulate the resource name to include directory traversal sequences like "../" which would allow them to write files outside of intended directories, potentially overwriting system-critical files or writing malicious content to arbitrary locations on the filesystem.
+6. Severity rating: critical
+
+The vulnerability is critical because it allows for arbitrary file writing outside of intended directories, potentially leading to privilege escalation, system compromise, or data destruction. The function opens a file using the exact filename provided by the HTTP request without any path validation, making it susceptible to directory traversal attacks.

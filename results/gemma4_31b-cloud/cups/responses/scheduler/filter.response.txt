@@ -1,0 +1,12 @@
+1. File: scheduler\filter.c
+2. Name of the function containing the vulnerability: `mime_find_filters`
+3. Vulnerability type / CWE: Stack Overflow / CWE-674 (Uncontrolled Recursion)
+4. The relevant vulnerable code snippet:
+```c
+    cupsArraySave(mime->srcs);
+    temp = mime_find_filters(mime, current->dst, srcsize, dst, &tempcost,
+                             &listnode);
+    cupsArrayRestore(mime->srcs);
+```
+5. A concise explanation of why it is vulnerable: The function `mime_find_filters` implements a recursive search to find a path of filters from a source MIME type to a destination MIME type. While there is a `_mime_typelist_t` used to keep track of visited types to prevent infinite loops (cycles), the recursion depth is not explicitly limited. In a scenario where a MIME database is maliciously crafted or contains an extremely long chain of interdependent filter conversions, the recursion depth could exceed the stack size, leading to a stack overflow and a subsequent crash (DoS).
+6. Severity rating: Medium

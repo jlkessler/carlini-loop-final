@@ -1,0 +1,12 @@
+1. File: cts\corosync.py
+2. Name of the function containing the vulnerability: `stop` (inside the `TestAgent` class)
+3. Vulnerability type / CWE: CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')
+4. The relevant vulnerable code snippet:
+```python
+    def stop(self):
+        '''Tear down (undo) the given ScenarioComponent'''
+        self.env.debug('%s:%s stopping' % (self.binary, self.node))
+        self.rsh(self.node, "killall " + self.binary + " 2>/dev/null")
+```
+5. A concise explanation of why it is vulnerable: The `stop` method uses string concatenation to build a shell command using `self.binary`. If the `binary` attribute is controlled by an attacker (e.g., via a configuration file or an initialization parameter passed to `TestAgent`), they can inject shell metacharacters (like `;`, `&&`, or `` ` ``) to execute arbitrary commands on the remote node via the `rsh` call.
+6. Severity rating: High

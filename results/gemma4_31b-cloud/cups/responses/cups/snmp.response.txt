@@ -1,0 +1,19 @@
+1. File: cups\snmp.c
+2. Name of the function containing the vulnerability: `asn1_get_oid`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+  while (*buffer < valend)
+  {
+    number = asn1_get_packed(buffer, bufend);
+
+    if (oidptr < oidend)
+      *oidptr++ = number;
+  }
+
+  *oidptr = -1;
+```
+5. A concise explanation of why it is vulnerable: 
+The `asn1_get_oid` function attempts to prevent an overflow inside the `while` loop by checking `if (oidptr < oidend)`. However, it fails to stop the loop when the buffer is full. If the input OID contains more elements than `oidsize` (defined as `CUPS_SNMP_MAX_OID`), the loop continues to consume the buffer, but the final line `*oidptr = -1;` writes a terminator to the memory location where `oidptr` ended up. Since `oidptr` can be incremented far beyond `oidend` (which is `oid + oidsize - 1`), this results in an out-of-bounds write (stack overflow) when the terminating `-1` is written.
+
+6. Severity rating: High

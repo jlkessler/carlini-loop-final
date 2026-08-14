@@ -1,0 +1,18 @@
+1. File: ppdc\ppdc-mediasize.cxx
+2. Name of the function containing the vulnerability: `ppdcMediaSize::ppdcMediaSize`
+3. Vulnerability type / CWE: CWE-476: NULL Pointer Dereference
+4. The relevant vulnerable code snippet:
+```cpp
+  name        = new ppdcString(n);
+  text        = new ppdcString(t);
+  width       = w;
+  length      = l;
+  left        = lm;
+  bottom      = bm;
+  right       = rm;
+  top         = tm;
+  size_code   = new ppdcString(sc);
+  region_code = new ppdcString(rc);
+```
+5. A concise explanation of why it is vulnerable: The constructor allocates several `ppdcString` objects using `new`. However, there is no check to ensure that the allocation succeeded or that the input pointers (`n`, `t`, `sc`, `rc`) are valid before passing them to the `ppdcString` constructor. More importantly, if any of these allocations fail (returning NULL) or if the `ppdcString` constructor fails, the destructor `~ppdcMediaSize()` will unconditionally call `.release()` on these pointers. Calling a member function on a NULL pointer will lead to a crash (denial of service).
+6. Severity rating: Medium

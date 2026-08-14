@@ -1,0 +1,66 @@
+1. File: backend\ipp.c
+2. Name of the function containing the vulnerability: `password_cb`
+3. Vulnerability type / CWE: CWE-287 - Improper Authentication
+4. The relevant vulnerable code snippet:
+```c
+static const char *			/* O - Password  */
+password_cb(const char *prompt,		/* I - Prompt (not used) */
+            http_t     *http,		/* I - Connection */
+            const char *method,		/* I - Request method (not used) */
+            const char *resource,	/* I - Resource path (not used) */
+            int        *password_tries)	/* I - Password tries */
+{
+  char	def_username[HTTP_MAX_VALUE];	/* Default username */
+
+
+  fprintf(stderr, "DEBUG: password_cb(prompt=\"%s\", http=%p, method=\"%s\", "
+                  "resource=\"%s\", password_tries=%p(%d)), password=%p\n",
+          prompt, http, method, resource, password_tries, *password_tries,
+          password);
+
+  (void)prompt;
+  (void)method;
+  (void)resource;
+
+  if (!uri_credentials)
+  {
+   /*
+    * Remember that we need to authenticate...
+    */
+
+    auth_info_required = "username,password";
+
+    if (httpGetSubField(http, HTTP_FIELD_WWW_AUTHENTICATE, "username",
+			def_username))
+    {
+      char	quoted[HTTP_MAX_VALUE * 2 + 4];
+					  /* Quoted string */
+
+      fprintf(stderr, "ATTR: auth-info-default=%s,\n",
+	      quote_string(def_username, quoted, sizeof(quoted)));
+    }
+  }
+
+  if (password && *password && *password_tries < 3)
+  {
+    (*password_tries) ++;
+
+    cupsSetUser(username);
+
+    return (password);
+  }
+  else
+  {
+   /*
+    * Give up after 3 tries or if we don't have a password to begin with...
+    */
+
+    return (NULL);
+  }
+}
+```
+5. The vulnerability exists because the `password_cb` function directly returns the `password` variable without any validation or sanitization, and it can be influenced by environment variables. Since the `password` variable is set from an environment variable (`AUTH_PASSWORD`) and the function does not validate or sanitize this input before returning it, it can potentially allow for authentication bypass if an attacker can control this environment variable.
+
+6. Severity rating: high
+
+The vulnerability is in the password callback function where it directly returns a password from an environment variable without any validation or sanitization. This could allow for authentication bypass if an attacker controls the environment variables used by the backend.

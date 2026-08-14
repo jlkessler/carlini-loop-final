@@ -1,0 +1,35 @@
+1. File: cups\usersys.c
+2. Name of the function containing the vulnerability: `_cupsGetPassword`
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+  passptr = cg->password;
+  passend = cg->password + sizeof(cg->password) - 1;
+
+  while (ReadFile(tty, &passch, 1, &passbytes, NULL))
+  {
+    // ... (handling of backspace, CTRL+U, etc.)
+    else if ((passch & 255) < 0x20 || passptr >= passend)
+      putchar(0x07);
+    else
+    {
+      *passptr++ = passch;
+      putchar(_CUPS_PASSCHAR);
+    }
+    // ...
+  }
+
+  // ...
+
+  if (passbytes == 1 && passptr > cg->password)
+  {
+    *passptr = '\0';
+    return (cg->password);
+  }
+```
+(Note: The same logic exists in the non-Windows block using `read(tty, &passch, 1)`)
+
+5. A concise explanation of why it is vulnerable:
+The function reads characters from the terminal one by one and stores them in the `cg->password` buffer. While it checks `passptr >= passend` to prevent writing characters beyond the buffer during the `while` loop, it fails to account for the null-terminator. When the loop exits, the code performs `*passptr = '\0';`. If the user provides exactly `sizeof(cg->password) - 1` characters (filling the buffer up to `passend`), `passptr` will be incremented to exactly `passend + 1`. The subsequent assignment `*passptr = '\0'` then writes a null byte one byte past the end of the allocated buffer, resulting in an off-by-one heap or stack overflow (depending on where `_cups_globals_t` is allocated).
+
+6. Severity rating: Medium

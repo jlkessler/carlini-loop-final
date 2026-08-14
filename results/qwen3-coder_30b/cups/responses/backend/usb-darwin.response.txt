@@ -1,0 +1,58 @@
+1. File: backend\usb-darwin.c
+2. Name of the function containing the vulnerability: `copy_printer_interface_deviceid`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static CFStringRef copy_printer_interface_deviceid(printer_interface_t printer, UInt8 alternateSetting)
+{
+    // ... code ...
+    __block IOUSBDevRequestTO	request;
+    IOReturn (^sendRequest)(size_t) = ^ (size_t size)
+    {
+        if (request.pData)
+        {
+            free(request.pData);
+            request.wLength = 0;
+            request.pData = NULL;
+        }
+
+        IOReturn berr = kIOReturnError;
+        char *buffer = malloc(size);
+        if (buffer == NULL)
+            return kIOReturnNoMemory;
+
+        request.wLength = HostToUSBWord(size);
+        request.pData = buffer;
+        berr = (*printer)->ControlRequestTO(printer, (UInt8)0, &request);
+        return berr;
+    };
+    // ... code ...
+    err = sendRequest(bufferLength);
+    
+    if (err == kIOReturnSuccess && request.wLenDone > 1)
+    {
+        UInt16 actualLength = OSSwapBigToHostInt16(*((UInt16 *)request.pData));
+        
+        if (actualLength > 2 && actualLength <= bufferLength - 2)
+        {
+            ret = CFStringCreateWithBytes(NULL, (const UInt8 *)request.pData + 2, actualLength - 2, kCFStringEncodingUTF8, false);
+        }
+        else if (actualLength > 2) {
+            err = sendRequest(actualLength);
+            if (err == kIOReturnSuccess && request.wLenDone > 0)
+            {
+                actualLength = OSSwapBigToHostInt16(*((UInt16 *)request.pData));
+                ret = CFStringCreateWithBytes(NULL, (const UInt8 *)request.pData + 2, actualLength - 2, kCFStringEncodingUTF8, false);
+            }
+        }
+    }
+    
+    if (request.pData)
+        free(request.pData);
+    // ... code ...
+}
+```
+
+5. The vulnerability exists because the `actualLength` value is read directly from the USB device without proper validation or bounds checking. If the USB device sends a maliciously large `actualLength` value, it can cause the `malloc()` call to allocate an excessively large buffer, potentially leading to heap overflow or other memory corruption issues. The code also uses `actualLength - 2` as the byte count for `CFStringCreateWithBytes`, which could be negative or excessively large if not properly validated.
+
+6. Severity rating: HIGH

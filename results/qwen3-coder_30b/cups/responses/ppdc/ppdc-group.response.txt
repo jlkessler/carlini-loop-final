@@ -1,0 +1,26 @@
+1. File: ppdc\ppdc-group.cxx
+
+2. Name of the function containing the vulnerability: ppdcGroup::~ppdcGroup()
+
+3. Vulnerability type / CWE: CWE-415: Double Free
+
+4. The relevant vulnerable code snippet:
+```cpp
+ppdcGroup::~ppdcGroup()
+{
+  PPDC_DELETEVAL(name ? name->value : NULL);
+
+  name->release();
+  text->release();
+  options->release();
+
+  name = text = 0;
+  options = 0;
+}
+```
+
+5. A concise explanation of why it is vulnerable: The destructor first calls PPDC_DELETEVAL on the name value (which frees the memory), but then proceeds to call release() on name, text, and options which may attempt to free the same memory again if these objects are reference counted and their release methods also free the underlying memory. This leads to a double-free vulnerability when the destructor is called.
+
+6. Severity rating: critical
+
+The vulnerability occurs because PPDC_DELETEVAL likely frees memory directly, but then the subsequent release() calls on the ppdcString objects (which are reference-counted) may also attempt to free that same memory, resulting in undefined behavior and potential exploitation.

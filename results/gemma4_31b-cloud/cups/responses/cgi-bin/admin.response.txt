@@ -1,0 +1,52 @@
+1. File: cgi-bin\admin.c
+2. Name of the function containing the vulnerability: `main`
+3. Vulnerability type / CWE: Open Redirect (CWE-601)
+4. The relevant vulnerable code snippet:
+```c
+    if ((url = cgiGetVariable("URL")) != NULL)
+    {
+      char	encoded[1024],		/* Encoded URL string */
+      		*ptr;			/* Pointer into encoded string */
+
+      ptr = encoded;
+      if (*url != '/')
+        *ptr++ = '/';
+
+      for (; *url && ptr < (encoded + sizeof(encoded) - 4); url ++)
+      {
+        if (strchr("%@&+ <>#=", *url) || *url < ' ' || *url & 128)
+	{
+	 /*
+	  * Percent-encode this character; safe because we have at least 4
+	  * bytes left in the array...
+	  */
+
+	  snprintf(ptr, sizeof(encoded) - (size_t)(ptr - encoded), "%%%02X", *url & 255);
+	  ptr += 3;
+	}
+	else
+	  *ptr++ = *url;
+      }
+
+      *ptr = '\0';
+
+      if (*url)
+      {
+       /*
+        * URL was too long, just redirect to the admin page...
+	*/
+
+	printf("Location: %s/admin\n\n", prefix);
+      }
+      else
+      {
+       /*
+        * URL is OK, redirect there...
+	*/
+
+        printf("Location: %s%s\n\n", prefix, encoded);
+      }
+    }
+```
+5. A concise explanation of why it is vulnerable: The `main` function handles a `redirect` operation by taking a `URL` parameter from the user via `cgiGetVariable("URL")`. While the code attempts to percent-encode certain special characters and ensures the resulting path starts with a `/`, it ultimately concatenates this user-controlled string with a server prefix and prints it in a `Location:` HTTP header. Because the encoding logic does not prevent the use of characters like `.` or `@`, and the prefix is merely prepended, an attacker can use techniques like `//attacker.com` or `/..//attacker.com` (depending on the browser's URI parsing) to bypass the intended internal redirection and redirect the user to an external malicious site.
+6. Severity rating: Medium

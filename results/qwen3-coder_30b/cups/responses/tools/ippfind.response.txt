@@ -1,0 +1,95 @@
+1. File: tools\ippfind.c
+
+2. Name of the function containing the vulnerability: `exec_program`
+
+3. Vulnerability type / CWE: CWE-78 - OS Command Injection
+
+4. The relevant vulnerable code snippet:
+```c
+static int				/* O - 1 if program terminated
+				       successfully, 0 otherwise. */
+exec_program(ippfind_srv_t *service,	/* I - Service */
+             int           num_args,	/* I - Number of command-line args */
+             char          **args)	/* I - Command-line arguments */
+{
+  // ... code ...
+  for (i = 0; i < num_args; i ++)
+  {
+    if (strchr(args[i], '{'))
+    {
+      char	temp[2048],		/* Temporary string */
+		*tptr,			/* Pointer into temporary string */
+		keyword[256],		/* {keyword} */
+		*kptr;			/* Pointer into keyword */
+
+      for (ptr = args[i], tptr = temp; *ptr; ptr ++)
+      {
+        if (*ptr == '{')
+        {
+         /*
+          * Do a {var} substitution...
+          */
+
+          for (kptr = keyword, ptr ++; *ptr && *ptr != '}'; ptr ++)
+            if (kptr < (keyword + sizeof(keyword) - 1))
+              *kptr++ = *ptr;
+
+          if (*ptr != '}')
+          {
+            _cupsLangPuts(stderr,
+                          _("ippfind: Missing close brace in substitution."));
+            exit(IPPFIND_EXIT_SYNTAX);
+          }
+
+          *kptr = '\0';
+          if (!keyword[0] || !strcmp(keyword, "service_uri"))
+	    strlcpy(tptr, service->uri, sizeof(temp) - (size_t)(tptr - temp));
+	  else if (!strcmp(keyword, "service_domain"))
+	    strlcpy(tptr, service->domain, sizeof(temp) - (size_t)(tptr - temp));
+	  else if (!strcmp(keyword, "service_hostname"))
+	    strlcpy(tptr, service->host, sizeof(temp) - (size_t)(tptr - temp));
+	  else if (!strcmp(keyword, "service_name"))
+	    strlcpy(tptr, service->name, sizeof(temp) - (size_t)(tptr - temp));
+	  else if (!strcmp(keyword, "service_path"))
+	    strlcpy(tptr, service->resource, sizeof(temp) - (size_t)(tptr - temp));
+	  else if (!strcmp(keyword, "service_port"))
+	    strlcpy(tptr, port + 21, sizeof(temp) - (size_t)(tptr - temp));
+	  else if (!strcmp(keyword, "service_scheme"))
+	    strlcpy(tptr, scheme + 22, sizeof(temp) - (size_t)(tptr - temp));
+	  else if (!strncmp(keyword, "txt_", 4))
+	  {
+	    const char *val = cupsGetOption(keyword + 4, service->num_txt, service->txt);
+	    if (val)
+	      strlcpy(tptr, val, sizeof(temp) - (size_t)(tptr - temp));
+	    else
+	      *tptr = '\0';
+	  }
+	  else
+	  {
+	    _cupsLangPrintf(stderr, _("ippfind: Unknown variable \"{%s}\"."),
+	                    keyword);
+	    exit(IPPFIND_EXIT_SYNTAX);
+	  }
+
+	  tptr += strlen(tptr);
+	}
+	else if (tptr < (temp + sizeof(temp) - 1))
+	  *tptr++ = *ptr;
+      }
+
+      *tptr = '\0';
+      myargv[i] = strdup(temp);
+    }
+    else
+      myargv[i] = strdup(args[i]);
+  }
+  // ... code ...
+}
+```
+
+5. A concise explanation of why it is vulnerable:
+The vulnerability occurs in the `exec_program` function where command-line arguments are processed for execution. When arguments contain `{variable}` substitutions, the program performs string replacements using values from service data (like URI, hostname, etc.). However, there's no sanitization or validation of these substituted values before they're used as command-line arguments. An attacker can craft a malicious TXT record with specially crafted values that when substituted into the command-line arguments, result in arbitrary command execution.
+
+6. Severity rating: critical
+
+This is a critical vulnerability because it allows for OS command injection through DNS-SD TXT record manipulation. An attacker who can control a printer's TXT records can inject commands that will be executed by the ippfind utility, potentially leading to remote code execution on systems running ippfind with elevated privileges. The vulnerability is particularly severe because it leverages the normal operation of Bonjour/DNS-SD discovery to execute arbitrary commands.

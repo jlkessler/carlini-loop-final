@@ -1,0 +1,24 @@
+1. File: cups\dest-options.c
+2. Name of the function containing the vulnerability: `cups_collection_string`
+3. Vulnerability type / CWE: Out-of-bounds Write (CWE-787) / Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+      if (ippGetValueTag(member) == IPP_TAG_BOOLEAN)
+      {
+        if (!ippGetBoolean(member, 0))
+        {
+	  if (bufptr < bufend)
+	    strlcpy(bufptr, "no", (size_t)(bufend - bufptr + 1));
+	  bufptr += 2;
+        }
+
+	if (bufptr < bufend)
+	  strlcpy(bufptr, mname, (size_t)(bufend - bufptr + 1));
+	bufptr += strlen(mname);
+        continue;
+      }
+```
+5. A concise explanation of why it is vulnerable: 
+The function `cups_collection_string` attempts to prevent buffer overflows by checking `if (bufptr < bufend)` before calling `strlcpy`. However, after the `strlcpy` call (which ensures the string fits within the remaining buffer space), the code unconditionally increments `bufptr` by the length of the string written (`bufptr += 2` or `bufptr += strlen(mname)`). If `strlcpy` truncates the string because the buffer is nearly full, `strlen(mname)` will be larger than the actual number of bytes written to the buffer. This causes `bufptr` to advance beyond `bufend`, leading to subsequent writes occurring out-of-bounds.
+
+6. Severity rating: High

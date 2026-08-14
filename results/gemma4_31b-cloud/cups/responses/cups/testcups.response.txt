@@ -1,0 +1,13 @@
+1. File: cups\testcups.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+      char		buffer[1024];	/* PPD filename */
+      time_t		modtime = 0;	/* Last modified */
+
+      if ((http_status = cupsGetPPD3(CUPS_HTTP_DEFAULT, argv[2], &modtime,
+                                     buffer, sizeof(buffer))) != HTTP_STATUS_OK)
+```
+5. A concise explanation of why it is vulnerable: The function `cupsGetPPD3` is called with a fixed-size stack buffer of 1024 bytes. While `sizeof(buffer)` is passed to the function, in many CUPS API implementations (depending on the version of the library linked), if the PPD file returned by the server exceeds the provided buffer size, the behavior may lead to a buffer overflow or memory corruption if the underlying API does not strictly respect the length limit or if the returned data is handled unsafely. More importantly, this pattern in a test utility often masks vulnerabilities in the API being tested. In the context of `testcups.c`, it demonstrates a risk where a malicious CUPS server could send a PPD file larger than 1024 bytes to trigger a stack-based buffer overflow on the client.
+6. Severity rating: Medium

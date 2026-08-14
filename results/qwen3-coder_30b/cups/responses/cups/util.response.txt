@@ -1,0 +1,21 @@
+1. File: cups\util.c
+2. Name of the function containing the vulnerability: cupsCancelJob2
+3. Vulnerability type / CWE: CWE-122 - Heap Overflow
+4. The relevant vulnerable code snippet:
+```c
+if (name)
+{
+  httpAssembleURIf(HTTP_URI_CODING_ALL, uri, sizeof(uri), "ipp", NULL,
+                   "localhost", ippPort(), "/printers/%s", name);
+
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL,
+               uri);
+  ippAddInteger(request, IPP_TAG_OPERATION, IPP_TAG_INTEGER, "job-id",
+                job_id);
+}
+```
+5. The vulnerability exists because the `httpAssembleURIf` function is called with a format string that includes the user-provided `name` parameter without proper bounds checking. If `name` is longer than the buffer size (HTTP_MAX_URI), it can cause a buffer overflow in the `uri` array.
+
+6. Severity rating: high
+
+The vulnerability is significant because it allows for potential heap-based buffer overflow when processing user-controlled input through the `name` parameter, which could lead to arbitrary code execution or denial of service.

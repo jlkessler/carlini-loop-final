@@ -1,0 +1,59 @@
+1. File: cups\ppd.c
+2. Name of the function containing the vulnerability: `ppd_read`
+3. Vulnerability type / CWE: CWE-121 Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static int				/* O - Bitmask of fields read */
+ppd_read(cups_file_t    *fp,		/* I - File to read from */
+         _ppd_line_t    *line,		/* I - Line buffer */
+         char           *keyword,	/* O - Keyword from line */
+	 char           *option,	/* O - Option from line */
+         char           *text,		/* O - Human-readable text from line */
+	 char           **string,	/* O - Code/string data */
+         int            ignoreblank,	/* I - Ignore blank lines? */
+	 _ppd_globals_t *pg)		/* I - Global data */
+{
+  // ... code ...
+  if (lineptr > line->buffer && lineptr[-1] == '\n')
+    lineptr --;
+
+  *lineptr = '\0';
+
+  DEBUG_printf(("9ppd_read: LINE=\"%s\"", line->buffer));
+
+  // ... code ...
+  
+  if (!strcmp(line->buffer, "*%APLWORKSET START"))
+    return (0);
+
+  if (ch == EOF && lineptr == line->buffer)
+    return (0);
+
+  // ... code ...
+
+  /*
+   * Get a keyword...
+   */
+
+  keyptr = keyword;
+
+  while (*lineptr && *lineptr != ':' && !_cups_isspace(*lineptr))
+  {
+    if (*lineptr <= ' ' || *lineptr > 126 || *lineptr == '/' ||
+        (keyptr - keyword) >= (PPD_MAX_NAME - 1))
+    {
+      pg->ppd_status = PPD_ILLEGAL_MAIN_KEYWORD;
+      return (0);
+    }
+
+    *keyptr++ = *lineptr++;
+  }
+
+  *keyptr = '\0';
+```
+
+5. The vulnerability exists because the `ppd_read` function does not properly validate that the input line buffer has sufficient space to accommodate the parsed data before copying it into the fixed-size output buffers (`keyword`, `option`, `text`). When parsing a very long line, particularly in the keyword parsing section, the function can write beyond the allocated buffer boundaries of these arrays if they are not large enough to contain the parsed content. The check `(keyptr - keyword) >= (PPD_MAX_NAME - 1)` only prevents overflow during keyword parsing but does not account for potential overflows during option or text parsing.
+
+6. Severity rating: critical
+
+The vulnerability is a stack-based buffer overflow in `ppd_read` function that can be exploited to execute arbitrary code, given sufficient control over input data and the ability to cause the PPD file parser to process maliciously crafted input lines. This represents a critical security flaw in CUPS when processing untrusted PPD files.

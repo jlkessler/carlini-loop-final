@@ -1,0 +1,16 @@
+1. File: cups\testdest.c
+2. Name of the function containing the vulnerability: `show_default`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+    if ((defattr = cupsFindDestDefault(http, dest, dinfo, option)) != NULL)
+    {
+      char value[1024];                 /* Value of default attribute */
+
+      ippAttributeString(defattr, value, sizeof(value));
+      puts(value);
+    }
+```
+5. A concise explanation of why it is vulnerable: The function `ippAttributeString` is used to copy a string from an IPP attribute into a fixed-size stack buffer (`value[1024]`). If the remote CUPS server returns a default attribute value longer than 1023 characters, and the `ippAttributeString` implementation does not strictly enforce the provided size limit or if the attribute is handled in a way that exceeds the buffer, it could lead to a stack overflow. While `ippAttributeString` typically takes a size argument to prevent this, relying on a small fixed buffer for network-provided data is a dangerous pattern, especially if the underlying library function has bugs or if the data is not properly null-terminated.
+
+6. Severity rating: Medium

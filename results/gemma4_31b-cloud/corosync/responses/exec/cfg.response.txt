@@ -1,0 +1,18 @@
+1. File: exec\cfg.c
+2. Name of the function containing the vulnerability: `message_handler_req_lib_cfg_ringstatusget`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+	for (i = 0; i < iface_count; i++) {
+		totem_ip_string
+		  = (const char *)api->totem_ip_print (&interfaces[i]);
+		strcpy ((char *)&res_lib_cfg_ringstatusget.interface_status[i],
+			status[i]);
+		strcpy ((char *)&res_lib_cfg_ringstatusget.interface_name[i],
+			totem_ip_string);
+	}
+```
+5. A concise explanation of why it is vulnerable:
+The function uses `strcpy` to copy data from `status[i]` and `totem_ip_string` into fixed-size arrays within the `res_lib_cfg_ringstatusget` structure. There are no bounds checks on the length of the source strings. If an attacker can influence the interface status or the IP string (e.g., through network configuration or spoofing), they can trigger a stack-based buffer overflow by providing strings longer than the allocated buffers in the response structure.
+
+6. Severity rating: High

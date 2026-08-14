@@ -1,0 +1,58 @@
+1. File: ppdc\ppdc-mediasize.cxx
+2. Name of the function containing the vulnerability: ppdcMediaSize::ppdcMediaSize()
+3. Vulnerability type / CWE: CWE-401 - Memory Leak
+4. The relevant vulnerable code snippet:
+```cpp
+ppdcMediaSize::ppdcMediaSize(const char *n,	// I - Name of media size
+                             const char *t,	// I - Text of media size
+			     float      w,	// I - Width in points
+			     float      l,	// I - Length in points
+                             float      lm,	// I - Left margin in points
+			     float      bm,	// I - Bottom margin in points
+			     float      rm,	// I - Right margin in points
+			     float      tm,	// I - Top margin in points
+			     const char *sc,	// I - PageSize code, if any
+			     const char *rc)	// I - PageRegion code, if any
+  : ppdcShared()
+{
+  PPDC_NEW;
+
+  name        = new ppdcString(n);
+  text        = new ppdcString(t);
+  width       = w;
+  length      = l;
+  left        = lm;
+  bottom      = bm;
+  right       = rm;
+  top         = tm;
+  size_code   = new ppdcString(sc);
+  region_code = new ppdcString(rc);
+
+  if (left < 0.0f)
+    left = 0.0f;
+  if (bottom < 0.0f)
+    bottom = 0.0f;
+  if (right < 0.0f)
+    right = 0.0f;
+  if (top < 0.0f)
+    top = 0.0f;
+}
+```
+5. A concise explanation of why it is vulnerable: The constructor creates several ppdcString objects using 'new' but does not handle potential exceptions during object construction. If any of the new operations fail (e.g., due to memory allocation failure), the destructor won't be called, leading to resource leaks for previously allocated objects. However, looking more carefully at the code, there's no explicit exception handling or cleanup logic that would cause a leak in normal operation, but if an exception occurs after some allocations have succeeded, those objects won't be properly cleaned up by the destructor.
+
+6. Severity rating: medium
+
+Wait, let me re-examine this more carefully...
+
+Actually, looking at the code more closely, I see a potential issue with the PPDC_NEW macro usage and memory management in the constructor. But since I cannot see the PPDC_NEW/DELETE macros implementation, I need to make a safer assessment.
+
+Upon careful review of the provided code snippet, while there's no obvious direct vulnerability like buffer overflow or SQL injection, the use of raw 'new' without proper exception handling in the constructor could lead to resource leaks if an exception occurs partway through object construction. However, this is not clearly demonstrated in the provided code alone.
+
+Looking more systematically at the structure and typical patterns:
+- All member variables are initialized with new
+- There's no explicit exception safety guarantee
+- If any of the new operations fail, subsequent members may not be initialized properly
+
+However, without seeing the full context of PPDC_NEW/DELETE macros and the exact memory management pattern used in this project, I cannot definitively identify a clear vulnerability.
+
+NO_VULNERABILITY_FOUND

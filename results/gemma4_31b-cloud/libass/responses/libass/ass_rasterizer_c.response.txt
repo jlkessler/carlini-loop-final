@@ -1,0 +1,18 @@
+1. File: libass\ass_rasterizer_c.c
+2. Name of the function containing the vulnerability: `ass_fill_generic_tile16_c` (and similarly `ass_fill_generic_tile32_c`)
+3. Vulnerability type / CWE: CWE-129: Improper Validation of Array Index / Out-of-bounds Write
+4. The relevant vulnerable code snippet:
+```c
+        int up = line->y_min >> 6, dn = line->y_max >> 6;
+        // ...
+        delta[up + 1] -= up_delta1;
+        delta[up] -= (up_delta << 6) - up_delta1;
+        delta[dn + 1] += dn_delta1;
+        delta[dn] += (dn_delta << 6) - dn_delta1;
+```
+5. A concise explanation of why it is vulnerable:
+The function uses `line->y_min` and `line->y_max` to calculate indices `up` and `dn` for the `delta` array. While there are `assert` statements checking that `line->y_min` and `line->y_max` are within a certain range (e.g., `0` to `1 << 10`), asserts are typically disabled in release builds. 
+
+If `line->y_max` is provided as a value such that `dn = line->y_max >> 6` results in `17` (for the 16-tile version) or `33` (for the 32-tile version), the expression `delta[dn + 1]` will write beyond the bounds of the `delta` array (which is sized `18` for the 16-tile and `34` for the 32-tile). This allows an attacker to corrupt the stack.
+
+6. Severity rating: High

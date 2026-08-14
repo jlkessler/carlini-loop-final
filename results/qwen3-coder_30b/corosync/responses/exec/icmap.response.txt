@@ -1,0 +1,28 @@
+1. File: exec\icmap.c
+
+2. Name of the function containing the vulnerability: icmap_set
+
+3. Vulnerability type / CWE: CWE-121, Stack-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+if (type == ICMAP_VALUETYPE_BINARY || type == ICMAP_VALUETYPE_STRING) {
+    if (type == ICMAP_VALUETYPE_STRING) {
+        new_value_len = strlen((const char *)value);
+        if (new_value_len > value_len) {
+            new_value_len = value_len;
+        }
+        new_value_len++;
+    } else {
+        new_value_len = value_len;
+    }
+} else {
+    new_value_len = icmap_get_valuetype_len(type);
+}
+```
+
+5. The vulnerability exists in the icmap_set function where there's a potential stack buffer overflow. When setting a string or binary value, the code calculates new_value_len based on the input value and value_len parameters. However, if value_len is larger than ICMAP_MAX_VALUE_LEN (which is 16*1024), the check `if (value_len > ICMAP_MAX_VALUE_LEN)` occurs too late in the process. The actual overflow can happen when calculating new_value_len for string values using strlen() and then using that value to allocate memory.
+
+6. Severity rating: Critical
+
+The vulnerability is critical because it allows for potential buffer overflows that could lead to arbitrary code execution or denial of service. An attacker could potentially craft input data that exceeds the expected bounds, leading to memory corruption when the system attempts to copy data into allocated buffers. This is particularly dangerous in a system like Corosync where such vulnerabilities could be exploited to compromise cluster integrity and availability.

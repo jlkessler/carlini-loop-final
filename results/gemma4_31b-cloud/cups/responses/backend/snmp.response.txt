@@ -1,0 +1,33 @@
+1. File: backend\snmp.c
+2. Name of the function containing the vulnerability: `read_snmp_response`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+    case DEVICE_DESCRIPTION :
+	if (device && packet.object_type == CUPS_ASN1_OCTET_STRING)
+	{
+	 /*
+	  * Update an existing cache entry...
+	  */
+
+	  char	make_model[256];	/* Make and model */
+
+	  if (strchr((char *)packet.object_value.string.bytes, ':') &&
+	      strchr((char *)packet.object_value.string.bytes, ';'))
+	  {
+       // ...
+	    backendGetMakeModel((char *)packet.object_value.string.bytes,
+				make_model, sizeof(make_model));
+       // ...
+	  }
+	  else
+	  {
+	   /*
+	    * Description is plain text...
+	    */
+
+	    fix_make_model(make_model, (char *)packet.object_value.string.bytes,
+			   sizeof(make_model));
+```
+5. A concise explanation of why it is vulnerable: In the `DEVICE_DESCRIPTION` case of `read_snmp_response`, the code allocates a fixed-size buffer `make_model[256]` on the stack. If the response is "plain text", it calls `fix_make_model`. Inside `fix_make_model`, the code performs several `snprintf` calls and a `strlcpy`. However, it also performs an unsafe `_cups_strcpy(mmptr, mmptr + 7)` when it finds the string ", Inc.,". Because `_cups_strcpy` does not check the boundaries of the destination buffer and is operating on a pointer (`mmptr`) derived from the stack-allocated `make_model` buffer, a maliciously crafted SNMP response containing specific patterns (like ", Inc.,") and a very long string can cause a stack-based buffer overflow.
+6. Severity rating: critical

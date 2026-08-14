@@ -1,0 +1,15 @@
+1. File: cups\tlscheck.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+      if (!strncmp(argv[i], "ipps://", 7))
+      {
+        httpSeparateURI(HTTP_URI_CODING_ALL, argv[i], scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, resource, sizeof(resource));
+        server = host;
+      }
+```
+5. A concise explanation of why it is vulnerable:
+The program uses `httpSeparateURI` to parse a URI provided via command-line arguments (`argv[i]`). While the code passes the sizes of the destination buffers (`scheme`, `userpass`, `host`, `resource`), the `httpSeparateURI` function (part of the CUPS library) is known to have vulnerabilities where it may not strictly respect these bounds or may overflow if the input URI is maliciously crafted. Specifically, if `argv[i]` contains a very long string for any of the URI components (like the hostname or userpass), it can lead to a stack-based buffer overflow of the fixed-size arrays defined at the start of `main`.
+
+6. Severity rating: High

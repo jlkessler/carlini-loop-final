@@ -1,0 +1,21 @@
+1. File: ppdc\ppdc-variable.cxx
+
+2. Name of the function containing the vulnerability: ppdcVariable::set_value()
+
+3. Vulnerability type / CWE: CWE-401 - Improper Release of Memory Before Explicit Transfer of Control Flow
+
+4. The relevant vulnerable code snippet:
+```cpp
+void
+ppdcVariable::set_value(const char *v)
+{
+  value->release();
+  value = new ppdcString(v);
+}
+```
+
+5. The vulnerability exists because the code calls `value->release()` which decrements the reference count of the old string object, but then immediately assigns a new `ppdcString` object to `value` without checking if the new allocation succeeds. If `new ppdcString(v)` fails and throws an exception, the old object has already been released (reference count dropped to zero), but the `value` pointer is left in an inconsistent state, potentially leading to use-after-free or memory corruption issues.
+
+6. Severity rating: HIGH
+
+The vulnerability could lead to memory corruption or crashes if the new allocation fails, and the reference counting mechanism may be left in an inconsistent state, which can cause undefined behavior.

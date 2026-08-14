@@ -1,0 +1,24 @@
+1. File: scheduler\testsub.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-129 - Improper Validation of Array Index
+4. The relevant vulnerable code snippet:
+```c
+if (!strcmp(argv[i], "-e"))
+{
+  i ++;
+  if (i >= argc || num_events >= 100)
+    usage();
+
+  events[num_events] = argv[i];
+  num_events ++;
+}
+```
+5. This code does not validate that the argument following "-e" is a valid event name before storing it in the events array. The program assumes that if there are fewer than 100 events and sufficient command-line arguments, the argument after "-e" is a valid event name, but it doesn't check if this assumption holds true for all possible inputs, potentially leading to buffer overflows or undefined behavior if invalid data is passed.
+
+6. Severity rating: high
+
+Actually, re-evaluating the code more carefully, I notice that while there's array bounds checking (`num_events >= 100`), the vulnerability lies in the fact that `argv[i]` (the event name) itself could be manipulated to cause issues, but looking at the actual flow and the way the events are stored, this isn't a direct buffer overflow.
+
+However, upon closer inspection, there is no real vulnerability in the code shown. The code properly bounds-checks array indices and handles command-line arguments carefully. 
+
+NO_VULNERABILITY_FOUND

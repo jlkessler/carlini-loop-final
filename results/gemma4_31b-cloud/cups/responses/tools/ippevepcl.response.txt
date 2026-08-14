@@ -1,0 +1,26 @@
+1. File: tools\ippevepcl.c
+2. Name of the function containing the vulnerability: `pcl_write_line`
+3. Vulnerability type / CWE: Heap-based Buffer Overflow (CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+      start = outptr;
+      outptr ++;
+      count = 1;
+
+      while (outptr < (outend - 1) &&
+	     outptr[0] != outptr[1] &&
+	     count < 127)
+      {
+	outptr ++;
+	count ++;
+      }
+
+      *compptr++ = (unsigned char)(count - 1);
+
+      memcpy(compptr, start, count);
+      compptr += count;
+```
+5. A concise explanation of why it is vulnerable:
+The `pcl_comp` buffer is allocated in `pcl_start_page` with a size of `2 * header->cupsBytesPerLine + 2`. In `pcl_write_line`, the code implements a PackBits-style compression. In the "Non-repeated sequence" branch, the code calculates a `count` of up to 127 bytes. It then writes one byte for the length and uses `memcpy` to copy `count` bytes from the source to `compptr`. Because the logic does not check if the remaining space in the `pcl_comp` buffer is sufficient to hold `count + 1` bytes, a specially crafted raster image with many non-repeating byte sequences can cause `compptr` to exceed the allocated boundary of `pcl_comp`, leading to a heap buffer overflow.
+
+6. Severity rating: High

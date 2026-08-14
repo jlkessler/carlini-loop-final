@@ -1,0 +1,11 @@
+1. File: cups\debug.c
+2. Name of the function containing the vulnerability: `_cups_debug_set`
+3. Vulnerability type / CWE: Format String Vulnerability (CWE-134)
+4. The relevant vulnerable code snippet:
+```c
+char	buffer[1024];		/* Filename buffer */
+
+snprintf(buffer, sizeof(buffer), logfile, getpid());
+```
+5. A concise explanation of why it is vulnerable: The `snprintf` function is called with `logfile` (which is derived from the environment variable `CUPS_DEBUG_LOG` via `getenv`) as the format string. Because the format string is user-controllable, an attacker can provide format specifiers (like `%s`, `%x`, or `%n`) to leak sensitive information from the stack or write arbitrary values to memory.
+6. Severity rating: Critical

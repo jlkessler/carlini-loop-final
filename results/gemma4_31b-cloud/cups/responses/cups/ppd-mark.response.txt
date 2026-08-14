@@ -1,0 +1,22 @@
+1. File: cups\ppd-mark.c
+2. Name of the function containing the vulnerability: `cupsMarkOptions`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+  char		*ptr,			/* Pointer into string */
+		s[255];			/* Temporary string */
+  // ...
+    for (val = media; *val;)
+    {
+     /*
+      * Extract the sub-option from the string...
+      */
+
+      for (ptr = s; *val && *val != ',' && (size_t)(ptr - s) < (sizeof(s) - 1);)
+	*ptr++ = *val++;
+      *ptr++ = '\0';
+```
+5. A concise explanation of why it is vulnerable:
+The function uses a fixed-size stack buffer `s` of 255 bytes. While the inner loop prevents writing more than `sizeof(s) - 1` characters into the buffer, the line immediately following the loop, `*ptr++ = '\0';`, writes a null terminator to the memory address currently held by `ptr`. If the inner loop terminates because it reached the limit `(size_t)(ptr - s) < (sizeof(s) - 1)`, `ptr` is already pointing at `s[254]` (when the condition fails, `ptr` has been incremented one last time after the last valid write). The subsequent `*ptr++ = '\0'` then writes the null byte to `s[255]`, which is one byte outside the bounds of the 255-element array (indices 0-254). This results in a one-byte stack overflow (off-by-one error).
+
+6. Severity rating: medium

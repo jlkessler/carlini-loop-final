@@ -1,0 +1,6 @@
+1. File: cups\getifaddrs-internal.h
+2. Name of the function containing the vulnerability: N/A
+3. Vulnerability type / CWE: NO_VULNERABILITY_FOUND
+4. The relevant vulnerable code snippet: N/A
+5. A concise explanation of why it is vulnerable: This file is a header file containing only type definitions, macro definitions, and external function declarations. It does not contain any executable logic or function implementations that could be vulnerable to security flaws.
+6. Severity rating: NO_VULNERABILITY_FOUND

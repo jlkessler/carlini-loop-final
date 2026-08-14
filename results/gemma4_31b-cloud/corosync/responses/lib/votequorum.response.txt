@@ -1,0 +1,10 @@
+1. File: lib\votequorum.c
+2. Name of the function containing the vulnerability: `votequorum_getinfo`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+	memset(info->qdevice_name, 0, VOTEQUORUM_QDEVICE_MAX_NAME_LEN);
+	strcpy(info->qdevice_name, res_lib_votequorum_getinfo.qdevice_name);
+```
+5. A concise explanation of why it is vulnerable: The function `votequorum_getinfo` receives data from an external IPC source (`res_lib_votequorum_getinfo`). It uses `strcpy` to copy the `qdevice_name` field from the response into the `info->qdevice_name` buffer. Because `strcpy` does not check the length of the source string, if the IPC response contains a `qdevice_name` longer than `VOTEQUORUM_QDEVICE_MAX_NAME_LEN`, it will result in a stack-based buffer overflow.
+6. Severity rating: High

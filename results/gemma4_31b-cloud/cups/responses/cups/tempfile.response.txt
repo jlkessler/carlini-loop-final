@@ -1,0 +1,21 @@
+1. File: cups\tempfile.c
+2. Name of the function containing the vulnerability: `cupsTempFd`
+3. Vulnerability type / CWE: Insecure Temporary File Creation / Predictable Temporary Filename (CWE-377)
+4. The relevant vulnerable code snippet:
+```c
+#else
+   /*
+    * Get the current time of day...
+    */
+
+    gettimeofday(&curtime, NULL);
+
+   /*
+    * Format a string using the hex time values...
+    */
+
+    snprintf(filename, (size_t)len - 1, "%s/%05x%08x", tmpdir, (unsigned)getpid(), (unsigned)(curtime.tv_sec + curtime.tv_usec + tries));
+#endif /* _WIN32 */
+```
+5. A concise explanation of why it is vulnerable: The function generates temporary filenames using highly predictable values: the Process ID (`getpid()`) and the current system time (`gettimeofday`). Since PIDs are often sequential and predictable, and the system time is known, an attacker can predict the filename of a temporary file before it is created. Although the code uses `O_EXCL` to prevent overwriting existing files, this pattern is susceptible to Race Conditions (Time-of-Check Time-of-Use) and allows an attacker to "camp" on predicted filenames by creating them first, potentially causing a Denial of Service or, in certain environment configurations, manipulating the application's behavior.
+6. Severity rating: Medium

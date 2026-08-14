@@ -1,0 +1,38 @@
+1. File: scheduler\listen.c
+2. Name of the function containing the vulnerability: cupsdPauseListening
+3. Vulnerability type / CWE: CWE-362 - Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')
+4. The relevant vulnerable code snippet:
+```c
+void
+cupsdPauseListening(void)
+{
+  cupsd_listener_t	*lis;		/* Current listening socket */
+
+
+  if (cupsArrayCount(Listeners) < 1)
+    return;
+
+  if (cupsArrayCount(Clients) == MaxClients)
+    cupsdLogMessage(CUPSD_LOG_WARN,
+                    "Max clients reached, holding new connections...");
+  else if (errno == ENFILE || errno == EMFILE)
+    cupsdLogMessage(CUPSD_LOG_WARN,
+                    "Too many open files, holding new connections for "
+		    "30 seconds...");
+
+  cupsdLogMessage(CUPSD_LOG_DEBUG2, "cupsdPauseListening: Clearing input bits...");
+
+  for (lis = (cupsd_listener_t *)cupsArrayFirst(Listeners);
+       lis;
+       lis = (cupsd_listener_t *)cupsArrayNext(Listeners))
+    cupsdRemoveSelect(lis->fd);
+
+  ListeningPaused = time(NULL) + 30;
+}
+```
+5. This function is vulnerable because it uses the global `errno` variable to determine error conditions without first saving its value, and then proceeds to modify a shared global state (`ListeningPaused`) after potentially modifying the `Listeners` array in `cupsdRemoveSelect`. The race condition occurs when another thread or process can modify the `Listeners` array between checking `cupsArrayCount(Listeners)` and executing `cupsdRemoveSelect`, leading to potential use-after-free or double-free conditions.
+6. Severity rating: HIGH
+
+However, upon deeper inspection of this specific code and the context provided, there appears to be no direct vulnerability in the shown code section itself. The functions appear to follow standard patterns for managing listening sockets.
+
+NO_VULNERABILITY_FOUND

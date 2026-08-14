@@ -1,0 +1,26 @@
+1. File: cgi-bin\printers.c
+
+2. Name of the function containing the vulnerability: `show_printer`
+
+3. Vulnerability type / CWE: CWE-79 - Cross-Site Scripting (XSS)
+
+4. The relevant vulnerable code snippet:
+```c
+if (printer && (attr = ippFindAttribute(response, "printer-state",
+                                        IPP_TAG_ENUM)) != NULL &&
+    attr->values[0].integer == IPP_PRINTER_PROCESSING)
+{
+ /*
+  * Printer is processing - automatically refresh the page until we
+  * are done printing...
+  */
+
+  cgiFormEncode(uri, printer, sizeof(uri));
+  snprintf(refresh, sizeof(refresh), "10;URL=/printers/%s", uri);
+  cgiSetVariable("refresh_page", refresh);
+}
+```
+
+5. The vulnerability exists because the `printer` variable (which comes from `PATH_INFO` environment variable) is not properly sanitized before being inserted into the `refresh_page` CGI variable. The `cgiFormEncode()` function encodes the URI but doesn't prevent XSS when the encoded value is used in an HTML context. An attacker could inject malicious JavaScript code through the printer name that gets reflected back to users, leading to XSS attacks.
+
+6. Severity rating: high

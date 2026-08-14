@@ -1,0 +1,28 @@
+1. File: cups\raster-stubs.c
+2. Name of the function containing the vulnerability: cupsRasterWriteHeader2
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+unsigned				/* O - 1 on success, 0 on failure */
+cupsRasterWriteHeader2(
+    cups_raster_t       *r,		/* I - Raster stream */
+    cups_page_header2_t *h)		/* I - Raster page header */
+{
+  if (r == NULL || r->mode == CUPS_RASTER_READ)
+    return (0);
+
+ /*
+  * Make a copy of the header, and compute the number of raster
+  * lines in the page image...
+  */
+
+  memcpy(&(r->header), h, sizeof(cups_page_header2_t));
+
+  return (_cupsRasterWriteHeader(r));
+}
+```
+5. The vulnerability exists because the code directly copies user-supplied data from `h` into `r->header` without any validation of the input data. If the input header contains malicious values (particularly those related to page dimensions or raster line counts), it could lead to an integer overflow when computing buffer sizes for subsequent operations, potentially resulting in a buffer overflow during the actual write operation.
+
+6. Severity rating: HIGH
+
+The vulnerability is in the `cupsRasterWriteHeader2` function which directly copies user-provided header data without validation. This can lead to buffer overflows or integer overflows that could be exploited by an attacker who controls the input raster header, potentially leading to arbitrary code execution when the page header data is processed later during raster operations. The vulnerability is particularly serious because it's part of a core CUPS raster processing library used in print systems.

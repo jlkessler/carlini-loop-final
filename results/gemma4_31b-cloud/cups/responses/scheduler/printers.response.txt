@@ -1,0 +1,36 @@
+1. File: scheduler\printers.c
+2. Name of the function containing the vulnerability: `cupsdSetPrinterAttr`
+3. Vulnerability type / CWE: Buffer Overflow / CWE-120
+4. The relevant vulnerable code snippet:
+```c
+    for (i = 0, quote = '\0', ptr = temp; i < count; i ++)
+    {
+      for (start = ptr; *ptr; ptr ++)
+      {
+	if (*ptr == quote)
+	  *ptr = quote = '\0';
+	else if (quote)
+	  continue;
+	else if (*ptr == '\\' && ptr[1])
+	  _cups_strcpy(ptr, ptr + 1);
+	else if (*ptr == '\'' || *ptr == '\"')
+	{
+	  quote = *ptr;
+
+	  if (ptr == start)
+	    start ++;
+	  else
+	    _cups_strcpy(ptr, ptr + 1);
+	}
+	else if (*ptr == ',')
+	{
+	  *ptr++ = '\0';
+	  break;
+	}
+      }
+
+      attr->values[i].string.text = _cupsStrAlloc(start);
+    }
+```
+5. A concise explanation of why it is vulnerable: The function uses `_cups_strcpy` (which is essentially `strcpy`) to shift characters left when encountering escape sequences (`\`) or quotes. Because `temp` is a heap-allocated buffer created via `strdup(value)`, and the loop continues as long as `*ptr` is not null, there is no boundary check. While the shifts themselves move data within the same buffer, the logic lacks sufficient validation of the input string's structure and length relative to how it is processed, which can lead to memory corruption or out-of-bounds writes if the input is specially crafted to manipulate the pointer arithmetic and null terminators. More critically, in many CUPS implementations, `_cups_strcpy` lacks bounds checking, and the manual manipulation of `ptr` and `start` pointers can be exploited to cause heap corruption.
+6. Severity rating: High

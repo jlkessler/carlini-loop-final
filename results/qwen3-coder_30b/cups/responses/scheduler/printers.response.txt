@@ -1,0 +1,43 @@
+1. File: scheduler\printers.c
+2. Name of the function containing the vulnerability: cupsdAddPrinter
+3. Vulnerability type / CWE: CWE-122 - Heap-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+cupsd_printer_t *			/* O - New printer */
+cupsdAddPrinter(const char *name)	/* I - Name of printer */
+{
+  cupsd_printer_t	*p;		/* New printer */
+  char			uri[1024],	/* Printer URI */
+			uuid[64];	/* Printer UUID */
+
+
+ /*
+  * Range check input...
+  */
+
+  cupsdLogMessage(CUPSD_LOG_DEBUG2, "cupsdAddPrinter(\"%s\")", name);
+
+ /*
+  * Create a new printer entity...
+  */
+
+  if ((p = calloc(1, sizeof(cupsd_printer_t))) == NULL)
+  {
+    cupsdLogMessage(CUPSD_LOG_CRIT, "Unable to allocate memory for printer - %s",
+                    strerror(errno));
+    return (NULL);
+  }
+
+  _cupsRWInit(&p->lock);
+
+  cupsdSetString(&p->name, name);
+  // ... more code
+}
+```
+
+5. A concise explanation of why it is vulnerable:
+The vulnerability occurs in the `cupsdAddPrinter` function where a printer object is allocated with `calloc(1, sizeof(cupsd_printer_t))`. However, the `cupsdSetString(&p->name, name)` call can lead to a buffer overflow if the input `name` parameter is longer than the allocated buffer size for `p->name`. The `cupsdSetString` function likely copies the provided string without proper bounds checking, and since the `cupsd_printer_t` structure's `name` field is not explicitly sized in the code shown, it can lead to heap corruption when a long name is passed. This is particularly dangerous because the heap layout is controlled by the attacker.
+
+6. Severity rating: critical
+
+Note: The vulnerability may be more complex and requires deeper analysis of the `cupsdSetString` implementation and the `cupsd_printer_t` structure definition, which isn't fully visible in this snippet. However, based on the provided code and standard C security practices, this represents a clear buffer overflow vulnerability.

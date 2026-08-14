@@ -1,0 +1,27 @@
+1. File: scheduler\banners.c
+2. Name of the function containing the vulnerability: cupsdFindBanner
+3. Vulnerability type / CWE: CWE-121 Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+cupsd_banner_t *			/* O - Pointer to banner or NULL */
+cupsdFindBanner(const char *name)	/* I - Name of banner */
+{
+  cupsd_banner_t	key;		/* Search key */
+
+
+  key.name = (char *)name;
+
+  return ((cupsd_banner_t *)cupsArrayFind(Banners, &key));
+}
+```
+5. The vulnerability exists because the `key.name` field is directly assigned from the input `name` parameter without any bounds checking or sanitization. If an attacker can control the `name` parameter and provide a very long string, it could overflow the buffer allocated for `key.name` in the stack frame, leading to potential arbitrary code execution.
+6. Severity rating: high
+
+However, upon further review of the actual implementation and the context provided, this vulnerability is not directly exploitable as presented because:
+1. The `key` structure is only used for comparison purposes in `cupsArrayFind`
+2. The `name` field within `cupsd_banner_t` should be a pointer to allocated memory
+3. The comparison function `_cups_strcasecmp` compares strings, not buffer overflows
+
+The code does not show a direct buffer overflow vulnerability in the provided snippet.
+
+NO_VULNERABILITY_FOUND

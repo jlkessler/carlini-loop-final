@@ -1,0 +1,12 @@
+1. File: cups\string.c
+2. Name of the function containing the vulnerability: `_cupsStrAlloc`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+slen = strlen(s);
+item = (_cups_sp_item_t *)calloc(1, sizeof(_cups_sp_item_t) + slen);
+```
+5. The vulnerability exists because `slen` is obtained using `strlen()` which returns a `size_t` value, and this value is directly used to calculate the size for `calloc()`. However, there's no check for integer overflow when adding `sizeof(_cups_sp_item_t)` and `slen`, and if `slen` is very large, the addition could overflow, resulting in a small allocation that can lead to buffer overflows when `memcpy(item->str, s, slen + 1)` is called later. The code also lacks validation of whether `slen` is within reasonable bounds before using it for memory allocation.
+6. Severity rating: **Critical**
+
+The vulnerability allows for potential arbitrary code execution through controlled buffer overflows if an attacker can supply a sufficiently large string that causes integer overflow during memory allocation, leading to heap corruption and potentially remote code execution. This is particularly dangerous in a print server context where untrusted input might be processed.

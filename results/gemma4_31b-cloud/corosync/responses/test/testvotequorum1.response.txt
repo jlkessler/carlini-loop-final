@@ -1,0 +1,16 @@
+1. File: test\testvotequorum1.c
+2. Name of the function containing the vulnerability: `main`
+3. Vulnerability type / CWE: CWE-1284: Improper Validation of Specified Quantity (Integer Overflow/Underflow) / Improper Input Validation.
+4. The relevant vulnerable code snippet:
+```c
+	if (argc >= 2 && atoi(argv[1])) {
+		if ( (err=votequorum_setexpected(g_handle, atoi(argv[1]))) != CS_OK)
+			fprintf(stderr, "set expected votes FAILED: %d\n", err);
+	}
+	if (argc >= 3 && atoi(argv[2])) {
+		if ( (err=votequorum_setvotes(g_handle, 0, atoi(argv[2]))) != CS_OK)
+			fprintf(stderr, "set votes FAILED: %d\n", err);
+	}
+```
+5. A concise explanation of why it is vulnerable: The program uses `atoi()` to parse user-provided command-line arguments (`argv[1]` and `argv[2]`) and passes these values directly into `votequorum_setexpected` and `votequorum_setvotes`. `atoi` does not provide error detection for overflows or underflows. Furthermore, there is no validation to ensure the provided integers are positive or within a reasonable range before passing them to the API functions. Depending on the implementation of the `votequorum` library, passing negative numbers or extremely large values could lead to integer overflows, logic errors in quorum calculations, or memory corruption within the library.
+6. Severity rating: Medium

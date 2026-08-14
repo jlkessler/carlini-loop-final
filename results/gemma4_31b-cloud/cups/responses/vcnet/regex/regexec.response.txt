@@ -1,0 +1,15 @@
+1. File: vcnet\regex\regexec.c
+2. Name of the function containing the vulnerability: `regexec`
+3. Vulnerability type / CWE: CWE-125: Out-of-bounds Read (via Integer Overflow/Underflow in macro expansion)
+4. The relevant vulnerable code snippet:
+```c
+#define	FWD(dst, src, n)	((dst)[here+(n)] |= (src)[here])
+#define	BACK(dst, src, n)	((dst)[here-(n)] |= (src)[here])
+#define	ISSETBACK(v, n)	((v)[here - (n)])
+```
+(These macros are used within the `lmatcher` logic included from `engine.c` when `states` is defined as `char *`).
+
+5. A concise explanation of why it is vulnerable:
+The `regexec` function includes `engine.c` twice. The second time, it defines `states` as a `char *` (the "large" representation). In this mode, the `FWD`, `BACK`, and `ISSETBACK` macros perform pointer arithmetic using the variable `here` and an offset `n`. There are no bounds checks performed on `here + (n)` or `here - (n)` before accessing the `dst` or `v` arrays. If the regular expression engine (defined in `engine.c`) calculates an incorrect state offset or processes a crafted regex that results in an out-of-bounds index, it will lead to an arbitrary memory read or write (via the `|=` operator), potentially causing a crash or allowing information leakage.
+
+6. Severity rating: High

@@ -1,0 +1,19 @@
+1. File: cups\ppd-private.h
+2. Name of the function containing the vulnerability: N/A (Structure Definition)
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+typedef struct _ppd_globals_s		/**** CUPS PPD global state data ****/
+{
+  /* ppd.c */
+  ppd_status_t		ppd_status;	/* Status of last ppdOpen*() */
+  int			ppd_line;	/* Current line number */
+  ppd_conform_t		ppd_conform;	/* Level of conformance required */
+
+  /* ppd-util.c */
+  char			ppd_filename[HTTP_MAX_URI];
+					/* PPD filename */
+} _ppd_globals_t;
+```
+5. A concise explanation of why it is vulnerable: The `_ppd_globals_t` structure defines `ppd_filename` as a fixed-size character array of length `HTTP_MAX_URI`. If functions within `ppd-util.c` (as indicated by the comment) copy a filename or URI into this buffer using unsafe functions (like `strcpy` or `sprintf`) without explicitly validating that the source length is less than `HTTP_MAX_URI`, a heap or static buffer overflow will occur.
+6. Severity rating: High

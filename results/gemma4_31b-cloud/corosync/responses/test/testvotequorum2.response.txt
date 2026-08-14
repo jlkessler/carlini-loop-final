@@ -1,0 +1,17 @@
+1. File: test\testvotequorum2.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-131: Incorrect Calculation of Buffer Size (Potential Integer Overflow leading to Infinite Loop/DoS)
+4. The relevant vulnerable code snippet:
+```c
+	if (argc >= 2 && atoi(argv[1])) {
+		pollcount = atoi(argv[1]);
+	}
+    // ...
+		while (pollcount--) {
+			print_info(0);
+            // ...
+			sleep(polltime);
+		}
+```
+5. A concise explanation of why it is vulnerable: The program takes a user-supplied argument `argv[1]` and converts it to a signed integer using `atoi()` to set `pollcount`. If a user provides a negative number (e.g., `-1`), the condition `atoi(argv[1])` evaluates to true (non-zero), and `pollcount` is assigned a negative value. The subsequent `while (pollcount--)` loop will then treat the negative signed integer as a very large unsigned value or continue decrementing deep into negative integers until it wraps around, effectively causing an extremely long-running loop (Denial of Service) or unexpected behavior.
+6. Severity rating: Low

@@ -1,0 +1,15 @@
+1. File: systemv\lpstat.c
+2. Name of the function containing the vulnerability: show_jobs
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+char		temp[255],		/* Temporary buffer */
+		date[255];		/* Date buffer */
+...
+snprintf(temp, sizeof(temp), "%s-%d", dest, jobid);
+```
+5. The vulnerability exists because the `dest` variable (which comes from `job-printer-uri`) is not validated for length before being used in `snprintf()`. If `dest` is longer than 254 characters, it can overflow the `temp` buffer since `snprintf()` will write up to `sizeof(temp)` bytes but doesn't account for the additional "-%d" part that gets appended. The code uses `snprintf()` with a fixed-size buffer but doesn't consider the full length of the resulting string after formatting.
+
+6. Severity rating: HIGH
+
+The vulnerability is in the show_jobs function where a stack-based buffer overflow can occur when handling long printer names in job-printer-uri attributes, potentially allowing arbitrary code execution or denial of service if an attacker can control the printer URI content.

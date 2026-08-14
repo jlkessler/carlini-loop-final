@@ -1,0 +1,22 @@
+1. File: systemv\lpstat.c
+2. Name of the function containing the vulnerability: `show_jobs`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+    char	alerts[1024],	/* Alerts string */
+		  *aptr;		/* Pointer into alerts string */
+
+    for (i = 0, aptr = alerts; i < reasons->num_values; i ++)
+    {
+      if (i)
+		snprintf(aptr, sizeof(alerts) - (size_t)(aptr - alerts), " %s", reasons->values[i].string.text);
+      else
+		strlcpy(alerts, reasons->values[i].string.text, sizeof(alerts));
+
+      aptr += strlen(aptr);
+    }
+```
+5. A concise explanation of why it is vulnerable:
+The `show_jobs` function iterates through a list of "reasons" (provided by the IPP response from the server) and concatenates them into a fixed-size stack buffer `alerts[1024]`. While `snprintf` is used to prevent a direct overflow of the remaining space, the line `aptr += strlen(aptr);` is flawed. If `snprintf` truncates the output because the buffer is full, `strlen(aptr)` will return the length of the string currently in the buffer. In the next iteration, `aptr` moves forward, but the calculation `sizeof(alerts) - (size_t)(aptr - alerts)` will eventually become zero or negative (wrapped to a large unsigned value) if `aptr` is advanced beyond the buffer boundary or if the logic fails to account for the null terminator correctly when the buffer is completely saturated. More critically, if `reasons->values[i].string.text` is extremely long, the first `strlcpy` fills the buffer, and subsequent `snprintf` calls may write outside the bounds if the pointer arithmetic does not strictly prevent it or if the size calculation underflows.
+
+6. Severity rating: High

@@ -1,0 +1,6 @@
+1. File: ppdc\ppdc-choice.cxx
+2. Name of the function containing the vulnerability: NO_VULNERABILITY_FOUND
+3. Vulnerability type / CWE: NO_VULNERABILITY_FOUND
+4. The relevant vulnerable code snippet: NO_VULNERABILITY_FOUND
+5. A concise explanation of why it is vulnerable: NO_VULNERABILITY_FOUND
+6. Severity rating: NO_VULNERABILITY_FOUND

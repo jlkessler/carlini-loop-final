@@ -1,0 +1,36 @@
+1. File: berkeley\lpq.c
+
+2. Name of the function containing the vulnerability: `show_jobs`
+
+3. Vulnerability type / CWE: CWE-122 - Heap-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+char		resource[1024];		/* Resource string */
+...
+if (id)
+{
+  snprintf(resource, sizeof(resource), "ipp://localhost/jobs/%d", id);
+  ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "job-uri",
+               NULL, resource);
+}
+```
+
+5. The vulnerability exists because the code uses `snprintf` to write into a fixed-size buffer (`resource[1024]`) but does not properly validate or sanitize the input values. When `id` is provided as a command-line argument, it's directly used in `snprintf` without any bounds checking against the maximum possible integer value that could cause buffer overflow.
+
+However, looking more carefully at this code and the context, I see there's actually no direct buffer overflow vulnerability in the shown code section since `snprintf` is being used correctly with a size parameter. Let me re-examine...
+
+Actually, looking at the entire file again for real vulnerabilities:
+
+The most serious vulnerability is in how `httpAssembleURIf` is called with user-controlled data:
+```c
+httpAssembleURIf(HTTP_URI_CODING_ALL, resource, sizeof(resource), "ipp",
+                 NULL, "localhost", 0, "/printers/%s", dest);
+```
+But this also appears safe as long as `dest` is properly validated.
+
+Looking again at the code for a real vulnerability - the critical issue is in the command-line argument parsing where `argv[i]` values are used directly without sufficient validation in several places, but the most direct buffer overflow would be in the `snprintf` call with potentially unbounded integer input.
+
+Actually, re-examining this more carefully: there's no actual buffer overflow vulnerability in this specific file as shown. The code properly uses `snprintf` with size parameters.
+
+NO_VULNERABILITY_FOUND

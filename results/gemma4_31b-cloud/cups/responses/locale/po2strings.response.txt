@@ -1,0 +1,41 @@
+1. File: locale\po2strings.c
+2. Name of the function containing the vulnerability: normalize_string
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+  while (*idstr && bufptr < bufend)
+  {
+    // ... (internal logic that can increment bufptr multiple times)
+    if (*idstr == '.' && idstr[1] == '.' && idstr[2] == '.')
+    {
+      *bufptr++ = (char)0xE2;
+      *bufptr++ = (char)0x80;
+      *bufptr++ = (char)0xA6;
+      idstr += 2;
+    }
+    // ...
+    else if (!html && *idstr == '\\' && idstr[1] == '\"')
+    {
+      if (quote) {
+        *bufptr++ = (char)0xE2;
+        *bufptr++ = (char)0x80;
+        *bufptr++ = (char)0x9D;
+        quote     = 0;
+      } else if (strchr(idstr + 2, '\"') != NULL) {
+        *bufptr++ = (char)0xE2;
+        *bufptr++ = (char)0x80;
+        *bufptr++ = (char)0x9C;
+        quote     = 1;
+      } else {
+        *bufptr++ = (char)0xE2;
+        *bufptr++ = (char)0x80;
+        *bufptr++ = (char)0xB3;
+      }
+      idstr ++;
+    }
+    // ... (similarly for single quotes)
+```
+5. A concise explanation of why it is vulnerable:
+The `normalize_string` function checks the boundary condition `bufptr < bufend` at the start of the `while` loop. However, inside the loop, several branches perform multiple writes to the buffer (e.g., writing 3 bytes for a Unicode ellipsis or curly quote) without re-checking the boundary. If `bufptr` is exactly `bufend - 1` or `bufend - 2`, the subsequent increments and assignments will write past the end of the `normalized` buffer (which is allocated on the stack in `main`).
+
+6. Severity rating: High

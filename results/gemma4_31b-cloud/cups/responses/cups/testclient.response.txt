@@ -1,0 +1,48 @@
+1. File: cups\testclient.c
+2. Name of the function containing the vulnerability: `make_raster_file`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120 / CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+    if (header.cupsColorSpace == CUPS_CSPACE_SW)
+    {
+     /*
+      * Do grayscale output...
+      */
+
+      for (lineptr = line + xoff; *template; template ++)
+      {
+        if (*template != ' ')
+        {
+          for (xcount = xrep; xcount > 0; xcount --)
+            *lineptr++ = *color;
+        }
+        else
+        {
+          lineptr += xrep;
+        }
+      }
+    }
+    else
+    {
+     /*
+      * Do color output...
+      */
+
+      for (lineptr = line + 3 * xoff; *template; template ++)
+      {
+        if (*template != ' ')
+        {
+          for (xcount = xrep; xcount > 0; xcount --, lineptr += 3)
+            memcpy(lineptr, color, 3);
+        }
+        else
+        {
+          lineptr += 3 * xrep;
+        }
+      }
+    }
+```
+5. A concise explanation of why it is vulnerable:
+The function `make_raster_file` allocates a buffer `line` based on `header.cupsBytesPerLine`. However, the loops that fill this buffer use `xoff` and `xrep` (calculated from the printer's reported resolution and media size) to advance the `lineptr` pointer. There are no bounds checks performed on `lineptr` relative to the allocated size of `line` before writing. If a malicious or malformed IPP response provides specific `media-ready` or `urf-supported` attributes, the calculations for `xoff` and `xrep` can result in `lineptr` advancing beyond the end of the `line` buffer, leading to a heap-based buffer overflow.
+
+6. Severity rating: High

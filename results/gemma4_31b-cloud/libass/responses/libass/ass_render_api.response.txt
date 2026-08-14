@@ -1,0 +1,17 @@
+1. File: libass\ass_render_api.c
+2. Name of the function containing the vulnerability: `ass_set_selective_style_override`
+3. Vulnerability type / CWE: Use-After-Free (CWE-416)
+4. The relevant vulnerable code snippet:
+```c
+void ass_set_selective_style_override(ASS_Renderer *priv, ASS_Style *style)
+{
+    ASS_Style *user_style = &priv->user_override_style;
+    free(user_style->FontName);
+    *user_style = *style;
+    user_style->FontName = strdup(user_style->FontName);
+}
+```
+5. A concise explanation of why it is vulnerable:
+The function first frees `user_style->FontName`. Then, it performs a structure assignment `*user_style = *style;`. This assignment overwrites the `FontName` pointer in `user_style` with the pointer from the `style` argument. Immediately after, it calls `strdup(user_style->FontName)`. If the `style` argument passed to the function is actually a pointer to `priv->user_override_style` (the same object being modified), the `FontName` pointer has already been freed by the first line, and the subsequent `strdup` call results in a Use-After-Free (UAF).
+
+6. Severity rating: High

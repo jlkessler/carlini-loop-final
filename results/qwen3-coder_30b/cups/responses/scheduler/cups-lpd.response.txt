@@ -1,0 +1,20 @@
+1. File: scheduler\cups-lpd.c
+2. Name of the function containing the vulnerability: `recv_print_job`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+char		control[1024],		/* Control filename */
+		data[100][256],		/* Data files */
+		temp[100][1024];	/* Temporary files */
+```
+and later in the function:
+```c
+for (i = 0; i < num_data; i ++)
+    unlink(temp[i]);
+```
+
+5. The vulnerability occurs because `temp` is a fixed-size array, but there's no bounds checking when populating it. When receiving multiple data files, if more than 100 files are sent, the code will write beyond the allocated array boundaries, causing a buffer overflow.
+
+6. Severity rating: HIGH
+
+The vulnerability exists in the `recv_print_job` function where the `temp` array is used to store temporary filenames for data files. The code uses `num_data` (which comes from user input) as an index without proper bounds checking against the maximum size of the `temp` array (100 elements). This can lead to a stack-based buffer overflow when more than 100 data files are processed, potentially allowing arbitrary code execution.

@@ -1,0 +1,38 @@
+1. File: filter\common.c
+2. Name of the function containing the vulnerability: WriteLabelProlog
+3. Vulnerability type / CWE: CWE-134 (Use of Externally-Controlled Format String)
+4. The relevant vulnerable code snippet:
+```c
+printf("userdict");
+if (strcmp(classification, "confidential") == 0)
+  printf("/ESPpl(CONFIDENTIAL");
+else if (strcmp(classification, "classified") == 0)
+  printf("/ESPpl(CLASSIFIED");
+else if (strcmp(classification, "secret") == 0)
+  printf("/ESPpl(SECRET");
+else if (strcmp(classification, "topsecret") == 0)
+  printf("/ESPpl(TOP SECRET");
+else if (strcmp(classification, "unclassified") == 0)
+  printf("/ESPpl(UNCLASSIFIED";
+else
+{
+  printf("/ESPpl(");
+
+  for (ptr = classification; *ptr; ptr ++)
+    if (*ptr < 32 || *ptr > 126)
+      printf("\\%03o", *ptr);
+    else if (*ptr == '_')
+      putchar(' ');
+    else
+    {
+      if (*ptr == '(' || *ptr == ')' || *ptr == '\\')
+        putchar('\\');
+
+      putchar(*ptr);
+    }
+}
+```
+5. This is vulnerable because the code uses printf with format specifiers that are derived from environment variables (`CLASSIFICATION`) without proper sanitization or validation, allowing an attacker to inject format specifiers and potentially execute arbitrary code or cause a crash.
+6. Severity rating: HIGH
+
+The vulnerability occurs in the WriteLabelProlog function where the CLASSIFICATION environment variable is directly used in printf statements without proper validation or escaping of format specifiers, creating a potential for format string attacks.

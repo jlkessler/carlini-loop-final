@@ -1,0 +1,15 @@
+1. File: cups\snprintf.c
+2. Name of the function containing the vulnerability: `_cups_vsnprintf`
+3. Vulnerability type / CWE: CWE-121, Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+char		tformat[100],		/* Temporary format string for sprintf() */
+		*tptr,			/* Pointer into temporary format */
+		temp[1024];		/* Buffer for formatted numbers */
+```
+5. A concise explanation of why it is vulnerable:
+The vulnerability occurs in the `_cups_vsnprintf` function where a temporary format string `tformat[100]` is constructed without proper bounds checking. When processing format specifiers like `%*s`, `%*d`, etc., the code directly copies user-controlled data into `tformat` without ensuring it doesn't exceed its 100-byte limit. This can lead to stack buffer overflow when a maliciously crafted format string causes `tptr` to write beyond the bounds of `tformat`.
+
+6. Severity rating: **HIGH**
+
+The vulnerability allows for potential arbitrary code execution through stack buffer overflow, especially since the function is used in a print server context where user input could be processed. The use of unbounded string operations like `sprintf()` and direct pointer manipulation without length checks creates a critical security risk.

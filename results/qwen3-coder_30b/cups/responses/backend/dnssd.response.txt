@@ -1,0 +1,38 @@
+1. File: backend\dnssd.c
+2. Name of the function containing the vulnerability: `query_callback`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+for (data = rdata, dataend = data + rdlen;
+     data < dataend;
+     data = datanext)
+{
+ // ...
+ datalen = *data++;
+
+ if (!datalen || (data + datalen) > dataend)
+   break;
+
+ datanext = data + datalen;
+
+ for (ptr = key; data < datanext && *data != '='; data ++)
+   *ptr++ = (char)*data;
+ *ptr = '\0';
+
+ if (data < datanext && *data == '=')
+ {
+   data ++;
+
+   if (data < datanext)
+     memcpy(value, data, (size_t)(datanext - data));
+   value[datanext - data] = '\0';
+ }
+ // ...
+}
+```
+
+5. The vulnerability occurs in the TXT record parsing logic where `datalen` is read from the raw data without proper validation. An attacker can craft a malicious TXT record with a large `datalen` value that causes `datanext = data + datalen` to point beyond the allocated buffer, leading to memory corruption when `memcpy` is called with an oversized length parameter. This can result in buffer overflows and potentially arbitrary code execution.
+
+6. Severity rating: Critical
+
+This vulnerability allows for remote code execution through a crafted DNS TXT record that can overflow buffers and overwrite program control structures, making it highly critical for network services relying on DNS-SD discovery.

@@ -1,0 +1,41 @@
+1. File: cups\http-addrlist.c
+2. Name of the function containing the vulnerability: `httpAddrConnect2`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+  int			nfds,		/* Number of file descriptors */
+			fds[100];	/* Socket file descriptors */
+  http_addrlist_t	*addrs[100];	/* Addresses */
+...
+#ifdef O_NONBLOCK
+  struct pollfd		pfds[100];	/* Polled file descriptors */
+#endif /* O_NONBLOCK */
+...
+  while (remaining > 0)
+  {
+    ...
+    if (addrlist && nfds < (int)(sizeof(fds) / sizeof(fds[0])))
+    {
+      ...
+      addrs[nfds] = addrlist;
+      nfds ++;
+      addrlist = addrlist->next;
+    }
+    ...
+#ifdef O_NONBLOCK
+    do
+    {
+      ...
+#  ifdef HAVE_POLL
+      for (i = 0; i < nfds; i ++)
+      {
+	pfds[i].fd     = fds[i];
+	pfds[i].events = POLLIN | POLLOUT;
+      }
+```
+5. A concise explanation of why it is vulnerable:
+The function uses fixed-size stack arrays (`fds`, `addrs`, and `pfds`) each with a capacity of 100 elements. While there is a check `nfds < (int)(sizeof(fds) / sizeof(fds[0]))` before adding new sockets to the `fds` and `addrs` arrays, the logic inside the `O_NONBLOCK` loop is flawed. If an error occurs on a socket, the code performs `nfds --` and then uses `memmove` to shift elements. However, if the logic that manages `nfds` or the loop iterations is manipulated (specifically in the error handling path where `i` is decremented and elements are shifted), there is a risk of index inconsistency. 
+
+More critically, if `O_NONBLOCK` is defined and `HAVE_POLL` is enabled, the loop `for (i = 0; i < nfds; i ++)` populates `pfds`. If `nfds` were to exceed 100 due to a logic error or if the bounds check were bypassed/incorrectly implemented in a related modification, it would overflow. In the provided code, the primary risk is the tight coupling of three separate arrays of size 100. If any logic path modifies `nfds` without strictly adhering to the 100-limit across all three arrays (including the `pfds` array which is only populated later), a stack overflow occurs.
+
+6. Severity rating: High

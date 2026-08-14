@@ -1,0 +1,27 @@
+1. File: cups\ppd-page.c
+2. Name of the function containing the vulnerability: ppdPageSize
+3. Vulnerability type / CWE: CWE-121 Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+if (!_cups_strcasecmp(nameptr, "m"))
+{
+  w *= 72.0 / 0.0254;
+  l *= 72.0 / 0.0254;
+}
+```
+5. This code performs a division by 0.0254 (which is the number of meters in an inch) to convert meters to points, but there's no check for potential overflow when doing the arithmetic operations on w and l. However, looking more carefully at the code, the real vulnerability is that `nameptr` can point to memory outside the bounds of the string after parsing with `_cupsStrScand`, and there's no proper bounds checking in the parsing logic.
+
+Actually, re-examining this more carefully:
+```c
+w   = _cupsStrScand(name + 7, &nameptr, loc);
+if (!nameptr || *nameptr != 'x')
+  return (NULL);
+
+l = _cupsStrScand(nameptr + 1, &nameptr, loc);
+```
+
+The vulnerability is that `nameptr` returned by `_cupsStrScand` can point to memory beyond the bounds of the input string. Since `name` comes from user input and is not properly validated before being passed to `_cupsStrScand`, this could lead to reading past the end of allocated memory.
+
+6. Severity rating: high
+
+The vulnerability stems from improper bounds checking in the parsing logic, which can result in reading beyond the allocated buffer boundaries when processing user-provided custom page size names. This can potentially lead to information disclosure or crash the application.

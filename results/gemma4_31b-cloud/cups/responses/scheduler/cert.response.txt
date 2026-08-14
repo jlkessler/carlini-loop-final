@@ -1,0 +1,16 @@
+1. File: scheduler\cert.c
+2. Name of the function containing the vulnerability: `cupsdAddCert`
+3. Vulnerability type / CWE: CWE-170 (Improper Null Termination) / Buffer Over-read
+4. The relevant vulnerable code snippet:
+```c
+  for (i = 0; i < 32; i ++)
+    cert->certificate[i] = hex[CUPS_RAND() & 15];
+
+  // ... (later in the function) ...
+
+  write(fd, cert->certificate, strlen(cert->certificate));
+```
+5. A concise explanation of why it is vulnerable:
+The code populates the `cert->certificate` array with 32 random hex characters but does not ensure that the array is null-terminated. Immediately following this, the code calls `strlen(cert->certificate)` to determine how many bytes to write to the file. Because `strlen` continues reading memory until it encounters a null byte (`\0`), it will read past the 32-byte boundary of the certificate buffer. This leads to an information leak (writing adjacent heap memory into the certificate file) and potentially a crash if it reaches an unmapped memory region.
+
+6. Severity rating: Medium

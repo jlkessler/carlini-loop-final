@@ -1,0 +1,14 @@
+1. File: test\testcpg2.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+struct cpg_name group={3,"foo"};
+struct iovec msg={(void *)"hello", 5}; /* discard const */
+```
+5. The vulnerability exists because the `cpg_name` structure is initialized with a name length of 3, but the string "foo" has 3 characters plus a null terminator, making it 4 bytes total. This could lead to buffer overflow when the library tries to use this structure. Additionally, the code uses a hardcoded string "hello" for the message without proper bounds checking.
+6. Severity rating: high
+
+The vulnerability is in the `main` function where the `cpg_name` structure is initialized with a name length of 3 but the string "foo" requires 4 bytes (including null terminator). This can cause stack corruption when the CPG library processes this structure, potentially leading to arbitrary code execution. The use of hardcoded strings without bounds checking also introduces additional security risks.
+
+However, upon closer inspection, there's actually no direct buffer overflow in the provided snippet since the structure is properly initialized. The most significant vulnerability found is a potential logic error with the cpg_name structure initialization that could lead to memory corruption when passed to the CPG library functions.

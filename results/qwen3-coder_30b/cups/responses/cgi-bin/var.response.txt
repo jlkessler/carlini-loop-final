@@ -1,0 +1,22 @@
+1. File: cgi-bin\var.c
+2. Name of the function containing the vulnerability: cgi_initialize_post
+3. Vulnerability type / CWE: CWE-122 - Heap-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+length = (size_t)strtol(content_length, NULL, 10);
+data   = malloc(length + 1);		// lgtm [cpp/uncontrolled-allocation-size]
+
+if (data == NULL)
+  return (0);
+
+// ... later in the function ...
+
+for (tbytes = 0; tbytes < length; tbytes += (size_t)nbytes)
+  if ((nbytes = read(0, data + tbytes, (size_t)(length - tbytes))) < 0)
+```
+
+5. The vulnerability exists because the code uses `strtol()` to convert the CONTENT_LENGTH header value without proper bounds checking. An attacker can craft a malicious CONTENT_LENGTH header with a very large value, causing malloc() to allocate an extremely large amount of memory or even wrap around to a small value due to integer overflow. This leads to heap buffer overflow when reading data into the allocated buffer.
+
+6. Severity rating: critical
+
+This vulnerability allows for a heap-based buffer overflow that could potentially lead to remote code execution, making it critical severity.

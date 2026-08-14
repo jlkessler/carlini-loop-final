@@ -1,0 +1,17 @@
+1. File: cups\ipp-private.h
+2. Name of the function containing the vulnerability: N/A (Structure Definition)
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow') / Flexible Array Member misuse.
+4. The relevant vulnerable code snippet:
+```c
+struct _ipp_attribute_s			/**** IPP attribute ****/
+{
+  ipp_attribute_t *next;		/* Next attribute in list */
+  ipp_tag_t	group_tag,		/* Job/Printer/Operation group tag */
+		value_tag;		/* What type of value is it? */
+  char		*name;			/* Name of attribute */
+  int		num_values;		/* Number of values */
+  _ipp_value_t	values[1];		/* Values */
+};
+```
+5. A concise explanation of why it is vulnerable: The `struct _ipp_attribute_s` uses a fixed-size array of one element (`values[1]`) to simulate a variable-length array (a common pre-C99 pattern). If the code allocating this structure does not correctly calculate the total size based on `num_values` (i.e., `sizeof(struct _ipp_attribute_s) + (num_values - 1) * sizeof(_ipp_value_t)`), or if `num_values` is controlled by an external attacker via a crafted IPP packet, it can lead to a heap-based buffer overflow when the `values` array is accessed or written to.
+6. Severity rating: High

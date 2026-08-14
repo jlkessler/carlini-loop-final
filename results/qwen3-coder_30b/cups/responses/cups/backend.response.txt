@@ -1,0 +1,31 @@
+1. File: cups\backend.c
+2. Name of the function containing the vulnerability: cupsBackendReport
+3. Vulnerability type / CWE: CWE-78 - Improper Neutralization of Special Elements used in OS Command Injection
+4. The relevant vulnerable code snippet:
+```c
+void
+cupsBackendReport(
+    const char *device_scheme,		/* I - device-scheme string */
+    const char *device_uri,		/* I - device-uri string */
+    const char *device_make_and_model,	/* I - device-make-and-model string or @code NULL@ */
+    const char *device_info,		/* I - device-info string or @code NULL@ */
+    const char *device_id,		/* I - device-id string or @code NULL@ */
+    const char *device_location)	/* I - device-location string or @code NULL@ */
+{
+  if (!device_scheme || !device_uri)
+    return;
+
+  printf("%s %s", device_scheme, device_uri);
+  if (device_make_and_model && *device_make_and_model)
+    quote_string(device_make_and_model);
+  else
+    quote_string("unknown");
+  quote_string(device_info);
+  quote_string(device_id);
+  quote_string(device_location);
+  putchar('\n');
+  fflush(stdout);
+}
+```
+5. A concise explanation of why it is vulnerable: The cupsBackendReport function directly prints user-controllable input (device_scheme, device_uri, and all the string parameters) to stdout without proper sanitization or escaping. While quote_string() is used to escape special characters in individual strings, it does not prevent command injection when these values are processed by shell commands that may be invoked by CUPS backends. The device_uri parameter can potentially contain shell metacharacters that could be executed if the output is later consumed by a shell.
+6. Severity rating: high

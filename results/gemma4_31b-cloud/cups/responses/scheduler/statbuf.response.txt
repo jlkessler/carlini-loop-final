@@ -1,0 +1,18 @@
+1. File: scheduler\statbuf.c
+2. Name of the function containing the vulnerability: cupsdStatBufNew
+3. Vulnerability type / CWE: Format String Vulnerability (CWE-134)
+4. The relevant vulnerable code snippet:
+```c
+    if (prefix)
+    {
+     /*
+      * Printf-style prefix string...
+      */
+
+      va_start(ap, prefix);
+      vsnprintf(sb->prefix, sizeof(sb->prefix), prefix, ap);
+      va_end(ap);
+    }
+```
+5. A concise explanation of why it is vulnerable: The function `cupsdStatBufNew` takes a `prefix` argument and passes it directly as the format string to `vsnprintf`. If an attacker can control the contents of the `prefix` string, they can inject format specifiers (e.g., `%x`, `%s`, `%n`) to read from the stack or write to arbitrary memory locations, leading to information disclosure or remote code execution.
+6. Severity rating: High

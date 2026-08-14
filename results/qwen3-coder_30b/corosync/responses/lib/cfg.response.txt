@@ -1,0 +1,39 @@
+1. File: lib\cfg.c
+2. Name of the function containing the vulnerability: corosync_cfg_kill_node
+3. Vulnerability type / CWE: CWE-121 Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+if (strlen(reason) >= CS_MAX_NAME_LENGTH)
+    return CS_ERR_NAME_TOO_LONG;
+
+// ... later in the function ...
+strcpy((char *)req_lib_cfg_killnode.reason.value, reason);
+```
+5. The vulnerability exists because the code checks if `strlen(reason) >= CS_MAX_NAME_LENGTH` and returns an error if true, but this check happens before the `strcpy()` operation. However, looking more carefully, there's actually a critical flaw in how the buffer is used. The `req_lib_cfg_killnode.reason.value` field is not properly sized or validated against the actual size of the buffer it's being copied into, and there's no null termination guarantee for the copy operation.
+
+Actually, re-examining the code more carefully:
+```c
+strcpy((char *)req_lib_cfg_killnode.reason.value, reason);
+req_lib_cfg_killnode.reason.length = strlen(reason)+1;
+```
+The vulnerability is that `req_lib_cfg_killnode.reason.value` is a fixed-size buffer but the code doesn't ensure it's large enough for the input. If `reason` is longer than what can fit in `req_lib_cfg_killnode.reason.value`, this will cause a buffer overflow.
+
+However, looking more systematically at the structure definition and usage patterns in the code, there appears to be no clear indication of buffer size mismatch or direct stack overflow.
+
+But there is a critical issue with the `corosync_cfg_kill_node` function where the input `reason` string length check doesn't prevent potential buffer overflows due to improper handling of the fixed-size buffer.
+
+Actually, looking at it more systematically - there's no obvious buffer overflow vulnerability in this specific code section. The code does check the length and returns an error if too long. But there's a race condition or memory management issue:
+
+6. Severity rating: medium
+
+Wait, let me look more carefully. The real vulnerability is in how the `strcpy` is used without proper bounds checking against the actual buffer size of `req_lib_cfg_killnode.reason.value`. This is a classic buffer overflow where the code assumes the input fits in the destination buffer without sufficient validation.
+
+Actually, looking at the structure definition that's not shown but must exist, there appears to be an unchecked copy operation that could cause a buffer overflow. But since we can't see the structure definitions, the most clear vulnerability I can identify from this specific file is:
+
+The issue is in `corosync_cfg_kill_node` function where `strcpy((char *)req_lib_cfg_killnode.reason.value, reason)` occurs without checking if `reason` will fit within the fixed-size buffer of `reason.value`. However, since we don't see the structure definition, and the length check happens before but there's no evidence of proper bounds checking in the copy operation itself.
+
+Let me re-examine this code more carefully - I believe there is no clear vulnerability visible from this code alone, as it appears to be properly checking lengths.
+
+Actually, looking at it again: The issue is that even though a length check exists, it doesn't prevent potential issues with the `strcpy` in combination with how the buffer is defined. But without seeing the structure definition for `req_lib_cfg_killnode.reason.value`, I cannot definitively identify the exact vulnerability.
+
+NO_VULNERABILITY_FOUND

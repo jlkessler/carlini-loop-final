@@ -1,0 +1,28 @@
+1. File: scheduler\network.c
+2. Name of the function containing the vulnerability: cupsdNetIFUpdate
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+if (HostNameLookups)
+  httpAddrLookup((http_addr_t *)(addr->ifa_addr), hostname,
+                 sizeof(hostname));
+else
+{
+ /*
+  * Map the default server address and localhost to the server name
+  * and localhost, respectively; for all other addresses, use the
+  * numeric address...
+  */
+
+  if (httpAddrLocalhost((http_addr_t *)(addr->ifa_addr)))
+    strlcpy(hostname, "localhost", sizeof(hostname));
+  else
+    httpAddrString((http_addr_t *)(addr->ifa_addr), hostname,
+                   sizeof(hostname));
+}
+```
+5. The vulnerability exists because when `HostNameLookups` is enabled, the code calls `httpAddrLookup()` which can potentially write data beyond the bounds of the fixed-size `hostname` buffer (1024 bytes). While `strlcpy` is used in other branches, `httpAddrLookup()` is not bounded by the same protections and could overflow the buffer if the resolved hostname exceeds 1023 characters plus null terminator.
+
+6. Severity rating: HIGH
+
+This vulnerability allows for a potential buffer overflow when hostname lookups are enabled, which could be exploited to execute arbitrary code or cause a denial of service, especially since this occurs during network interface updates in the CUPS scheduler process.

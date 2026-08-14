@@ -1,0 +1,25 @@
+1. File: cups\raster-interpret.c
+2. Name of the function containing the vulnerability: `roll_stack`
+3. Vulnerability type / CWE: CWE-122: Heap-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+  if (s < 0)
+  {
+   /*
+    * Shift down...
+    */
+
+    s = -s;
+
+    if ((temp = calloc((size_t)s, sizeof(_cups_ps_obj_t))) == NULL)
+      return (-1);
+
+    memcpy(temp, st->objs + n, (size_t)s * sizeof(_cups_ps_obj_t));
+    memmove(st->objs + n, st->objs + n + s, (size_t)(c - s) * sizeof(_cups_ps_obj_t));
+    memcpy(st->objs + n + c - s, temp, (size_t)s * sizeof(_cups_ps_obj_t));
+  }
+```
+5. A concise explanation of why it is vulnerable:
+The `roll_stack` function performs a rotation of objects on the stack. While it checks if the number of objects to rotate (`c`) is within the bounds of the current stack size, it fails to properly validate the shift amount `s` relative to `c` before performing memory operations. Specifically, if `s` is provided as a value such that `s > c` (or after the modulo operation `s %= c`, if `s` was negative and the logic allows it), the `memcpy` and `memmove` operations can read or write beyond the allocated boundaries of `st->objs`. Furthermore, the `memmove` call `memmove(st->objs + n, st->objs + n + s, (size_t)(c - s) * sizeof(_cups_ps_obj_t))` can result in a negative size argument (which casts to a very large `size_t`) if `s > c`, leading to a massive heap overflow.
+
+6. Severity rating: Critical

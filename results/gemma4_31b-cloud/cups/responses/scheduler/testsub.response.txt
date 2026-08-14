@@ -1,0 +1,35 @@
+1. File: scheduler\testsub.c
+2. Name of the function containing the vulnerability: print_attributes
+3. Vulnerability type / CWE: Out-of-bounds Read / CWE-125
+4. The relevant vulnerable code snippet:
+```c
+  static const char * const tags[] =	/* Value/group tag strings */
+			{
+			  "reserved-00",
+              // ... (entries 1 through 68)
+			  "memberName"
+			};
+
+  for (group = IPP_TAG_ZERO, attr = ipp->attrs; attr; attr = attr->next)
+  {
+    // ...
+    if (group != attr->group_tag)
+    {
+      group = attr->group_tag;
+
+      putchar('\n');
+      for (i = 4; i < indent; i ++)
+        putchar(' ');
+
+      printf("%s:\n\n", tags[group]);
+    }
+    // ...
+    printf("%s (", attr->name);
+    if (attr->num_values > 1)
+      printf("1setOf ");
+    printf("%s):", tags[attr->value_tag]);
+```
+5. A concise explanation of why it is vulnerable:
+The `tags` array contains 69 predefined strings (indices 0-68). However, the code uses `attr->group_tag` and `attr->value_tag` (which are derived from the IPP response sent by the server) as indices into this array without any bounds checking. A malicious or malformed IPP response containing a tag value greater than 68 will cause the program to read memory outside the bounds of the `tags` array, leading to a crash or information leakage.
+
+6. Severity rating: Medium

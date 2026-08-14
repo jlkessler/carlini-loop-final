@@ -1,0 +1,30 @@
+1. File: backend\testbackend.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection') / Path Traversal
+4. The relevant vulnerable code snippet:
+```c
+  if (sscanf(argv[first_arg], "%254[^:]", scheme) != 1)
+  {
+    fputs("testbackend: Bad device-uri - no colon!\n", stderr);
+    return (1);
+  }
+
+  if (!access(scheme, X_OK))
+    strlcpy(backend, scheme, sizeof(backend));
+  else
+  {
+    if ((serverbin = getenv("CUPS_SERVERBIN")) == NULL)
+      serverbin = CUPS_SERVERBIN;
+
+    snprintf(backend, sizeof(backend), "%s/backend/%s", serverbin, scheme);
+    if (access(backend, X_OK))
+    {
+      fprintf(stderr, "testbackend: Unknown device scheme \"%s\"!\n", scheme);
+      return (1);
+    }
+  }
+// ... later ...
+    execv(backend, argv + first_arg);
+```
+5. A concise explanation of why it is vulnerable: The program takes the `scheme` part of the `device-uri` argument (the string before the first colon) and uses it to construct a path to an executable. While it checks for the existence of the file using `access()`, it does not sanitize the `scheme` input. An attacker can provide a path to any executable on the system (e.g., `/bin/sh`) as the scheme. Since the program then calls `execv(backend, ...)` with this user-controlled path, it allows the execution of arbitrary binaries on the system.
+6. Severity rating: critical

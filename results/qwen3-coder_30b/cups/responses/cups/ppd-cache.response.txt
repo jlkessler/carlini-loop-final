@@ -1,0 +1,40 @@
+1. File: cups\ppd-cache.c
+2. Name of the function containing the vulnerability: `_ppdCacheCreateWithFile`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+while (cupsFileGetConf(fp, line, sizeof(line), &value, &linenum))
+{
+  // ... code ...
+  if (!_cups_strcasecmp(line, "IPP"))
+  {
+    off_t	pos = cupsFileTell(fp),	/* Position in file */
+      length = strtol(value, NULL, 10);
+    // ... code ...
+    if (length <= 0)
+    {
+      DEBUG_puts("_ppdCacheCreateWithFile: Bad IPP length.");
+      _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Bad PPD cache file."), 1);
+      goto create_error;
+    }
+    // ... code ...
+    if (attrs)
+    {
+     /*
+      * Read IPP attributes into the provided variable...
+      */
+
+      *attrs = ippNew();
+
+      if (ippReadIO(fp, (ipp_iocb_t)cupsFileRead, 1, NULL,
+		    *attrs) != IPP_STATE_DATA)
+      {
+	DEBUG_puts("_ppdCacheCreateWithFile: Bad IPP data.");
+	_cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Bad PPD cache file."), 1);
+	goto create_error;
+      }
+    }
+```
+5. The vulnerability exists because the code does not properly validate that the `length` value read from the configuration file is within reasonable bounds before attempting to read that many bytes from the file. An attacker could craft a malicious PPD cache file with an extremely large `length` value, causing `ippReadIO()` to attempt to allocate excessive memory or read beyond the file boundaries, leading to buffer overflow and potential arbitrary code execution.
+
+6. Severity rating: critical

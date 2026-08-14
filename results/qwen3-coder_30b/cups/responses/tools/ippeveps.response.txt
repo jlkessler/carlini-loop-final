@@ -1,0 +1,73 @@
+1. File: tools\ippeveps.c
+
+2. Name of the function containing the vulnerability: `pdf_to_ps()`
+
+3. Vulnerability type / CWE: CWE-78 - Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')
+
+4. The relevant vulnerable code snippet:
+```c
+static int				/* O - Exit status */
+pdf_to_ps(const char    *filename,	/* I - Filename */
+	  int           copies,		/* I - Number of copies */
+	  int           num_options,	/* I - Number of options */
+	  cups_option_t *options)	/* I - options */
+{
+  // ... code ...
+  const char	*value;			/* Option value */
+  const char	*job_id,		/* job-id value */
+		*job_name;		/* job-name value */
+
+
+ /*
+  * Create a temporary file for the PostScript version...
+  */
+
+  if ((tempfd = cupsTempFd(tempfile, sizeof(tempfile))) < 0)
+  {
+    fprintf(stderr, "ERROR: Unable to create temporary file: %s\n", strerror(errno));
+    return (1);
+  }
+
+ /*
+  * Run cgpdftops or pdftops in the filter directory...
+  */
+
+  if ((value = cupsGetOption("PageSize", num_options, options)) != NULL)
+    snprintf(pdf_options, sizeof(pdf_options), "PageSize=%s", value);
+  else
+    pdf_options[0] = '\0';
+
+  if ((job_id = getenv("IPP_JOB_ID")) == NULL)
+    job_id = "42";
+  if ((job_name = getenv("IPP_JOB_NAME")) == NULL)
+    job_name = "untitled";
+
+  pdf_argv[0] = "printer";
+  pdf_argv[1] = job_id;
+  pdf_argv[2] = cupsUser();
+  pdf_argv[3] = job_name;
+  pdf_argv[4] = "1";
+  pdf_argv[5] = pdf_options;
+  pdf_argv[6] = filename;
+  pdf_argv[7] = NULL;
+
+  if ((pid = fork()) == 0)
+  {
+   /*
+    * Child comes here...
+    */
+
+    close(1);
+    dup2(tempfd, 1);
+    close(tempfd);
+
+    execv(PDFTOPS, (char * const *)pdf_argv);
+    exit(errno);
+  }
+```
+
+5. The vulnerability exists because `pdf_options` is constructed using `snprintf()` with user-controlled data from `cupsGetOption("PageSize", num_options, options)`, which is then passed directly as an argument to the `execv()` system call without any sanitization or validation. An attacker who can control the PPD options (which are passed through IPP attributes) could inject malicious command-line arguments that get executed by the underlying PDF filter.
+
+6. Severity rating: Critical
+
+The vulnerability allows for OS command injection when the `PageSize` option is controlled by an attacker, which can lead to arbitrary code execution with the privileges of the printing service process. This is particularly dangerous in a CTF context where attackers often seek high-severity vulnerabilities for privilege escalation or remote code execution.

@@ -1,0 +1,42 @@
+1. File: cups\tls-gnutls.c
+2. Name of the function containing the vulnerability: `http_gnutls_make_path`
+3. Vulnerability type / CWE: CWE-22 - Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')
+4. The relevant vulnerable code snippet:
+```c
+static const char *			/* O - Filename */
+http_gnutls_make_path(
+    char       *buffer,			/* I - Filename buffer */
+    size_t     bufsize,			/* I - Size of buffer */
+    const char *dirname,		/* I - Directory */
+    const char *filename,		/* I - Filename (usually hostname) */
+    const char *ext)			/* I - Extension */
+{
+  char	*bufptr,			/* Pointer into buffer */
+	*bufend = buffer + bufsize - 1;	/* End of buffer */
+
+
+  snprintf(buffer, bufsize, "%s/", dirname);
+  bufptr = buffer + strlen(buffer);
+
+  while (*filename && bufptr < bufend)
+  {
+    if (_cups_isalnum(*filename) || *filename == '-' || *filename == '.')
+      *bufptr++ = *filename;
+    else
+      *bufptr++ = '_';
+
+    filename ++;
+  }
+
+  if (bufptr < bufend)
+    *bufptr++ = '.';
+
+  strlcpy(bufptr, ext, (size_t)(bufend - bufptr + 1));
+
+  return (buffer);
+}
+```
+5. This function is vulnerable because it only sanitizes characters in the filename parameter by replacing non-alphanumeric, non-dash, and non-dot characters with underscores. However, it does not prevent directory traversal attacks where the filename parameter could contain "../" sequences or other path manipulation attempts. The function simply appends the sanitized filename to the dirname without any additional validation or restriction on what constitutes a valid filename.
+6. Severity rating: HIGH
+
+The vulnerability allows for potential directory traversal attacks that could lead to arbitrary file access, modification, or deletion in the context of the CUPS service, which could result in privilege escalation or data compromise.

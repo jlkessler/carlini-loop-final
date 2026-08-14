@@ -1,0 +1,13 @@
+1. File: cups\tempfile.c
+2. Name of the function containing the vulnerability: cupsTempFd
+3. Vulnerability type / CWE: CWE-377: Insecure Temporary File, CWE-367: Time-of-Check to Time-of-Use (TOCTOU)
+4. The relevant vulnerable code snippet:
+```c
+snprintf(filename, (size_t)len - 1, "%s/%05x%08x", tmpdir, (unsigned)getpid(), (unsigned)(curtime.tv_sec + curtime.tv_usec + tries));
+...
+fd = open(filename, O_RDWR | O_CREAT | O_EXCL, 0600);
+```
+5. The vulnerability exists because the code generates a temporary filename using a predictable pattern based on PID and time values, then opens it with O_EXCL flag. An attacker can perform a TOCTOU attack by creating a symlink to a target file in the temporary directory between when the filename is generated and when the file is opened. Even though O_EXCL is used, if the file is a symlink, the check passes but the actual file created is not the intended one.
+6. Severity rating: HIGH
+
+The vulnerability allows for a predictable TOCTOU race condition that can be exploited to overwrite arbitrary files with controlled content, potentially leading to privilege escalation or denial of service depending on the context in which this function is used.

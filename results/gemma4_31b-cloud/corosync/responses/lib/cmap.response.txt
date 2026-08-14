@@ -1,0 +1,38 @@
+1. File: lib\cmap.c
+2. Name of the function containing the vulnerability: `cmap_get_int`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+static cs_error_t cmap_get_int(
+	cmap_handle_t handle,
+	const char *key_name,
+	void *value,
+	size_t value_size,
+	cmap_value_types_t type)
+{
+	char key_value[16];
+	size_t key_size;
+	cs_error_t err;
+
+	cmap_value_types_t key_type;
+
+	key_size = sizeof(key_value);
+	memset(key_value, 0, key_size);
+
+	err = cmap_get(handle, key_name, key_value, &key_size, &key_type);
+	if (err != CS_OK)
+		return (err);
+
+	if (key_type != type) {
+		return (CS_ERR_INVALID_PARAM);
+	}
+
+	memcpy(value, key_value, value_size);
+
+	return (CS_OK);
+}
+```
+5. A concise explanation of why it is vulnerable: 
+The function `cmap_get_int` uses a small fixed-size stack buffer `key_value[16]` to store the result of `cmap_get`. While `cmap_get` is passed `key_size` (16) to limit the write, the subsequent `memcpy(value, key_value, value_size)` uses the `value_size` parameter provided by the caller. If the caller passes a `value_size` greater than 16, `memcpy` will read past the end of the `key_value` buffer on the stack, leading to an out-of-bounds read. More importantly, if this function is used as a helper for various types, and the `cmap_get` logic (which is external) doesn't strictly enforce the `key_size` limit or if the internal `res_lib_cmap_get->value_len` is used incorrectly elsewhere, the stack can be corrupted. Specifically, the `memcpy` into `value` is a potential Heap or Stack overflow depending on where `value` points, driven by an untrusted `value_size` relative to the fixed 16-byte buffer.
+
+6. Severity rating: High

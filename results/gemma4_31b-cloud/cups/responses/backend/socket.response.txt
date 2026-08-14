@@ -1,0 +1,11 @@
+1. File: backend\socket.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+  httpSeparateURI(HTTP_URI_CODING_ALL, device_uri, scheme, sizeof(scheme),
+                  username, sizeof(username), hostname, sizeof(hostname), &port,
+		  resource, sizeof(resource));
+```
+5. A concise explanation of why it is vulnerable: The `main` function declares fixed-size buffers on the stack for `scheme` (255), `username` (255), `hostname` (1024), and `resource` (1024). These buffers are passed to `httpSeparateURI`. While the size of the buffers is passed to the function, the vulnerability depends on the implementation of `httpSeparateURI`. In many versions of this pattern in CUPS backends, if the input URI is maliciously crafted and exceeds the expected boundaries, or if `httpSeparateURI` does not strictly respect the `sizeof` limits provided when parsing components (especially when dealing with percent-encoding/decoding), it can lead to a stack-based buffer overflow. Since `device_uri` is derived from `argv`, an attacker providing a specially crafted URI can potentially overwrite the stack.
+6. Severity rating: High

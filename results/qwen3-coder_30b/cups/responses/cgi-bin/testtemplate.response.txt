@@ -1,0 +1,16 @@
+1. File: cgi-bin\testtemplate.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: Command Injection (CWE-77)
+4. The relevant vulnerable code snippet:
+```c
+else if ((value = strchr(argv[i], '=')) != NULL)
+{
+  *value++ = '\0';
+  cgiSetVariable(argv[i], value);
+}
+```
+5. This code is vulnerable because it directly passes user-provided command-line arguments to `cgiSetVariable()` without proper sanitization or validation. When a user provides an argument in the format "name=value", the code extracts the value and sets it as a CGI variable, but there's no protection against malicious input that could be interpreted as shell commands or used to inject harmful content into the application's processing pipeline.
+
+6. Severity rating: HIGH
+
+The vulnerability allows for potential command injection through carefully crafted command-line arguments, which could enable an attacker to execute arbitrary commands on the system running this CGI script. This is particularly dangerous in a web context where the script is accessible via HTTP requests.

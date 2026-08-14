@@ -1,0 +1,17 @@
+1. File: cups\notify.c
+2. Name of the function containing the vulnerability: cupsNotifySubject
+3. Vulnerability type / CWE: CWE-121 Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+snprintf(buffer, sizeof(buffer), "%s %s-%d (%s) %s",
+         prefix,
+         printer_name->values[0].string.text,
+         job_id->values[0].integer,
+         job_name ? job_name->values[0].string.text :
+             _cupsLangString(lang, _("untitled")),
+         state);
+```
+5. The vulnerability exists because the code does not validate the length of the input strings from printer_name and job_name attributes before passing them to snprintf. If these strings are longer than 1024 bytes (the size of buffer), they can overflow the buffer, potentially leading to a stack-based buffer overflow.
+6. Severity rating: critical
+
+This vulnerability is critical because it could allow an attacker to overwrite adjacent stack memory and potentially execute arbitrary code, especially if the input comes from untrusted sources like network requests or configuration files that CUPS processes.

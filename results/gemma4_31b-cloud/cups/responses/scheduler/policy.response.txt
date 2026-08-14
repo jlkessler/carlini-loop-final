@@ -1,0 +1,15 @@
+1. File: scheduler\policy.c
+2. Name of the function containing the vulnerability: `cupsdGetPrivateAttrs`
+3. Vulnerability type / CWE: CWE-287: Improper Authentication (Authentication Bypass via User-Controlled Input)
+4. The relevant vulnerable code snippet:
+```c
+  if (con->username[0])
+    username = con->username;
+  else if ((attr = ippFindAttribute(con->request, "requesting-user-name",
+                                    IPP_TAG_NAME)) != NULL)
+    username = attr->values[0].string.text;
+  else
+    username = "anonymous";
+```
+5. A concise explanation of why it is vulnerable: The function determines the `username` for access control checks by first checking the connection object, and if that is empty, it trusts the `"requesting-user-name"` attribute provided directly in the IPP request. Since this attribute is supplied by the client and not verified against a secure authentication mechanism (like a password or token) at this stage, an attacker can impersonate any user (including administrators or the owner of a printer) simply by specifying their name in the request. This allows the attacker to bypass authorization checks in the subsequent loop and potentially access private attributes or perform restricted operations.
+6. Severity rating: High

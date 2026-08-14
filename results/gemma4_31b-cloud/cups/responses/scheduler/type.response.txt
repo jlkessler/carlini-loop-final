@@ -1,0 +1,20 @@
+1. File: scheduler\type.c
+2. Name of the function containing the vulnerability: `mimeAddType`
+3. Vulnerability type / CWE: Integer Overflow / Heap-based Buffer Overflow (CWE-190 / CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+  typelen = strlen(type) + 1;
+
+  if ((temp = calloc(1, sizeof(mime_type_t) - MIME_MAX_TYPE + typelen)) == NULL)
+  {
+    DEBUG_puts("1mimeAddType: Returning NULL (out of memory).");
+    return (NULL);
+  }
+
+  strlcpy(temp->super, super, sizeof(temp->super));
+  memcpy(temp->type, type, typelen);
+```
+5. A concise explanation of why it is vulnerable:
+The `calloc` call calculates the allocation size using `sizeof(mime_type_t) - MIME_MAX_TYPE + typelen`. If `typelen` (derived from the user-supplied `type` string) is sufficiently large, an integer overflow can occur. This results in a much smaller heap buffer being allocated than intended. Subsequently, `memcpy(temp->type, type, typelen)` writes the full length of the `type` string into this undersized buffer, leading to a heap-based buffer overflow.
+
+6. Severity rating: Critical

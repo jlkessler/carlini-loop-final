@@ -1,0 +1,23 @@
+1. File: scheduler\file.c
+2. Name of the function containing the vulnerability: `cupsdCleanFiles`
+3. Vulnerability type / CWE: CWE-22: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal') / Arbitrary File Deletion
+4. The relevant vulnerable code snippet:
+```c
+  while ((dent = cupsDirRead(dir)) != NULL)
+  {
+    if (pattern && fnmatch(pattern, dent->filename, 0))
+      continue;
+
+    snprintf(filename, sizeof(filename), "%s/%s", path, dent->filename);
+
+    if (S_ISDIR(dent->fileinfo.st_mode))
+    {
+      cupsdCleanFiles(filename, pattern);
+
+      status = rmdir(filename);
+    }
+    else
+      status = cupsdUnlinkOrRemoveFile(filename);
+```
+5. A concise explanation of why it is vulnerable: The function recursively traverses directories and deletes files based on a pattern. It trusts the filenames returned by `cupsDirRead` without validating if they contain path traversal sequences (like `..`). If a malicious user can create a symbolic link or a directory named `..` (or similar structures) within a directory that `cupsdCleanFiles` processes, the function may follow these links or ascend the directory tree, leading to the deletion of arbitrary files on the system with the privileges of the CUPS scheduler (typically root).
+6. Severity rating: High

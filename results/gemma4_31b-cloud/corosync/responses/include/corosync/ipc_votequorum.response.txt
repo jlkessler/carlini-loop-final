@@ -1,0 +1,23 @@
+1. File: include\corosync\ipc_votequorum.h
+2. Name of the function containing the vulnerability: N/A (Header file defining data structures)
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow') / Potential Memory Corruption.
+4. The relevant vulnerable code snippet:
+```c
+struct req_lib_votequorum_qdevice_register {
+	struct qb_ipc_request_header header __attribute__((aligned(8)));
+	char name[VOTEQUORUM_QDEVICE_MAX_NAME_LEN];
+};
+
+struct req_lib_votequorum_qdevice_unregister {
+	struct qb_ipc_request_header header __attribute__((aligned(8)));
+	char name[VOTEQUORUM_QDEVICE_MAX_NAME_LEN];
+};
+
+struct req_lib_votequorum_qdevice_update {
+	struct qb_ipc_request_header header __attribute__((aligned(8)));
+	char oldname[VOTEQUORUM_QDEVICE_MAX_NAME_LEN];
+	char newname[VOTEQUORUM_QDEVICE_MAX_NAME_LEN];
+};
+```
+5. A concise explanation of why it is vulnerable: The header defines several IPC request structures that use fixed-size buffers (`VOTEQUORUM_QDEVICE_MAX_NAME_LEN`) for strings. Because these structures are intended to be received over an IPC (Inter-Process Communication) mechanism, there is a high risk that if the receiving code (the implementation of these requests) uses functions like `strcpy()` or `sprintf()` to move the `name` field into another buffer without explicitly verifying that the input string is null-terminated within the 255-byte limit, a buffer overflow will occur. Specifically, if a malicious actor sends a packet where the `name` field is filled to the limit without a null terminator, any subsequent string operation on that field will read out-of-bounds until a null byte is encountered in memory.
+6. Severity rating: High

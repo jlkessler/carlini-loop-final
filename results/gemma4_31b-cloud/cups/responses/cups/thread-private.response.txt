@@ -1,0 +1,13 @@
+1. File: cups\thread-private.h
+2. Name of the function containing the vulnerability: `_cupsThreadSetData` (macro)
+3. Vulnerability type / CWE: CWE-362 (Concurrent Execution using Shared Variable with Improper Synchronization / Race Condition)
+4. The relevant vulnerable code snippet:
+```c
+#  else					/* No threading */
+...
+#    define _cupsThreadGetData(k) k
+#    define _cupsThreadSetData(k,p) k=p
+#  endif /* HAVE_PTHREAD_H */
+```
+5. A concise explanation of why it is vulnerable: In the "No threading" build configuration, the macros `_cupsThreadGetData` and `_cupsThreadSetData` are implemented as simple variable assignments. However, if this code is compiled in an environment where threading is actually present (or simulated), but `HAVE_PTHREAD_H` is not defined, these macros perform non-atomic operations on shared state. Specifically, `_cupsThreadSetData` simply assigns a pointer to a variable (`k=p`), which is not thread-safe and can lead to race conditions if multiple execution contexts attempt to access or modify the data.
+6. Severity rating: Low

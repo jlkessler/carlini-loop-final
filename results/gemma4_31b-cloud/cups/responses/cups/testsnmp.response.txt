@@ -1,0 +1,17 @@
+1. File: cups\testsnmp.c
+2. Name of the function containing the vulnerability: print_packet
+3. Vulnerability type / CWE: CWE-170: Improper Null Termination (leading to Out-of-bounds Read/Information Disclosure)
+4. The relevant vulnerable code snippet:
+```c
+    case CUPS_ASN1_BIT_STRING :
+	printf("BIT-STRING \"%s\"\n",
+	       (char *)packet->object_value.string.bytes);
+	break;
+
+    case CUPS_ASN1_OCTET_STRING :
+	printf("OCTET-STRING \"%s\"\n",
+	       (char *)packet->object_value.string.bytes);
+	break;
+```
+5. A concise explanation of why it is vulnerable: The code uses `%s` to print `packet->object_value.string.bytes` for both `BIT-STRING` and `OCTET-STRING` types. These fields are typically raw byte arrays received over the network via SNMP and are not guaranteed to be null-terminated. Because `printf` will continue reading memory until it encounters a null byte, a malicious SNMP agent can send a packet without a null terminator, causing the program to leak sensitive data from the stack or heap (Information Disclosure) or potentially crash.
+6. Severity rating: Medium

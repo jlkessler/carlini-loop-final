@@ -1,0 +1,18 @@
+1. File: libass\ass_cache_template.h
+2. Name of the function containing the vulnerability: `clip_bitmap_hash` (generated via `CREATE_HASH_FUNCTIONS` for `ClipMaskHashKey`)
+3. Vulnerability type / CWE: CWE-119: Improper Restriction of Operations within the Bounds of a Memory Buffer (Null Pointer Dereference)
+4. The relevant vulnerable code snippet:
+```c
+#elif defined(CREATE_HASH_FUNCTIONS)
+// ...
+#define STRING(member) \
+        hval = fnv_32a_str(p->member, hval);
+// ...
+START(clip_bitmap, clip_bitmap_hash_key)
+    STRING(text)
+END(ClipMaskHashKey)
+```
+5. A concise explanation of why it is vulnerable:
+The macro `CREATE_HASH_FUNCTIONS` generates hash functions for the defined structures. For the `ClipMaskHashKey` structure, it defines a `STRING(text)` member, which expands to `hval = fnv_32a_str(p->text, hval);`. If the `text` pointer in the `ClipMaskHashKey` structure is `NULL`, `fnv_32a_str` (which typically expects a valid C-string) will attempt to dereference a null pointer, leading to a crash (Denial of Service). Since the template does not provide any null-check for `STRING` members before passing them to the hashing function, any cache lookup involving a null text string will trigger the vulnerability.
+
+6. Severity rating: Medium

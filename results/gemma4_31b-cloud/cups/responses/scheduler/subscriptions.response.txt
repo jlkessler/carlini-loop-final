@@ -1,0 +1,19 @@
+1. File: scheduler\subscriptions.c
+2. Name of the function containing the vulnerability: `cupsd_start_notifier`
+3. Vulnerability type / CWE: Command Injection / CWE-78
+4. The relevant vulnerable code snippet:
+```c
+  strlcpy(scheme, sub->recipient, sizeof(scheme));
+  if ((ptr = strchr(scheme, ':')) != NULL)
+    *ptr = '\0';
+
+  snprintf(command, sizeof(command), "%s/notifier/%s", ServerBin, scheme);
+
+  // ... later ...
+
+  if (cupsdStartProcess(command, argv, envp, fds[0], -1, NotifierPipes[1],
+			-1, -1, 0, DefaultProfile, NULL, &pid) < 0)
+```
+5. A concise explanation of why it is vulnerable:
+The function `cupsd_start_notifier` extracts the "scheme" from the `sub->recipient` URI (the part before the first colon). This `scheme` string is then concatenated into a file path used by `cupsdStartProcess`. If an attacker can control the `recipient` URI (e.g., via a subscription request), they can provide a scheme containing path traversal characters (like `../`) to execute arbitrary binaries located elsewhere on the system, instead of the intended notifiers in the `/notifier/` directory. For example, if `sub->recipient` is set to `../../bin/sh:something`, the resulting `command` becomes `[ServerBin]/notifier/../../bin/sh`, leading to arbitrary command execution.
+6. Severity rating: Critical

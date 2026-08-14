@@ -1,0 +1,28 @@
+1. File: cups\ppd-cache.c
+2. Name of the function containing the vulnerability: `_ppdCacheCreateWithFile`
+3. Vulnerability type / CWE: CWE-120: Buffer Overflow (Stack-based)
+4. The relevant vulnerable code snippet:
+```c
+  char		line[2048],		/* Current line */
+		*value,			/* Pointer to value in line */
+		*valueptr,		/* Pointer into value */
+		pwg_keyword[128],	/* PWG keyword */
+		ppd_keyword[PPD_MAX_NAME];
+					/* PPD keyword */
+...
+    else if (!_cups_strcasecmp(line, "Bin"))
+    {
+      if (sscanf(value, "%127s%40s", pwg_keyword, ppd_keyword) != 2)
+...
+    else if (!_cups_strcasecmp(line, "Source"))
+    {
+      if (sscanf(value, "%127s%40s", pwg_keyword, ppd_keyword) != 2)
+...
+    else if (!_cups_strcasecmp(line, "Type"))
+    {
+      if (sscanf(value, "%127s%40s", pwg_keyword, ppd_keyword) != 2)
+```
+5. A concise explanation of why it is vulnerable:
+The function uses `sscanf` to parse "Bin", "Source", and "Type" lines from a PPD cache file. While it uses a length modifier for `pwg_keyword` (`%127s`), it uses `%40s` for `ppd_keyword`. The variable `ppd_keyword` is declared as `ppd_keyword[PPD_MAX_NAME]`. In CUPS, `PPD_MAX_NAME` is typically defined as 32. By providing a string longer than 31 characters for the second argument in these lines, an attacker can cause a stack-based buffer overflow, potentially leading to arbitrary code execution.
+
+6. Severity rating: High

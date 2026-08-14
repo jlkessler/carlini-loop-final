@@ -1,0 +1,33 @@
+1. File: scheduler\select.c
+
+2. Name of the function containing the vulnerability: `cupsdDoSelect()`
+
+3. Vulnerability type / CWE: CWE-476 NULL Pointer Dereference
+
+4. The relevant vulnerable code snippet:
+```c
+for (i = nfds, event = cupsd_kqueue_events; i > 0; i --, event ++)
+{
+  fdptr = (_cupsd_fd_t *)event->udata;
+
+  if (cupsArrayFind(cupsd_inactive_fds, fdptr))
+    continue;
+
+  retain_fd(fdptr);
+
+  if (fdptr->read_cb && event->filter == EVFILT_READ)
+    (*(fdptr->read_cb))(fdptr->data);
+
+  if (fdptr->use > 1 && fdptr->write_cb && event->filter == EVFILT_WRITE &&
+      !cupsArrayFind(cupsd_inactive_fds, fdptr))
+    (*(fdptr->write_cb))(fdptr->data);
+
+  release_fd(fdptr);
+}
+```
+
+5. A concise explanation of why it is vulnerable: In `cupsdDoSelect()`, when processing events from kqueue, the code assumes that `event->udata` (which points to a `_cupsd_fd_t` structure) will always be valid and non-NULL. However, there's no null check on `fdptr` after dereferencing `event->udata`. If `event->udata` is NULL or points to freed memory, this will result in a NULL pointer dereference when accessing `fdptr->read_cb`, `fdptr->write_cb`, or `fdptr->data`.
+
+6. Severity rating: HIGH
+
+The vulnerability occurs because the system doesn't validate that the user data pointer stored in kqueue events is valid before using it as a pointer to `_cupsd_fd_t` structures. This can lead to crashes or potentially exploitable behavior if malicious actors can manipulate the event data or if there are race conditions in the fd management code.

@@ -1,0 +1,12 @@
+1. File: cgi-bin\testcgi.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-117: Improper Output Neutralization for Logs (Log Injection / XSS via Output)
+4. The relevant vulnerable code snippet:
+```c
+      printf("    tempfile=\"%s\"\n", file->tempfile);
+      printf("    name=\"%s\"\n", file->name);
+      printf("    filename=\"%s\"\n", file->filename);
+      printf("    mimetype=\"%s\"\n", file->mimetype);
+```
+5. A concise explanation of why it is vulnerable: The program takes data from a multipart file upload (which is user-controlled) and prints it directly to the standard output without any sanitization or escaping. Since this is a CGI program, the output is sent to the web browser. An attacker could upload a file with a crafted filename containing HTML or JavaScript tags (e.g., `<script>alert(1)</script>`), leading to a Reflected Cross-Site Scripting (XSS) attack.
+6. Severity rating: Medium

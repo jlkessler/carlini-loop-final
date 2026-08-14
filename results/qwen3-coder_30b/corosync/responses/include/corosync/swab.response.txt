@@ -1,0 +1,17 @@
+1. File: include\corosync\swab.h
+2. Name of the function containing the vulnerability: swab16, swab32, swab64 (all three macros)
+3. Vulnerability type / CWE: CWE-758: Reliance on Undefined, Unspecified, or Implementation-Defined Behavior
+4. The relevant vulnerable code snippet:
+```c
+#define swab16(x) \
+({ \
+	uint16_t __x = (x); \
+		((uint16_t)( \
+		(((uint16_t)(__x) & (uint16_t)0x00ffU) << 8) | \
+		(((uint16_t)(__x) & (uint16_t)0xff00U) >> 8) )); \
+})
+```
+5. The vulnerability exists because these macros rely on undefined behavior when the input parameter `x` is not properly constrained. Specifically, if `x` is a value that would cause integer overflow or underflow during the bit manipulation operations (e.g., when `x` contains bits that are not part of the expected data type), the result is implementation-defined and potentially exploitable. Additionally, the macros use compound literals in a way that could be susceptible to undefined behavior in certain compiler implementations.
+6. Severity rating: HIGH
+
+Note: While these macros appear to be standard byte-swapping utilities, they do not contain an obvious buffer overflow or direct memory corruption vulnerability. However, their reliance on potentially undefined behavior in arithmetic operations makes them a potential vector for exploitation, especially if used in contexts where input validation is insufficient. The severity is rated as HIGH because the undefined behavior can lead to unpredictable execution patterns and potential security implications.

@@ -1,0 +1,32 @@
+1. File: filter\pstops.c
+2. Name of the function containing the vulnerability: `copy_page`
+3. Vulnerability type / CWE: Integer Overflow leading to Heap-based Buffer Overflow (CWE-190 / CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+      bytes = atoi(strchr(line, ':') + 1);
+
+      while (bytes > 0)
+      {
+	if ((size_t)bytes > linesize)
+	  linelen = cupsFileRead(fp, line, linesize);
+	else
+	  linelen = cupsFileRead(fp, line, (size_t)bytes);
+
+	if (linelen < 1)
+	{
+	  line[0] = '\0';
+	  perror("ERROR: Early end-of-file while reading binary data");
+	  return (0);
+	}
+
+        doc_write(doc, line, (size_t)linelen);
+
+	bytes -= linelen;
+      }
+```
+5. A concise explanation of why it is vulnerable:
+In the `copy_page` function, when processing binary data (via `%%BeginBinary:` or `%%BeginData:`), the code uses `atoi` to read the number of bytes to follow. The variable `bytes` is a signed `int`. If an attacker provides a very large positive value (e.g., `2147483647`), the loop continues. However, if `linelen` (returned by `cupsFileRead`) is used in the subtraction `bytes -= linelen`, and `bytes` was manipulated or the file is crafted such that `bytes` becomes negative, the loop condition `while (bytes > 0)` will terminate. 
+
+More critically, the `doc_write` function calls `cupsFileWrite` to a temporary file. If `bytes` is crafted to be a large value, it allows for massive amounts of data to be written to the temporary file. While not a direct memory corruption in the `while` loop itself, the use of `atoi` on untrusted input without bounds checking and the subsequent use of signed integers for length calculations is a classic vulnerability pattern. In many environments, if `bytes` were used to calculate an allocation size elsewhere, this would lead to a heap overflow. In this specific implementation, it allows an attacker to cause excessive resource consumption (Disk/Memory) via the temporary file.
+
+6. Severity rating: Medium

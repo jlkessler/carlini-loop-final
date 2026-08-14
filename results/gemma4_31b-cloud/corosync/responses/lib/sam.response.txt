@@ -1,0 +1,27 @@
+1. File: lib\sam.c
+2. Name of the function containing the vulnerability: sam_parent_data_store
+3. Vulnerability type / CWE: Integer Overflow leading to Heap-based Buffer Overflow (CWE-190 / CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+	if (sam_safe_read (parent_fd_in, &size, sizeof (size)) != sizeof (size)) {
+		err = CS_ERR_LIBRARY;
+		goto error_reply;
+	}
+
+	if (size > 0) {
+		user_data = malloc (size);
+		if (user_data == NULL) {
+			err = CS_ERR_NO_MEMORY;
+			goto error_reply;
+		}
+
+		if (sam_safe_read (parent_fd_in, user_data, size) != size) {
+			err = CS_ERR_LIBRARY;
+			goto free_error_reply;
+		}
+	}
+```
+5. A concise explanation of why it is vulnerable:
+The variable `size` is defined as `ssize_t` (a signed integer). The function reads `size` directly from the pipe (`parent_fd_in`). While there is a check `if (size > 0)`, it does not check for an upper bound. A malicious child process can send an extremely large value for `size`. If `malloc(size)` succeeds (or if the value is large enough to cause wrapping in subsequent calculations in `sam_data_store`), the subsequent `sam_safe_read` will attempt to read that many bytes from the pipe into the heap buffer. More critically, `sam_data_store` uses `realloc` and `memcpy` with this `size`. If `size` is large enough to cause an integer overflow during memory management or exceeds available memory, it can lead to a heap overflow or a Denial of Service (DoS) via memory exhaustion.
+
+6. Severity rating: High

@@ -1,0 +1,12 @@
+1. File: cups\testcache.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+  int			num_finishings,	/* Number of finishing options */
+			finishings[20];	/* Finishing options */
+...
+  num_finishings = _ppdCacheGetFinishingValues(ppd, pc, (int)sizeof(finishings) / sizeof(finishings[0]), finishings);
+```
+5. A concise explanation of why it is vulnerable: The code declares a fixed-size array `finishings` of 20 integers. It then calls `_ppdCacheGetFinishingValues`, passing the size of the array as a limit. However, if the underlying implementation of `_ppdCacheGetFinishingValues` does not strictly respect the provided size limit or if there is a signed/unsigned mismatch in how the count is handled internally, it can lead to a stack-based buffer overflow. More importantly, in many CUPS-related vulnerabilities of this pattern, if the return value `num_finishings` is used to drive a loop (as seen in the subsequent `for` loop) and the function fails to properly cap the number of elements written to the buffer, it leads to memory corruption.
+6. Severity rating: High

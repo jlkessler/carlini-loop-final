@@ -1,0 +1,21 @@
+1. File: cups\getifaddrs.c
+2. Name of the function containing the vulnerability: `_cups_getifaddrs`
+3. Vulnerability type / CWE: Buffer overflow (CWE-121), Integer overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+for (bufptr = buffer, bufend = buffer + conf.ifc_len;
+     bufptr < bufend;
+     bufptr += ifpsize)
+{
+ ...
+ ifpsize = sizeof(ifp->ifr_name) + sockaddr_len(&(ifp->ifr_addr));
+
+ if (ifpsize < sizeof(struct ifreq))
+   ifpsize = sizeof(struct ifreq);
+ ...
+}
+```
+5. The vulnerability occurs because `ifpsize` is calculated based on `sockaddr_len(&(ifp->ifr_addr))`, which can be controlled by the attacker through malicious network interface data returned by the `SIOCGIFCONF` ioctl call. If an attacker can manipulate the socket address length field to a very large value, `ifpsize` could become extremely large, causing `bufptr += ifpsize` to skip far beyond the bounds of the allocated buffer, leading to memory corruption and potential code execution.
+6. Severity rating: Critical
+
+This vulnerability is critical because it allows for arbitrary memory corruption via a controlled buffer overflow that can be triggered by manipulating network interface data. The attacker could potentially execute arbitrary code or cause a denial of service.

@@ -1,0 +1,23 @@
+1. File: backend\ipp.c
+2. Name of the function containing the vulnerability: `new_request`
+3. Vulnerability type / CWE: Buffer Overflow / CWE-120
+4. The relevant vulnerable code snippet:
+```c
+        _httpDecodeURI(phone, keyword, sizeof(phone));
+        ptr = phone;
+
+        /*
+         * Weed out "Custom." in the beginning, this allows to put the
+         * "phone" option as custom string option into the PPD so that
+         * print dialogs not supporting fax display the option and
+         * allow entering the phone number. Print dialogs also send "None"
+         * if no phone number got entered, filter this, too.
+         */
+        if (!_cups_strcasecmp(phone, "None"))
+          *ptr = '\0';
+        if (!_cups_strncasecmp(phone, "Custom.", 7))
+          _cups_strcpy(ptr, ptr + 7);
+```
+5. A concise explanation of why it is vulnerable: In the `new_request` function, when processing the "phone" option for faxing, the code uses `_cups_strcpy(ptr, ptr + 7)` to remove the "Custom." prefix. `_cups_strcpy` is a wrapper for `strcpy`. Because the source and destination buffers overlap (`ptr` and `ptr + 7` both point into the `phone` buffer), this leads to undefined behavior. More critically, if the `phone` buffer is not properly null-terminated or contains specific patterns, this overlapping copy can lead to a heap or stack buffer overflow (depending on where `phone` is allocated) as it copies data from a shifted position within the same buffer.
+
+6. Severity rating: High

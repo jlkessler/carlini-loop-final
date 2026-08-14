@@ -1,0 +1,25 @@
+1. File: cups\snprintf.c
+2. Name of the function containing the vulnerability: _cups_vsnprintf
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+      if (*format == '*')
+      {
+       /*
+        * Get width from argument...
+	*/
+
+	format ++;
+	width = va_arg(ap, int);
+
+        /* Note: Can't use snprintf here since we are implementing this function... */
+	sprintf(tptr, "%d", width);
+	tptr += strlen(tptr);
+      }
+```
+(Similar logic exists for the precision `prec` argument shortly after).
+
+5. A concise explanation of why it is vulnerable:
+The function uses a small fixed-size stack buffer `tformat[100]` to construct a format string that is later passed to `sprintf`. When the format string contains a `*` for width or precision, the function fetches an integer from the variable arguments (`va_arg(ap, int)`) and uses `sprintf(tptr, "%d", width)` to write that integer into `tformat`. There is no bounds checking performed on `tptr` before this `sprintf` call. An attacker who controls the format string and the corresponding integer arguments can provide a very large integer (or a negative one) that, when converted to a string, exceeds the remaining space in `tformat`, leading to a stack-based buffer overflow.
+
+6. Severity rating: Critical

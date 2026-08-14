@@ -1,0 +1,30 @@
+1. File: scheduler\select.c
+2. Name of the function containing the vulnerability: `cupsdDoSelect`
+3. Vulnerability type / CWE: Use-After-Free (CWE-416)
+4. The relevant vulnerable code snippet:
+```c
+    for (i = nfds, event = cupsd_kqueue_events; i > 0; i --, event ++)
+    {
+      fdptr = (_cupsd_fd_t *)event->udata;
+
+      if (cupsArrayFind(cupsd_inactive_fds, fdptr))
+        continue;
+
+      retain_fd(fdptr);
+
+      if (fdptr->read_cb && event->filter == EVFILT_READ)
+        (*(fdptr->read_cb))(fdptr->data);
+
+      if (fdptr->use > 1 && fdptr->write_cb && event->filter == EVFILT_WRITE &&
+          !cupsArrayFind(cupsd_inactive_fds, fdptr))
+        (*(fdptr->write_cb))(fdptr->data);
+
+      release_fd(fdptr);
+    }
+```
+(Similar patterns exist in the `HAVE_EPOLL` block of the same function).
+
+5. A concise explanation of why it is vulnerable:
+The function iterates through events returned by the kernel. For each event, it retrieves the `fdptr` pointer from the event data. While it attempts to use a reference counting mechanism (`retain_fd`/`release_fd`) and checks `cupsd_inactive_fds`, it fails to account for the fact that the `read_cb` (the read callback) might call `cupsdRemoveSelect`. If `cupsdRemoveSelect` is called, the `fdptr` is removed from the active array and `release_fd` is called. If the reference count hits zero, the memory is freed. When the `read_cb` returns, the code continues to execute the subsequent `if` block (for the `write_cb`) and finally calls `release_fd(fdptr)` on a pointer that has already been freed during the execution of the read callback.
+
+6. Severity rating: High

@@ -1,0 +1,47 @@
+1. File: cups\rasterbench.c
+2. Name of the function containing the vulnerability: write_test
+3. Vulnerability type / CWE: CWE-129 - Improper Validation of Array Index
+4. The relevant vulnerable code snippet:
+```c
+for (page = 0; page < TEST_PAGES; page ++)
+{
+  memset(&header, 0, sizeof(header));
+  header.cupsWidth        = TEST_WIDTH;
+  header.cupsHeight       = TEST_HEIGHT;
+  header.cupsBytesPerLine = TEST_WIDTH;
+
+  if (page & 1)
+  {
+    header.cupsBytesPerLine *= 4;
+    header.cupsColorSpace = CUPS_CSPACE_CMYK;
+    header.cupsColorOrder = CUPS_ORDER_CHUNKED;
+  }
+  else
+  {
+    header.cupsColorSpace = CUPS_CSPACE_K;
+    header.cupsColorOrder = CUPS_ORDER_BANDED;
+  }
+
+  if (page & 2)
+  {
+    header.cupsBytesPerLine *= 2;
+    header.cupsBitsPerColor = 16;
+    header.cupsBitsPerPixel = (page & 1) ? 64 : 16;
+  }
+  else
+  {
+    header.cupsBitsPerColor = 8;
+    header.cupsBitsPerPixel = (page & 1) ? 32 : 8;
+  }
+
+  cupsRasterWriteHeader2(r, &header);
+
+  for (y = 0; y < TEST_HEIGHT; y ++)
+    cupsRasterWritePixels(r, data[y & 31], header.cupsBytesPerLine);
+}
+```
+5. The vulnerability occurs because the code uses `data[y & 31]` to index into the `data` array, but the `data` array is declared as `unsigned char data[32][8 * TEST_WIDTH]`. While the indexing operation itself seems safe (since `y & 31` will always be between 0 and 31), the critical issue arises from the fact that `header.cupsBytesPerLine` can be modified by various conditional branches. When `page & 2` is true, `header.cupsBytesPerLine` is multiplied by 2, and when `page & 1` is true, it's multiplied by 4. However, these modifications are not validated against the actual size of the data buffer, potentially leading to a buffer overflow in `cupsRasterWritePixels()` call if `header.cupsBytesPerLine` becomes larger than the allocated size of `data[y & 31]`.
+
+6. Severity rating: HIGH
+
+The vulnerability is high severity because it could lead to memory corruption and potentially arbitrary code execution through buffer overflows in the raster write functions, especially when different combinations of page flags modify the `cupsBytesPerLine` value beyond what's safe for the preallocated data buffers.

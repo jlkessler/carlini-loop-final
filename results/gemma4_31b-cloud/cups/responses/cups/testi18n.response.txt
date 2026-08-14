@@ -1,0 +1,18 @@
+1. File: cups\testi18n.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-120: Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+    while (fgets(line, sizeof(line), fp))
+    {
+      if (cupsCharsetToUTF8(utf8dest, line, sizeof(utf8dest), encoding) < 0)
+      {
+        fprintf(stderr, "%s: Unable to convert line: %s", argv[1], line);
+	return (1);
+      }
+
+      fputs((char *)utf8dest, stdout);
+    }
+```
+5. A concise explanation of why it is vulnerable: The code reads a line from a file into the `line` buffer (size 1024) and then converts it to UTF-8 using `cupsCharsetToUTF8`, storing the result in `utf8dest` (also size 1024). Since UTF-8 is a variable-width encoding, converting a string from a single-byte charset (like ISO-8859-1) to UTF-8 can result in a string that is significantly larger than the original (up to 3-4 times the size for certain characters). Because the destination buffer `utf8dest` is the same size as the input buffer `line`, a specially crafted input file containing many multi-byte characters can cause `cupsCharsetToUTF8` to write beyond the bounds of the `utf8dest` array, leading to a stack-based buffer overflow.
+6. Severity rating: High

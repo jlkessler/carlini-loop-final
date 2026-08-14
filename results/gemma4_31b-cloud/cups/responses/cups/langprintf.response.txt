@@ -1,0 +1,13 @@
+1. File: cups\langprintf.c
+2. Name of the function containing the vulnerability: `_cupsLangPrintFilter`
+3. Vulnerability type / CWE: Format String Vulnerability (CWE-134)
+4. The relevant vulnerable code snippet:
+```c
+  va_start(ap, message);
+  snprintf(temp, sizeof(temp), "%s: %s\n", prefix,
+	   _cupsLangString(cg->lang_default, message));
+  vsnprintf(buffer, sizeof(buffer), temp, ap);
+  va_end(ap);
+```
+5. A concise explanation of why it is vulnerable: The function `_cupsLangPrintFilter` takes a `message` string, translates it using `_cupsLangString`, and then incorporates that translated string into the `temp` buffer using `snprintf`. This `temp` buffer is then used as the **format string** argument for `vsnprintf`. If an attacker can control the content of the translated `message` (e.g., through a malicious localization file or if the message is derived from user input), they can inject format specifiers (like `%x`, `%s`, or `%n`) into `temp`. When `vsnprintf` is called, it will process these specifiers, allowing the attacker to leak memory contents from the stack or write arbitrary data to memory.
+6. Severity rating: Critical

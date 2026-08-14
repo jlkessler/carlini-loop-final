@@ -1,0 +1,22 @@
+1. File: libass\ass_utils.h
+2. Name of the function containing the vulnerability: `fnv_32a_buf`
+3. Vulnerability type / CWE: Out-of-bounds Read (CWE-125)
+4. The relevant vulnerable code snippet:
+```c
+    size_t n = (len + 3) / 4;
+
+    switch (len % 4) {
+    case 0: do { hval ^= (unsigned) *bp++; hval *= FNV1_32A_PRIME;
+    case 3:      hval ^= (unsigned) *bp++; hval *= FNV1_32A_PRIME;
+    case 2:      hval ^= (unsigned) *bp++; hval *= FNV1_32A_PRIME;
+    case 1:      hval ^= (unsigned) *bp++; hval *= FNV1_32A_PRIME;
+               } while (--n > 0);
+    }
+```
+5. A concise explanation of why it is vulnerable: The function implements a Duff's Device-style loop to process the buffer. However, it is implemented incorrectly. The `switch` statement is inside the `do...while` loop, but it uses fall-through logic starting from the case of `len % 4`. If `len % 4` is 0, the code executes all four cases in the first iteration, and then repeats the loop `n-1` times. Because `n` is calculated as `(len + 3) / 4`, if `len` is exactly a multiple of 4 (e.g., `len = 4`), `n` becomes 1. The loop will execute once, processing 4 bytes. But if `len = 1`, `n` is also 1, and if the switch hits `case 1`, it processes 1 byte and finishes. 
+
+The critical error is that the logic expects to process 4 bytes per loop iteration regardless of the starting case, but the `switch` cases are ordered such that `case 0` falls through to `case 3, 2, 1`. If `len` is 0, `n` is 0, and the `do...while` loop (which executes at least once) will execute and attempt to read from the buffer regardless of the length, leading to an out-of-bounds read. Furthermore, the loop logic is generally flawed; for any `len > 0`, if it enters `case 0`, it processes 4 bytes, then decrements `n`. If `len` was 4, `n` is 1, it processes 4 bytes and exits. But if `len` was 5, `n` is 2; it processes 4 bytes, then enters the loop again and processes 4 *more* bytes because it doesn't re-evaluate the `switch` for the remaining bytes, it just repeats the logic. Actually, the `switch` is *inside* the loop, but since there is no `break`, it always performs the operations of the matched case and all subsequent cases. If it matches `case 0`, it does 4 operations. Then it loops. In the second iteration, it hits `case 0` again and does 4 more operations. It will always read `n * 4` bytes if `len % 4 == 0`, which is correct, but if `len % 4 != 0`, it will still read `n * 4` bytes (or similar) because the `switch` is evaluated every iteration and it always falls through to `case 1`. For example, if `len = 1`, `n = 1`. It enters `case 1`, processes 1 byte, and exits. If `len = 5`, `n = 2`. Iteration 1: enters `case 1`, processes 1 byte. Iteration 2: enters `case 1`, processes 1 byte. Total 2 bytes read, but `len` was 5. The implementation is fundamentally broken and will read incorrect amounts of memory.
+
+Specifically, if `len` is 0, `n` is 0. The `do...while` loop executes once. `len % 4` is 0. It executes `case 0` through `case 1`, reading 4 bytes from a 0-length buffer.
+
+6. Severity rating: High

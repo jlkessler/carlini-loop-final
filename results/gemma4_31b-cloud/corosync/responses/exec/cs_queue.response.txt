@@ -1,0 +1,26 @@
+1. File: exec\cs_queue.h
+2. Name of the function containing the vulnerability: `cs_queue_item_add`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-122: Heap-based Buffer Overflow)
+4. The relevant vulnerable code snippet:
+```c
+static inline void cs_queue_item_add (struct cs_queue *cs_queue, void *item)
+{
+	char *cs_queue_item;
+	int cs_queue_position;
+
+	if (cs_queue->threaded_mode_enabled) {
+		pthread_mutex_lock (&cs_queue->mutex);
+	}
+	cs_queue_position = cs_queue->head;
+	cs_queue_item = cs_queue->items;
+	cs_queue_item += cs_queue_position * cs_queue->size_per_item;
+	memcpy (cs_queue_item, item, cs_queue->size_per_item);
+
+	assert (cs_queue->tail != cs_queue->head);
+
+	cs_queue->head = (cs_queue->head + 1) % cs_queue->size;
+	cs_queue->used++;
+    // ...
+```
+5. A concise explanation of why it is vulnerable: The function `cs_queue_item_add` lacks any check to verify if the queue is full before adding a new item. While `cs_queue_is_full` exists, it is not called within this function. If an attacker or a malfunctioning process calls `cs_queue_item_add` when `cs_queue->used` has reached `cs_queue->size - 1`, the `cs_queue->head` will wrap around and eventually overlap with `cs_queue->tail`. More critically, if the logic governing the queue size is bypassed or mismatched, the `memcpy` can write beyond the allocated bounds of the `cs_queue->items` buffer. Even in a standard wrap-around scenario, the function allows the queue to overwrite existing data that has not yet been removed, and the `assert` only catches the overflow in debug builds, providing no protection in production.
+6. Severity rating: High

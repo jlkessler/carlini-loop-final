@@ -1,0 +1,21 @@
+1. File: cups\tls-darwin.c
+2. Name of the function containing the vulnerability: `cupsMakeServerCredentials`
+3. Vulnerability type / CWE: Command Injection (CWE-78)
+4. The relevant vulnerable code snippet:
+```c
+  if (!cupsFileFind("certtool", getenv("PATH"), 1, command, sizeof(command)))
+    return (-1);
+
+  // ... (omitted code creating infofile) ...
+
+  argv[0] = "certtool";
+  argv[1] = "c";
+  argv[2] = keychain;
+  argv[3] = NULL;
+
+  // ... (omitted envp setup) ...
+
+  if (posix_spawn(&pid, command, &actions, NULL, argv, envp))
+```
+5. A concise explanation of why it is vulnerable: The function uses `cupsFileFind` to locate the `certtool` binary based on the `PATH` environment variable and stores the full path in the `command` buffer. This `command` buffer is then passed directly to `posix_spawn`. Since `getenv("PATH")` can be controlled by a user or an attacker (depending on the process privileges), an attacker can modify the `PATH` environment variable to point to a directory they control containing a malicious binary named `certtool`. When `cupsMakeServerCredentials` is called, it will execute the attacker's binary instead of the legitimate system utility.
+6. Severity rating: High

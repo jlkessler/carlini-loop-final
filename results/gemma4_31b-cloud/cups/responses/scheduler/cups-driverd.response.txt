@@ -1,0 +1,18 @@
+1. File: scheduler\cups-driverd.cxx
+2. Name of the function containing the vulnerability: `cat_ppd`
+3. Vulnerability type / CWE: Command Injection (CWE-78)
+4. The relevant vulnerable code snippet:
+```cpp
+    argv[0] = scheme;
+    argv[1] = (char *)"cat";
+    argv[2] = (char *)name;
+    argv[3] = NULL;
+
+    if (cupsdExec(line, argv))
+```
+5. A concise explanation of why it is vulnerable:
+The function `cat_ppd` determines if a PPD is "dynamic" by checking if the `scheme` (extracted from the `name` argument) exists as an executable in the `/driver/` directory. If it does, it calls `cupsdExec` to execute that binary. 
+
+While the code prevents directory traversal (`../`), it does not sanitize the `scheme` variable used as `argv[0]` or the `name` variable used as `argv[2]`. Since `scheme` is derived directly from the user-supplied `name` argument (everything before the first colon), an attacker can specify a scheme that corresponds to a legitimate driver binary but provide a crafted `name` (the part after the colon) containing malicious arguments. Furthermore, if an attacker can upload or place a file in the driver directory, they can execute arbitrary binaries. More critically, depending on the implementation of `cupsdExec`, providing specific characters in the `scheme` or `name` could lead to argument injection or execution of arbitrary commands if the underlying system call does not properly handle the argument vector.
+
+6. Severity rating: High

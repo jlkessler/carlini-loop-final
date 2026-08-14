@@ -1,0 +1,17 @@
+1. File: include\corosync\mar_gen.h
+2. Name of the function containing the vulnerability: marshall_from_mar_name_t
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static inline void marshall_from_mar_name_t (
+	cs_name_t *dest,
+	const mar_name_t *src)
+{
+	dest->length = src->length;
+	memcpy (dest->value, src->value, CS_MAX_NAME_LENGTH);
+}
+```
+5. The vulnerability exists because the code copies `CS_MAX_NAME_LENGTH` bytes from `src->value` to `dest->value` without validating that `src->length` is less than or equal to `CS_MAX_NAME_LENGTH`. If `src->length` exceeds `CS_MAX_NAME_LENGTH`, it will result in a buffer overflow when copying data into `dest->value`.
+6. Severity rating: HIGH
+
+The vulnerability occurs in the `marshall_from_mar_name_t` function where `memcpy` copies `CS_MAX_NAME_LENGTH` bytes regardless of the actual length specified in `src->length`. This can lead to memory corruption if `src->length` is larger than the buffer size, causing a stack-based buffer overflow.

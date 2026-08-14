@@ -1,0 +1,32 @@
+1. File: test\stress_cpgfdget.c
+
+2. Name of the function containing the vulnerability: main
+
+3. Vulnerability type / CWE: CWE-788 - Access to Off-Stack Memory, CWE-457 - Use of Uninitialized Variable
+
+4. The relevant vulnerable code snippet:
+```c
+int original_fd;
+int i;
+int fd;
+
+// ... code ...
+
+res = cpg_fd_get (handle, &original_fd);
+if (res != CS_OK) {
+    printf ("FAIL %d\n", res);
+}
+for (i = 0; i < ITERATIONS; i++) {
+    res = cpg_fd_get (handle, &fd);  // fd is uninitialized here
+    if (original_fd != fd) {
+        printf ("FAIL\n");
+        exit (-1);
+    }
+}
+```
+
+5. The vulnerability exists because the variable `fd` is used in the comparison `if (original_fd != fd)` without being initialized in every iteration of the loop. While `original_fd` is initialized by the first call to `cpg_fd_get()`, `fd` is not initialized before each subsequent call, making its value unpredictable and leading to undefined behavior.
+
+6. Severity rating: high
+
+The vulnerability is a use of uninitialized variable that could lead to unpredictable program behavior or potential exploitation in certain scenarios, especially if the uninitialized memory contains values that cause unexpected comparisons or if it leads to information disclosure through memory contents. While not immediately exploitable to code execution, it represents a significant reliability and security issue.

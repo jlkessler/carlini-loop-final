@@ -1,0 +1,29 @@
+1. File: systemv\cupstestppd.c
+2. Name of the function containing the vulnerability: `main`
+3. Vulnerability type / CWE: CWE-78 - Improper Neutralization of Special Elements used in OS Command Injection
+4. The relevant vulnerable code snippet:
+```c
+if (argv[i][0] == '-')
+{
+ // ...
+ if ((fp = cupsFileOpen(argv[i], "r")) != NULL)
+ {
+   ppd = _ppdOpen(fp, _PPD_LOCALIZATION_ALL);
+   cupsFileClose(fp);
+ }
+ else
+ {
+  status = ERROR_FILE_OPEN;
+  if (verbose >= 0)
+  {
+    _cupsLangPuts(stdout, _(" FAIL"));
+    _cupsLangPrintf(stdout,
+      _("      **FAIL**  Unable to open PPD file - %s on "
+        "line %d."), strerror(errno), 0);
+    continue;
+  }
+ }
+}
+```
+5. The vulnerability exists because the program directly uses command-line arguments as filenames without proper validation or sanitization, which could allow an attacker to inject malicious commands if the program is executed with untrusted input. The program opens files based on argv[i] directly, and if argv[i] contains malicious content that gets processed by system calls, it can lead to command injection.
+6. Severity rating: HIGH

@@ -1,0 +1,12 @@
+1. File: ppdc\ppdc-constraint.cxx
+2. Name of the function containing the vulnerability: `ppdcConstraint::ppdcConstraint`
+3. Vulnerability type / CWE: CWE-772: Missing Release of Resource after Effective Lifetime (Memory Leak) / Potential Null Pointer Dereference
+4. The relevant vulnerable code snippet:
+```cpp
+  option1 = new ppdcString(o1);
+  choice1 = new ppdcString(c1);
+  option2 = new ppdcString(o2);
+  choice2 = new ppdcString(c2);
+```
+5. A concise explanation of why it is vulnerable: The constructor allocates four `ppdcString` objects using `new`. If any of these allocations fail (throw a `std::bad_alloc` exception), the previously allocated objects in the constructor will not be deleted, as the destructor `~ppdcConstraint()` is only called if the constructor completes successfully. This leads to a memory leak. Furthermore, if the `ppdcString` constructor does not handle null inputs for `o1`, `c1`, etc., it could lead to a crash depending on the implementation of `ppdcString`.
+6. Severity rating: low

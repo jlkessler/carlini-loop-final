@@ -1,0 +1,6 @@
+1. File: cups\testgetdests.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: NO_VULNERABILITY_FOUND
+4. The relevant vulnerable code snippet: N/A
+5. A concise explanation of why it is vulnerable: The provided code is a simple test harness that calls an API function (`cupsGetDests`) and cleans up the resulting memory using the corresponding cleanup function (`cupsFreeDests`). There are no user-controlled inputs, buffer overflows, or obvious memory leaks within this specific wrapper.
+6. Severity rating: NO_VULNERABILITY_FOUND

@@ -1,0 +1,22 @@
+1. File: scheduler\job.c
+2. Name of the function containing the vulnerability: `cupsdContinueJob`
+3. Vulnerability type / CWE: CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')
+4. The relevant vulnerable code snippet:
+```c
+    if (filter->filter[0] != '/')
+      snprintf(command, sizeof(command), "%s/filter/%s", ServerBin,
+               filter->filter);
+    else
+      strlcpy(command, filter->filter, sizeof(command));
+
+    // ... later ...
+
+    pid = cupsdStartProcess(command, argv, envp, filterfds[!slot][0],
+                            filterfds[slot][1], job->status_pipes[1],
+                            job->back_pipes[0], job->side_pipes[0], 0,
+                            job->profile, job, job->filters + i);
+```
+5. A concise explanation of why it is vulnerable:
+The function `cupsdContinueJob` constructs a `command` string by concatenating `ServerBin` with `filter->filter`. The `filter->filter` value is derived from the MIME database. If an attacker can influence the MIME database or if the system is configured to use a filter name containing shell metacharacters (e.g., `;`, `|`, `` ` ``), these characters may be passed to the underlying process execution mechanism. While `cupsdStartProcess` typically uses `execvp`, the vulnerability exists if any part of the path resolution or the environment allows for command injection, or if the filter name itself is used to build paths that are later handled by a shell. More critically, the code allows absolute paths (when `filter->filter[0] == '/'`) to be passed directly as the command to execute, allowing an attacker who can modify the MIME database to execute arbitrary binaries on the system with the privileges of the CUPS scheduler.
+
+6. Severity rating: High

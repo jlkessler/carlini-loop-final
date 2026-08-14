@@ -1,0 +1,40 @@
+1. File: scheduler\ipp.c
+2. Name of the function containing the vulnerability: `create_local_bg_thread`
+3. Vulnerability type / CWE: CWE-78 - Command Injection
+4. The relevant vulnerable code snippet:
+```c
+static void *				/* O - Exit status */
+create_local_bg_thread(
+    cupsd_printer_t *printer)		/* I - Printer */
+{
+  ...
+  char		fromppd[1024],		/* Source PPD */
+		toppd[1024],		/* Destination PPD */
+		scheme[32],		/* URI scheme */
+		userpass[256],		/* User:pass */
+		host[256],		/* Hostname */
+		resource[1024],		/* Resource path */
+		line[1024];		/* Line from PPD */
+  int		port;			/* Port number */
+  ...
+  if (httpSeparateURI(HTTP_URI_CODING_ALL, printer->device_uri, scheme, sizeof(scheme), userpass, sizeof(userpass), host, sizeof(host), &port, resource, sizeof(resource)) < HTTP_URI_STATUS_OK)
+  {
+    cupsdLogMessage(CUPSD_LOG_ERROR, "%s: Bad device URI \"%s\".", printer->name, printer->device_uri);
+    return (NULL);
+  }
+  ...
+  snprintf(toppd, sizeof(toppd), "%s/ppd/%s.ppd", ServerRoot, printer->name);
+  if ((to = cupsdCreateConfFile(toppd, ConfigFilePerm)) == NULL)
+  {
+    cupsdLogMessage(CUPSD_LOG_ERROR, "%s: Unable to create PPD for printer: %s", printer->name, strerror(errno));
+    cupsFileClose(from);
+    return (NULL);
+  }
+  ...
+  while (cupsFileGets(from, line, sizeof(line)))
+    cupsFilePrintf(to, "%s\n", line);
+```
+
+5. This vulnerability occurs because the `create_local_bg_thread` function directly uses the printer name from `printer->name` in the `snprintf` call to construct the output PPD file path (`toppd`). If an attacker can control the `printer->name` (which is derived from a user-provided name during printer creation), they can inject malicious characters into the filename. This could allow an attacker to write files outside of the intended directory, potentially leading to arbitrary file creation or overwriting system files.
+
+6. Severity rating: HIGH

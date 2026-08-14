@@ -1,0 +1,31 @@
+1. File: cups\raster-error.c
+2. Name of the function containing the vulnerability: _cupsRasterAddError
+3. Vulnerability type / CWE: CWE-122: Heap-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+  bytes ++;
+
+  if ((size_t)bytes >= sizeof(s))
+    return;
+
+  if (bytes > (ssize_t)(buf->end - buf->current))
+  {
+    /* ... allocation logic ... */
+    buf->end     = temp + size;
+    buf->current = temp + (buf->current - buf->start);
+    buf->start   = temp;
+  }
+
+ /*
+  * Append the message to the end of the current string...
+  */
+
+  memcpy(buf->current, s, (size_t)bytes);
+  buf->current += bytes - 1;
+```
+5. A concise explanation of why it is vulnerable:
+The function calculates the length of the formatted string `s` using `vsnprintf` (stored in `bytes`). It then increments `bytes` by 1. When checking if the error buffer `buf` has enough space, it uses `bytes` to determine if a `realloc` is necessary. However, if the buffer is reallocated, the pointer `buf->current` is updated based on the offset from the old `buf->start`. 
+
+The critical flaw is in the `memcpy` and the subsequent pointer arithmetic: `memcpy(buf->current, s, (size_t)bytes);`. Since `bytes` was incremented by 1, it now exceeds the actual number of bytes written into `s` by `vsnprintf` (which writes at most `sizeof(s)-1` bytes and null-terminates). This causes a 1-byte out-of-bounds read from the stack array `s` and, more importantly, a potential 1-byte out-of-bounds write (overflow) to the heap buffer `buf` if the allocated size was exactly calculated to fit the original `bytes`. Furthermore, `buf->current` is advanced by `bytes - 1`. If `vsnprintf` returned a value such that `bytes` became exactly `sizeof(s)`, the logic allows a write that can corrupt the heap metadata or adjacent allocations.
+
+6. Severity rating: High

@@ -1,0 +1,28 @@
+1. File: cups\language.c
+2. Name of the function containing the vulnerability: `_cupsMessageLoad`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+while (cupsFileGets(fp, s, sizeof(s)) != NULL)
+{
+ // ... code ...
+ if ((ptr = strrchr(s, '\"')) == NULL)
+    continue;
+
+ *ptr = '\0';
+
+ // ... more code ...
+ if ((ptr = strchr(s, '\"')) == NULL)
+    continue;
+
+ ptr ++;
+ 
+ // ... vulnerable section ...
+ if (flags & _CUPS_MESSAGE_UNQUOTE)
+    cups_unquote(ptr, ptr);
+```
+5. The vulnerability occurs because `cupsFileGets()` can read lines longer than the buffer size `sizeof(s)` (4096 bytes), and the code doesn't validate that the string being processed fits within the bounds of the buffer before calling `cups_unquote()`. When `cups_unquote()` is called, it processes the string without checking if the input has been truncated or corrupted due to buffer overflow. Additionally, the `cups_unquote` function itself can cause issues if the input string is malformed or exceeds expected bounds.
+
+6. Severity rating: High
+
+Note: The vulnerability is primarily in how `cupsFileGets()` handles long lines and doesn't properly validate buffer boundaries before processing strings, leading to potential buffer overflows when passed to `cups_unquote()`. This could allow an attacker to corrupt memory and potentially execute arbitrary code if the input file contains specially crafted data.

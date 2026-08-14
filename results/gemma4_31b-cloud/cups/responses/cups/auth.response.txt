@@ -1,0 +1,22 @@
+1. File: cups\auth.c
+2. Name of the function containing the vulnerability: `cups_auth_param`
+3. Vulnerability type / CWE: Out-of-bounds Write / Buffer Overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+      if (*scheme == '\"')
+      {
+        scheme ++;
+
+	while (*scheme && *scheme != '\"')
+	{
+	  if (valptr < valend)
+	    *valptr++ = *scheme;
+
+	  scheme ++;
+	}
+      }
+```
+5. A concise explanation of why it is vulnerable:
+The function `cups_auth_param` attempts to prevent buffer overflows by checking `if (valptr < valend)`. However, `valend` is defined as `value + valsize - 1`. When the loop finishes, the code executes `*valptr = '\0';` outside of the `while` loop. If the input string (the quoted value in the `scheme` parameter) is equal to or longer than the `valsize`, `valptr` will have been incremented until it equals `valend`. In this scenario, the final null-termination `*valptr = '\0';` writes to `value[valsize - 1]`, which is safe. However, if the input string is *even longer* than the buffer, `valptr` continues to increment as long as `*scheme` is not a quote, regardless of the `valend` check (the check only prevents the assignment, not the pointer increment). This leads to `valptr` pointing far beyond the allocated buffer, resulting in an out-of-bounds write when the null terminator is applied.
+
+6. Severity rating: High

@@ -1,0 +1,18 @@
+1. File: cups\pwg-media.c
+2. Name of the function containing the vulnerability: pwgMediaForPPD
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+if (ptr && ptr > ppd && *ptr == 'x')
+{
+  l = pwg_scan_measurement(ptr + 1, &ptr, numer, denom);
+
+  if (ptr)
+  {
+    // ... code that uses snprintf with potentially unbounded input
+    snprintf(cg->ppd_name, sizeof(cg->ppd_name), "%sx%s", pwg_format_inches(wstr, sizeof(wstr), w), pwg_format_inches(lstr, sizeof(lstr), l));
+```
+5. The vulnerability exists because the `pwg_scan_measurement` function can return a value that when used in `snprintf` creates a buffer overflow condition. The `ptr` variable from `pwg_scan_measurement` is not properly validated before being used in string operations, and there's no check to ensure the resulting formatted strings won't exceed the buffer size of `cg->ppd_name`.
+6. Severity rating: HIGH
+
+The vulnerability occurs in the pwgMediaForPPD function when processing custom media sizes. The code doesn't properly validate the bounds of parsed measurement values before using them in snprintf calls, potentially leading to stack-based buffer overflows when handling specially crafted input strings that cause the formatted output to exceed the allocated buffer size.

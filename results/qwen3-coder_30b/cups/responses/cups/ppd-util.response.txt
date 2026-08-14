@@ -1,0 +1,21 @@
+1. File: cups\ppd-util.c
+2. Name of the function containing the vulnerability: cupsGetPPD3
+3. Vulnerability type / CWE: CWE-22 - Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')
+4. The relevant vulnerable code snippet:
+```c
+if (buffer[0])
+{
+  DEBUG_printf(("2cupsGetPPD3: Using filename \"%s\".", buffer));
+
+  unlink(buffer);
+
+  if (symlink(ppdname, buffer) && errno != EEXIST)
+  {
+    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, NULL, 0);
+    return (HTTP_STATUS_SERVER_ERROR);
+  }
+}
+```
+5. The vulnerability exists because the code directly uses the `buffer` parameter provided by the caller to create a symbolic link without any validation or sanitization of the path. An attacker can provide a malicious path in the buffer that points outside of intended directories, allowing them to create symbolic links anywhere on the filesystem, potentially leading to privilege escalation or information disclosure.
+
+6. Severity rating: HIGH

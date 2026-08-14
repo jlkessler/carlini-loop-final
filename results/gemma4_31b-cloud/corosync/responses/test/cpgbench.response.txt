@@ -1,0 +1,18 @@
+1. File: test\cpgbench.c
+2. Name of the function containing the vulnerability: `cpg_benchmark`
+3. Vulnerability type / CWE: CWE-125: Out-of-bounds Read
+4. The relevant vulnerable code snippet:
+```c
+	iov.iov_base = data;
+	iov.iov_len = write_size;
+
+	write_count = 0;
+	alarm (10);
+
+	gettimeofday (&tv1, NULL);
+	do {
+		res = cpg_mcast_joined (handle_in, CPG_TYPE_AGREED, &iov, 1);
+	} while (alarm_notice == 0 && (res == CS_OK || res == CS_ERR_TRY_AGAIN));
+```
+5. A concise explanation of why it is vulnerable: The function `cpg_benchmark` uses a global array `data` of size `ONE_MEG` (1,048,576 bytes). While the `main` function contains a check (`if (size >= (ONE_MEG - 100))`) to prevent `write_size` from exceeding the buffer limits, this check is only performed *after* the first call to `cpg_benchmark` and subsequent increments. If the logic in `main` were altered or if `cpg_benchmark` were called with a `write_size` larger than `ONE_MEG`, the `iov_len` passed to `cpg_mcast_joined` would cause the function to read memory beyond the bounds of the `data` array, leading to an out-of-bounds read.
+6. Severity rating: Medium

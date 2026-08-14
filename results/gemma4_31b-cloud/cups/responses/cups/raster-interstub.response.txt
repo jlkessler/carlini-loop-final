@@ -1,0 +1,6 @@
+1. File: cups\raster-interstub.c
+2. Name of the function containing the vulnerability: cupsRasterInterpretPPD
+3. Vulnerability type / CWE: NO_VULNERABILITY_FOUND
+4. The relevant vulnerable code snippet: N/A
+5. A concise explanation of why it is vulnerable: The provided code is a simple wrapper (stub) function that passes its arguments directly to another function (`_cupsRasterInterpretPPD`). There is no logic, memory management, or input validation performed within this specific file that would introduce a vulnerability.
+6. Severity rating: NO_VULNERABILITY_FOUND

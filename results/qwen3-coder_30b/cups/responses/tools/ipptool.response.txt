@@ -1,0 +1,92 @@
+1. File: tools\ipptool.c
+2. Name of the function containing the vulnerability: `with_value`
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static int				/* O - 1 on match, 0 on non-match */
+with_value(ipptool_test_t *data,	/* I - Test data */
+           cups_array_t     *errors,	/* I - Errors array */
+           char             *value,	/* I - Value string */
+           int              flags,	/* I - Flags for match */
+           ipp_attribute_t  *attr,	/* I - Attribute to compare */
+	   char             *matchbuf,	/* I - Buffer to hold matching value */
+	   size_t           matchlen)	/* I - Length of match buffer */
+{
+  // ... code ...
+  char		temp[1024],		/* Temporary value string */
+		*valptr;		/* Pointer into value */
+  const char	*name;			/* Attribute name */
+
+
+  *matchbuf = '\0';
+  match     = (flags & IPPTOOL_WITH_ALL) ? 1 : 0;
+
+ /*
+  * NULL matches everything.
+  */
+
+  if (!value || !*value)
+    return (1);
+
+ // ... more code ...
+ case IPP_TAG_CHARSET :
+    case IPP_TAG_KEYWORD :
+    case IPP_TAG_LANGUAGE :
+    case IPP_TAG_MIMETYPE :
+    case IPP_TAG_NAME :
+    case IPP_TAG_NAMELANG :
+    case IPP_TAG_TEXT :
+    case IPP_TAG_TEXTLANG :
+    case IPP_TAG_URI :
+    case IPP_TAG_URISCHEME :
+        if (flags & IPPTOOL_WITH_REGEX)
+	{
+	 /*
+	  * Value is an extended, case-sensitive POSIX regular expression...
+	  */
+
+	  regex_t	re;		/* Regular expression */
+
+          if ((i = regcomp(&re, value, REG_EXTENDED | REG_NOSUB)) != 0)
+	  {
+            regerror(i, &re, temp, sizeof(temp));
+
+	    print_fatal_error(data, "Unable to compile WITH-VALUE regular expression \"%s\" - %s", value, temp);
+	    return (0);
+	  }
+
+         /*
+	  * See if ALL of the values match the given regular expression.
+	  */
+
+	  for (i = 0; i < count; i ++)
+	  {
+	    if (!regexec(&re, get_string(attr, i, flags, temp, sizeof(temp)),
+	                 0, NULL, 0))
+	    {
+	      if (!matchbuf[0])
+		strlcpy(matchbuf, get_string(attr, i, flags, temp, sizeof(temp)), matchlen);
+
+	      if (!(flags & IPPTOOL_WITH_ALL))
+	      {
+	        match = 1;
+	        break;
+	      }
+	    }
+	    else if (flags & IPPTOOL_WITH_ALL)
+	    {
+	      match = 0;
+	      break;
+	    }
+	  }
+
+	  regfree(&re);
+	}
+```
+
+5. A concise explanation of why it is vulnerable:
+The vulnerability exists in the `with_value` function when processing regular expressions with `IPPTOOL_WITH_REGEX` flag. The `temp` buffer is only 1024 bytes, but `regerror()` can write arbitrarily long error messages into this buffer without bounds checking. Additionally, `get_string()` function can potentially return values longer than the buffer size, leading to stack buffer overflow when `strlcpy()` is called with insufficient buffer space.
+
+6. Severity rating: Critical
+
+The vulnerability allows for potential remote code execution or denial of service through crafted regular expressions in ipptool test files, as the function doesn't properly validate buffer boundaries when handling regex compilation errors and string extraction operations.

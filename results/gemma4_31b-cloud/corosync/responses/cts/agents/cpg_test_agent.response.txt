@@ -1,0 +1,13 @@
+1. File: cts\agents\cpg_test_agent.c
+2. Name of the function containing the vulnerability: `do_command`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+	} else if (strcmp ("cpg_join",func) == 0) {
+
+		strcpy (group_name.value, args[0]);
+		group_name.length = strlen(args[0]);
+		result = cpg_join (cpg_handle, &group_name);
+```
+5. A concise explanation of why it is vulnerable: The `do_command` function processes RPC-like requests. When the `cpg_join` or `cpg_leave` command is received, it uses `strcpy` to copy the contents of `args[0]` (which comes from network input) into `group_name.value`. The `struct cpg_name` (defined in the Corosync headers) has a fixed-size buffer for `value`. Because there are no bounds checks on the length of `args[0]`, a remote attacker can provide a string longer than the buffer to overwrite the stack, potentially leading to arbitrary code execution.
+6. Severity rating: Critical

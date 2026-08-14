@@ -1,0 +1,18 @@
+1. File: systemv\lpmove.c
+2. Name of the function containing the vulnerability: move_job
+3. Vulnerability type / CWE: CWE-120: Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+httpAssembleURIf(HTTP_URI_CODING_ALL, job_uri, sizeof(job_uri), "ipp", NULL,
+                 "localhost", 0, "/printers/%s", src);
+ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_URI, "printer-uri", NULL,
+             job_uri);
+```
+5. The vulnerability exists because the `src` parameter is directly used in a format string without any validation or length checking. If `src` contains more characters than `HTTP_MAX_URI`, it will overflow the `job_uri` buffer.
+6. Severity rating: high
+
+The code is vulnerable to a buffer overflow in the `move_job` function. The `src` parameter (which represents the source printer queue name) is directly used in `httpAssembleURIf()` without any validation of its length against the `HTTP_MAX_URI` buffer size, potentially causing a buffer overflow when the source name exceeds the buffer limit.
+
+However, on closer inspection, this code actually uses `httpAssembleURIf` with a format string that includes `%s` for the `src` parameter. The vulnerability is more subtle and may not be exploitable directly due to the way CUPS handles these functions, but it's still a potential issue in buffer handling. Upon careful review of the actual code, there does not appear to be an immediate exploitable vulnerability present.
+
+NO_VULNERABILITY_FOUND

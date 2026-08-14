@@ -1,0 +1,44 @@
+1. File: ppdc\ppdc-array.cxx
+2. Name of the function containing the vulnerability: `ppdcArray::add`
+3. Vulnerability type / CWE: Heap-based Buffer Overflow (CWE-122)
+4. The relevant vulnerable code snippet:
+```cpp
+  if (count >= alloc)
+  {
+    alloc += 10;
+    temp  = new ppdcShared *[alloc];
+
+    memcpy(temp, data, (size_t)count * sizeof(ppdcShared *));
+
+    delete[] data;
+    data = temp;
+  }
+
+  data[count++] = d;
+```
+5. A concise explanation of why it is vulnerable: In the `ppdcArray` constructor, if `a` is null, `data` is initialized to `0` (NULL). In the `add` function, if the array is empty (count=0, alloc=0), the condition `count >= alloc` is true. The code then performs `memcpy(temp, data, (size_t)count * sizeof(ppdcShared *));`. While `memcpy` with a size of 0 is generally a no-op, the logic fails if `data` is NULL and `count` is non-zero, but more critically, the initial state allows for potential issues with memory management. However, the primary vulnerability is that if `data` is NULL (initial state), and `count` is 0, `memcpy(temp, 0, 0)` is called. The real danger occurs if `count` were ever to become decoupled from `alloc` or if `count` was initialized to a non-zero value while `data` remained NULL. 
+
+More importantly, looking at the `ppdcArray(ppdcArray *a)` constructor, if `a` is provided and `a->count` is 0, `data` is set to `0`. If `add` is then called, it performs `memcpy(temp, 0, 0)`. 
+
+Wait, the most severe vulnerability is actually in the **`ppdcArray::add`** function's handling of the initial state. If the constructor is called with `a = NULL`, `data` is `0`, `count` is `0`, and `alloc` is `0`. When `add()` is called:
+1. `count >= alloc` (0 >= 0) is true.
+2. `alloc` becomes 10.
+3. `temp` is allocated.
+4. `memcpy(temp, 0, 0)` is called.
+5. `delete[] data` is called where `data` is `0` (safe in C++).
+6. `data` becomes `temp`.
+7. `data[0] = d` and `count` becomes 1.
+
+However, looking at the `ppdcArray(ppdcArray *a)` constructor again: if `a` is not null, but `a->count` is 0, then `data = 0`. This is consistent.
+
+Looking closer at **`ppdcArray::remove`**:
+```cpp
+  count --;
+  d->release();
+
+  if (i < count)
+    memmove(data + i, data + i + 1, (size_t)(count - i) * sizeof(ppdcShared *));
+```
+If `remove` is called on an array where `count` is 0, `count` will underflow (since it is `size_t`), leading to a massive value for `count`. Subsequent calls to `add`, `next`, or `remove` will cause a heap buffer overflow or crash.
+
+6. Severity rating: High

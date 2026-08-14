@@ -1,0 +1,19 @@
+1. File: exec\wd.c
+2. Name of the function containing the vulnerability: `wd_resource_create`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+static int32_t wd_resource_create (char *res_path, char *res_name)
+{
+	char *state;
+	uint64_t tmp_value;
+	struct resource *ref = calloc (1, sizeof (struct resource));
+	char key_name[ICMAP_KEYNAME_MAXLEN];
+
+	strcpy(ref->res_path, res_path);
+    // ...
+	strcpy(ref->name, res_name);
+```
+5. A concise explanation of why it is vulnerable: The function `wd_resource_create` uses `strcpy` to copy `res_path` into `ref->res_path` and `res_name` into `ref->name`. These inputs are derived from `key_name` in `wd_scan_resources` or `wd_resource_created_cb`. While `key_name` is constrained by `ICMAP_KEYNAME_MAXLEN`, the `struct resource` buffers (`res_path` and `name`) are also sized based on `ICMAP_KEYNAME_MAXLEN` and `CS_MAX_NAME_LENGTH`. If the input strings are not properly null-terminated or exceed the destination buffer sizes (especially if `CS_MAX_NAME_LENGTH` is smaller than `ICMAP_KEYNAME_MAXLEN`), a heap-based buffer overflow occurs. More critically, in the context of the `sscanf` calls in `wd_scan_resources`, there is no length limit on the `%[^.]` format specifiers, allowing an attacker to provide an arbitrarily long key name in the icmap, leading to a stack overflow in the `res_name` and `res_type` buffers before `wd_resource_create` is even called, or a heap overflow within `wd_resource_create`.
+
+6. Severity rating: High

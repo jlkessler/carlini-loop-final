@@ -1,0 +1,12 @@
+1. File: cups\testcreds.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-129: Improper Validation of Array Index
+4. The relevant vulnerable code snippet:
+```c
+      if (trust == HTTP_TRUST_OK)
+        puts("    Trust: OK");
+      else
+        printf("    Trust: %s (%s)\n", trusts[trust], cupsLastErrorString());
+```
+5. A concise explanation of why it is vulnerable: The variable `trust` is returned by `httpCredentialsGetTrust(hcreds, hostname)`. This value is used directly as an index into the `trusts` array without any bounds checking. If `httpCredentialsGetTrust` returns a value outside the range of 0 to 5 (the size of the `trusts` array), the program will perform an out-of-bounds read, potentially leading to a crash (DoS) or information disclosure.
+6. Severity rating: medium

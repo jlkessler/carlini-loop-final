@@ -1,0 +1,25 @@
+1. File: scheduler\cupsfilter.c
+2. Name of the function containing the vulnerability: `exec_filter`
+3. Vulnerability type / CWE: CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')
+4. The relevant vulnerable code snippet:
+```c
+static int				/* O - Process ID or -1 on error */
+exec_filter(const char *filter,		/* I - Filter to execute */
+            char       **argv,		/* I - Argument list */
+	    char       **envp,		/* I - Environment list */
+	    int        infd,		/* I - Stdin file descriptor */
+	    int        outfd)		/* I - Stdout file descriptor */
+{
+  // ... code ...
+  if ((pid = fork()) == 0)
+  {
+    // ... code ...
+    execve(filter, argv, envp);
+    perror(filter);
+    exit(errno);
+  }
+  return (pid);
+}
+```
+5. The vulnerability exists because the `filter` parameter passed to `exec_filter()` is used directly in `execve()` without any sanitization or validation. If an attacker can control the value of `filter`, they can inject OS commands. This occurs when filters are loaded from PPD files or other configuration sources that may be manipulated by untrusted users, allowing arbitrary command execution with the privileges of the cupsfilter process.
+6. Severity rating: critical

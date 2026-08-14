@@ -1,0 +1,65 @@
+1. File: scheduler\log.c
+2. Name of the function containing the vulnerability: format_log_line
+3. Vulnerability type / CWE: CWE-122 - Heap-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static int				/* O - -1 for fatal, 0 for retry, 1 for success */
+format_log_line(const char *message,	/* I - Printf-style format string */
+                va_list    ap)		/* I - Argument list */
+{
+  ssize_t	len;			/* Length of formatted line */
+
+
+ /*
+  * Allocate the line buffer as needed...
+  */
+
+  if (!log_linesize)
+  {
+    log_linesize = 8192;
+    log_line     = malloc(log_linesize);
+
+    if (!log_line)
+      return (-1);
+  }
+
+ /*
+  * Format the log message...
+  */
+
+  len = _cups_safe_vsnprintf(log_line, log_linesize, message, ap);
+
+ /*
+  * Resize the buffer as needed...
+  */
+
+  if ((size_t)len >= log_linesize && log_linesize < 65536)
+  {
+    char	*temp;			/* Temporary string pointer */
+
+    len ++;
+
+    if (len < 8192)
+      len = 8192;
+    else if (len > 65536)
+      len = 65536;
+
+    temp = realloc(log_line, (size_t)len);
+
+    if (temp)
+    {
+      log_line     = temp;
+      log_linesize = (size_t)len;
+
+      return (0);
+    }
+  }
+
+  return (1);
+}
+```
+5. A concise explanation of why it is vulnerable: The function uses a flawed logic in buffer resizing. When `len` (the result from `_cups_safe_vsnprintf`) equals or exceeds `log_linesize`, it attempts to reallocate memory. However, the check `(size_t)len >= log_linesize` can be true even when `len` is exactly equal to `log_linesize`. This leads to potential buffer overflow because the code doesn't account for the null terminator in its length calculation during the resize operation.
+
+6. Severity rating: HIGH
+
+The vulnerability occurs in a logging function that could be triggered by any log message, making it potentially exploitable if an attacker can control log input or cause excessive log output that triggers buffer reallocation. The flawed logic in the memory allocation and reallocation process can lead to heap corruption and potentially arbitrary code execution.

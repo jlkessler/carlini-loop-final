@@ -1,0 +1,19 @@
+1. File: ppdc\ppdc-import.cxx
+2. Name of the function containing the vulnerability: `ppdcSource::import_ppd`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```cpp
+        char		encoding[256],	// Encoding string
+			version[256],	// Version string
+			charset[256],	// Charset string
+			status[256];	// Status string
+	ppdcFontStatus	fstatus;	// Status enumeration
+
+
+        if (sscanf(attr->value, "%s%*[^\"]\"%[^\"]\"%s%s", encoding, version,
+	           charset, status) != 4)
+```
+5. A concise explanation of why it is vulnerable:
+The function uses `sscanf` with `%s` and `%[^\"]` format specifiers to read data from `attr->value` (which comes from the PPD file) into fixed-size stack buffers (`encoding`, `version`, `charset`, and `status`), each 256 bytes. Because `sscanf` is used without specifying a maximum field width (e.g., `%255s`), a maliciously crafted PPD file containing an overly long "Font" attribute value can overflow these buffers, leading to a stack-based buffer overflow and potentially arbitrary code execution.
+
+6. Severity rating: Critical

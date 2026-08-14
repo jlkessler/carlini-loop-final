@@ -1,0 +1,11 @@
+1. File: test\testquorum.c
+2. Name of the function containing the vulnerability: quorum_notification_fn
+3. Vulnerability type / CWE: CWE-125: Out-of-bounds Read
+4. The relevant vulnerable code snippet:
+```c
+	for (i=0; i<view_list_entries; i++) {
+		printf(" %d ", view_list[i]);
+	}
+```
+5. A concise explanation of why it is vulnerable: The function `quorum_notification_fn` is a callback that processes a list of nodes provided by the Corosync library. It relies entirely on the `view_list_entries` parameter to determine how many elements to read from the `view_list` pointer. If a malicious or malformed packet causes the library to pass an excessively large value for `view_list_entries` that exceeds the actual allocated size of `view_list`, the loop will read memory past the end of the buffer, leading to a crash (DoS) or potential information leakage.
+6. Severity rating: Medium

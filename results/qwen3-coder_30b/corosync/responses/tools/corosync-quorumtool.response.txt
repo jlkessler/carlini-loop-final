@@ -1,0 +1,240 @@
+1. File: tools\corosync-quorumtool.c
+
+2. Name of the function containing the vulnerability: `node_name_by_nodelist`
+
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+static const char *node_name_by_nodelist(uint32_t nodeid)
+{
+    cmap_iter_handle_t iter;
+    char key_name[CMAP_KEYNAME_MAXLEN];
+    char tmp_key[CMAP_KEYNAME_MAXLEN];
+    static char ret_buf[_POSIX_HOST_NAME_MAX];
+    char *str = NULL;
+    uint32_t node_pos, cur_nodeid;
+    int res = 0;
+
+    // ... code ...
+
+    while ((cmap_iter_next(cmap_handle, iter, key_name, NULL, NULL)) == CS_OK) {
+
+        res = sscanf(key_name, "nodelist.node.%u.%s", &node_pos, tmp_key);
+        if (res != 2) {
+            continue;
+        }
+
+        // ... code ...
+
+        snprintf(tmp_key, CMAP_KEYNAME_MAXLEN, "nodelist.node.%u.ring0_addr", node_pos);
+        if (cmap_get_string(cmap_handle, tmp_key, &str) != CS_OK) {
+            continue;
+        }
+        if (!str) {
+            continue;
+        }
+        strncpy(ret_buf, str, sizeof(ret_buf) - 1);  // <-- Vulnerable line
+        free(str);
+        break;
+    }
+    // ... code ...
+}
+```
+
+5. A concise explanation of why it is vulnerable: The function uses `strncpy(ret_buf, str, sizeof(ret_buf) - 1)` without ensuring that the source string `str` is null-terminated or that its length doesn't exceed the buffer size. If `cmap_get_string` returns a string longer than `_POSIX_HOST_NAME_MAX - 1`, and there's no null terminator in the middle of the string, `strncpy` will not null-terminate the destination buffer, potentially leading to buffer overflow issues when the buffer is later used.
+
+6. Severity rating: High
+
+Actually, looking more carefully at this code, I need to reconsider. The vulnerability is in how the function handles strings and the potential for overflows in the intermediate buffers. Let me look again...
+
+The actual vulnerability is in the `node_name_by_nodelist` function where there's a potential for stack-based buffer overflow when using `strncpy` with untrusted input from `cmap_get_string`, but I see this might not be the most critical one.
+
+Looking more carefully at the main entry point and parameter handling:
+
+1. File: tools\corosync-quorumtool.c
+2. Name of the function containing the vulnerability: `main`
+3. Vulnerability type / CWE: CWE-122: Heap-based Buffer Overflow, CWE-787: Out-of-bounds Write
+4. The relevant vulnerable code snippet:
+```c
+case 'v':
+    if (using_votequorum() > 0) {
+        votes = strtol(optarg, &endptr, 0);
+        if ((votes == 0 && endptr == optarg) || votes < 0) {
+            fprintf(stderr, "New votes value was not valid, try a positive number or zero\n");
+            exit(2);
+        } else {
+            command_opt = CMD_SETVOTES;
+        }
+    }
+    else {
+        fprintf(stderr, "You cannot change node votes, corosync is not using votequorum\n");
+        exit(2);
+    }
+    break;
+```
+
+5. A concise explanation of why it is vulnerable: The program accepts user input through `optarg` for the `-v` option and directly passes it to `strtol()`. While there's some validation, the code doesn't properly validate that `votes` is within acceptable bounds before passing it to `set_votes()` which then calls `votequorum_setvotes()`. This could lead to integer overflow or invalid vote values being passed to the underlying votequorum subsystem.
+
+However, looking at this more carefully, I believe the vulnerability lies in buffer handling in `node_name_by_nodelist`:
+
+1. File: tools\corosync-quorumtool.c
+2. Name of the function containing the vulnerability: `node_name_by_nodelist`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+snprintf(tmp_key, CMAP_KEYNAME_MAXLEN, "nodelist.node.%u.ring0_addr", node_pos);
+if (cmap_get_string(cmap_handle, tmp_key, &str) != CS_OK) {
+    continue;
+}
+if (!str) {
+    continue;
+}
+strncpy(ret_buf, str, sizeof(ret_buf) - 1);  // <-- Vulnerable line
+```
+
+5. A concise explanation of why it is vulnerable: The `node_name_by_nodelist` function can potentially overflow the static buffer `ret_buf`. If the string returned by `cmap_get_string()` is longer than `_POSIX_HOST_NAME_MAX - 1`, then `strncpy` will not null-terminate the destination buffer because it only copies up to the specified limit, and if that limit equals the size of the buffer minus one, there's no guarantee the copy is null-terminated.
+
+6. Severity rating: High
+
+Actually, re-examining this more carefully, I realize that `strncpy` with a size parameter does NOT guarantee null termination if the source string is exactly or longer than the specified size. But in this case, the function should be safe because it uses `sizeof(ret_buf) - 1`.
+
+Let me look for the real vulnerability:
+
+Looking at `display_nodes_data`, I see that `info[i].qdevice_name` can potentially contain untrusted data, and when it's printed directly without bounds checking, this could lead to issues.
+
+But the most serious vulnerability appears to be in how the program handles user input validation in `main()`:
+
+1. File: tools\corosync-quorumtool.c
+2. Name of the function containing the vulnerability: `main`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+if (cmap_get_uint32(cmap_handle, "runtime.votequorum.this_node_id", &our_nodeid) != CS_OK) {
+    fprintf(stderr, "Unable to retrive this node nodeid\n");  // <-- Typo in "retrive" vs "retrieve"
+    goto out;
+}
+```
+
+Actually, that's not a vulnerability. Let me re-read everything...
+
+The most serious vulnerability is:
+
+1. File: tools\corosync-quorumtool.c
+2. Name of the function containing the vulnerability: `display_nodes_data`
+3. Vulnerability type / CWE: CWE-787: Out-of-bounds Write, CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+if (g_view_list_entries) {
+    free(g_view_list);
+    g_view_list = NULL;
+}
+
+if (display_qdevice) {
+    if (nodeid_format == NODEID_FORMAT_DECIMAL) {
+        print_uint32_padded(VOTEQUORUM_QDEVICE_NODEID);
+    } else {
+        printf("0x%08x ", VOTEQUORUM_QDEVICE_NODEID);
+    }
+    print_uint32_padded(info[0].qdevice_votes);
+    printf("           %s\n", info[0].qdevice_name);  // <-- Vulnerable line
+}
+```
+
+5. A concise explanation of why it is vulnerable: The `display_nodes_data` function directly prints `info[0].qdevice_name` without checking if this string pointer points to valid memory or has been properly null-terminated, potentially leading to buffer overflows or information disclosure issues.
+
+6. Severity rating: Critical
+
+No wait, I'm not seeing the actual buffer overflow condition clearly. Looking at the code more carefully:
+
+1. File: tools\corosync-quorumtool.c
+2. Name of the function containing the vulnerability: `node_name_by_nodelist`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow, CWE-787: Out-of-bounds Write
+4. The relevant vulnerable code snippet:
+```c
+while ((cmap_iter_next(cmap_handle, iter, key_name, NULL, NULL)) == CS_OK) {
+    // ...
+    snprintf(tmp_key, CMAP_KEYNAME_MAXLEN, "nodelist.node.%u.ring0_addr", node_pos);
+    if (cmap_get_string(cmap_handle, tmp_key, &str) != CS_OK) {
+        continue;
+    }
+    if (!str) {
+        continue;
+    }
+    strncpy(ret_buf, str, sizeof(ret_buf) - 1); // <-- Potential issue
+    free(str);
+    break;
+}
+```
+
+5. A concise explanation of why it is vulnerable: The `node_name_by_nodelist` function has a potential for stack-based buffer overflow. While the code uses `strncpy` with a size parameter, the function returns a pointer to a static buffer `ret_buf`. If `cmap_get_string()` returns a string that's exactly `sizeof(ret_buf) - 1` characters long (with no null terminator), then `strncpy` will not null-terminate the buffer. This could cause issues when the returned buffer is used elsewhere.
+
+However, this seems like it should be safe since `strncpy` with size parameter should null terminate if there's room.
+
+Upon careful analysis of the actual buffer overflow conditions in this code, I find:
+
+1. File: tools\corosync-quorumtool.c
+2. Name of the function containing the vulnerability: `main`
+3. Vulnerability type / CWE: CWE-787: Out-of-bounds Write
+4. The relevant vulnerable code snippet:
+```c
+if (g_view_list_entries) {
+    free(g_view_list);
+    g_view_list = NULL;
+}
+// ...
+if (display_qdevice) {
+    // ...
+    printf("           %s\n", info[0].qdevice_name);  // <-- Vulnerable if qdevice_name is untrusted
+}
+```
+
+5. A concise explanation of why it is vulnerable: The `display_nodes_data` function directly prints the `qdevice_name` field from `info[0]` without validating that this string is properly null-terminated or within expected bounds, potentially leading to out-of-bounds writes if the memory pointed to by `qdevice_name` is corrupted or maliciously constructed.
+
+6. Severity rating: Critical
+
+Actually, re-evaluating once more - I think there's a better candidate:
+
+1. File: tools\corosync-quorumtool.c
+2. Name of the function containing the vulnerability: `print_string_padded`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static void print_string_padded(const char *buf)
+{
+    int len, delta;
+
+    len = strlen(buf);  // <-- Potential issue if buf is not null-terminated
+    delta = 10 - len;
+    while (delta > 0) {
+        printf(" ");
+        delta--;
+    }
+    printf("%s ", buf);
+}
+```
+
+5. A concise explanation of why it is vulnerable: The `print_string_padded` function uses `strlen()` without ensuring that the input buffer `buf` is null-terminated, which can lead to undefined behavior and potentially buffer overflows if maliciously crafted data is passed.
+
+6. Severity rating: High
+
+But looking at the full context again:
+
+The actual most serious vulnerability in this program appears to be:
+
+1. File: tools\corosync-quorumtool.c
+2. Name of the function containing the vulnerability: `node_name_by_nodelist`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+strncpy(ret_buf, str, sizeof(ret_buf) - 1);
+free(str);
+```
+
+5. A concise explanation of why it is vulnerable: The `node_name_by_nodelist` function copies data from a dynamically allocated string `str` into a static buffer `ret_buf`. While `strncpy` should prevent overflow by limiting the copy to `sizeof(ret_buf) - 1`, if the source string `str` is exactly `sizeof(ret_buf) - 1` characters long, it will not be null-terminated. This could cause issues when the returned buffer is used in subsequent operations.
+
+6. Severity rating: High
+
+After careful review of all possible vulnerabilities, I believe there is no clear, exploitable buffer overflow or similar critical vulnerability in the code as presented.
+
+NO_VULNERABILITY_FOUND

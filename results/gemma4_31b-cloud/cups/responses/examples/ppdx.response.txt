@@ -1,0 +1,20 @@
+1. File: examples\ppdx.c
+2. Name of the function containing the vulnerability: ppdxReadData
+3. Vulnerability type / CWE: Heap-based Buffer Overflow (CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+	if ((temp = realloc(data, temp_size + 1)) == NULL)
+	{
+	  free(data);
+	  return (NULL);
+	}
+
+	decomp.next_out  = temp + (decomp.next_out - data);
+	decomp.avail_out = temp_size - alloc_size;
+	data             = temp;
+	alloc_size       = temp_size;
+```
+5. A concise explanation of why it is vulnerable:
+The logic used to calculate `decomp.avail_out` during `realloc` is flawed. `decomp.avail_out` is intended to represent the remaining space in the buffer. However, the code sets `decomp.avail_out = temp_size - alloc_size`. This only assigns the *amount of new space added* during the reallocation, completely ignoring any remaining space that was already available in the buffer before the `realloc` call. Furthermore, `decomp.next_out` is updated relative to the old pointer, but if `inflate` had already partially filled the buffer, the combination of the pointer shift and the incorrect `avail_out` calculation can lead to an out-of-bounds write during the next `inflate` call. Because `inflate` relies on `avail_out` to know when to stop writing, this mismatch allows the zlib engine to write past the end of the newly allocated heap buffer.
+
+6. Severity rating: Critical

@@ -1,0 +1,24 @@
+1. File: cups\ipp-vars.c
+2. Name of the function containing the vulnerability: `_ippVarsExpand`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+while (*src && dstptr < dstend)
+{
+  if (*src == '$')
+  {
+    // ... code that processes variable substitution ...
+    if (value)
+    {
+      strlcpy(dstptr, value, (size_t)(dstend - dstptr + 1));
+      dstptr += strlen(dstptr);
+    }
+  }
+  else
+    *dstptr++ = *src++;
+}
+```
+5. The vulnerability exists because `strlcpy` is called with a size parameter calculated as `(dstend - dstptr + 1)`. However, if `dstptr` gets incremented by `strlen(dstptr)` after the `strlcpy`, it's possible for subsequent iterations to cause `dstptr` to exceed `dstend`, leading to buffer overflow. The calculation does not properly account for the fact that `strlcpy` may copy fewer bytes than requested, and `dstptr` can be incremented by a value that exceeds the remaining space in the destination buffer.
+6. Severity rating: HIGH
+
+This is a high severity vulnerability because it could lead to memory corruption and potentially arbitrary code execution through buffer overflow exploitation. The function fails to properly track the available space in the destination buffer after each string copy operation, which can result in overwriting adjacent memory.

@@ -1,0 +1,23 @@
+1. File: tools\corosync-cmapctl.c
+2. Name of the function containing the vulnerability: `read_in_config_file`
+3. Vulnerability type / CWE: CWE-125: Out-of-bounds Read
+4. The relevant vulnerable code snippet:
+```c
+		for (c = 0; c < 1024; c++) {
+			if (isblank (buf[c])) {
+				continue;
+			}
+
+			if (buf[c] == '#' || buf[c] == '\n') {
+				ignore = 1;
+				break;
+			}
+			ignore = 0;
+			line = &buf[c];
+			break;
+		}
+```
+5. A concise explanation of why it is vulnerable:
+The function `read_in_config_file` reads up to 1024 bytes into `buf` using `fgets`. However, the subsequent `for` loop iterates from `0` to `1023` regardless of how many bytes were actually read or where the null terminator (`\0`) is located. If `fgets` reads a line shorter than 1023 bytes, the loop will continue reading past the end of the string into uninitialized memory of the `buf` array until it happens to encounter a blank character, a '#' or a '\n'. If none of these characters exist in the remaining buffer space, it will read exactly up to index 1023. While the buffer itself is 1024 bytes, this logic is brittle and risks processing garbage data as part of the configuration if the line is short. More importantly, the logic depends on the buffer being filled or null-terminated, but the loop does not check for `\0`, potentially leading to out-of-bounds reads if the loop boundaries were slightly different or if the logic extended to other functions.
+
+6. Severity rating: low

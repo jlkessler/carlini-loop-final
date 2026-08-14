@@ -1,0 +1,8 @@
+1. File: include\corosync\corodefs.h
+2. Name of the function containing the vulnerability: NONE (This is a header file with no functions)
+3. Vulnerability type / CWE: NONE (No actual code with vulnerabilities present)
+4. The relevant vulnerable code snippet: NONE (The file only contains macros and enum definitions)
+5. A concise explanation of why it is vulnerable: NONE (There are no executable code paths or security flaws in this header file)
+6. Severity rating: NO_VULNERABILITY_FOUND
+
+This header file defines constants and enums but contains no actual executable code that could be exploited. The macros and enum definitions are benign and don't present any immediate security vulnerabilities.

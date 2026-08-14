@@ -1,0 +1,14 @@
+1. File: cups\testraster.c
+2. Name of the function containing the vulnerability: do_ras_file
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+data = malloc(header.cupsBytesPerLine);
+...
+for (y = 0; y < header.cupsHeight; y ++)
+  if (cupsRasterReadPixels(ras, data, header.cupsBytesPerLine) <
+          header.cupsBytesPerLine)
+    break;
+```
+5. The vulnerability exists because the code allocates memory based on `header.cupsBytesPerLine` but does not validate that this value is reasonable or within safe bounds before using it. An attacker could craft a malicious raster file with an extremely large `cupsBytesPerLine` value, causing excessive memory allocation (potential denial of service) or potentially leading to buffer overflow if the allocated memory is subsequently accessed incorrectly.
+6. Severity rating: high

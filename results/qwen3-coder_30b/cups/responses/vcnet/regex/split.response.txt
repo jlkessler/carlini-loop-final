@@ -1,0 +1,17 @@
+1. File: vcnet\regex\split.c
+2. Name of the function containing the vulnerability: split
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+char buf[512];
+...
+if (argc > 4)
+    for (n = atoi(argv[3]); n > 0; n--) {
+        (void) strcpy(buf, argv[1]);
+    }
+```
+5. The vulnerability exists because the code uses `strcpy()` without bounds checking to copy data from `argv[1]` into a fixed-size buffer `buf[512]`. If the input string from `argv[1]` exceeds 511 characters (plus null terminator), it will overflow the buffer, potentially overwriting adjacent stack memory. This is particularly dangerous when combined with the loop that repeats the copy operation multiple times based on user input (`atoi(argv[3])`).
+
+6. Severity rating: HIGH
+
+The vulnerability allows for potential arbitrary code execution through stack buffer overflow, making it a high-severity issue in a CTF context where exploitation might be possible to gain control over program execution flow.

@@ -1,0 +1,20 @@
+1. File: test\test.c
+2. Name of the function containing the vulnerability: blend_single
+3. Vulnerability type / CWE: Out-of-bounds Write (CWE-787)
+4. The relevant vulnerable code snippet:
+```c
+    dst = frame->buffer + img->dst_y * frame->stride + img->dst_x * 3;
+    for (y = 0; y < img->h; ++y) {
+        for (x = 0; x < img->w; ++x) {
+            unsigned k = ((unsigned) src[x]) * opacity / 255;
+            // possible endianness problems
+            dst[x * 3] = (k * b + (255 - k) * dst[x * 3]) / 255;
+            dst[x * 3 + 1] = (k * g + (255 - k) * dst[x * 3 + 1]) / 255;
+            dst[x * 3 + 2] = (k * r + (255 - k) * dst[x * 3 + 2]) / 255;
+        }
+        src += img->stride;
+        dst += frame->stride;
+    }
+```
+5. A concise explanation of why it is vulnerable: The `blend_single` function calculates the destination pointer `dst` using `img->dst_y` and `img->dst_x` from the `ASS_Image` structure without verifying if these coordinates, or the resulting image dimensions (`img->w` and `img->h`), stay within the bounds of the allocated `frame->buffer` (which is sized to `frame_w * frame_h * 3`). A maliciously crafted subtitle file can specify coordinates or dimensions that cause `dst` to point outside the buffer, leading to an out-of-bounds write.
+6. Severity rating: Critical

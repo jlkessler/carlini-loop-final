@@ -1,0 +1,28 @@
+1. File: scheduler\log.c
+2. Name of the function containing the vulnerability: `cupsdLogGSSMessage`
+3. Vulnerability type / CWE: Format String Vulnerability (CWE-134)
+4. The relevant vulnerable code snippet:
+```c
+  if (strchr(message, '%'))
+  {
+   /*
+    * Format the message string...
+    */
+
+    va_list	ap;			/* Pointer to arguments */
+
+    va_start(ap, message);
+    vsnprintf(buffer, sizeof(buffer), message, ap);
+    va_end(ap);
+
+    message = buffer;
+  }
+  // ...
+  ret = cupsdLogMessage(level, "%s: %s, %s", message,
+			(char *)major_status_string.value,
+			(char *)minor_status_string.value);
+```
+5. A concise explanation of why it is vulnerable:
+The function `cupsdLogGSSMessage` takes a `message` argument and a variable argument list. If the `message` string contains a `%` character, the code uses `vsnprintf` to format the string into a local buffer. Crucially, the `message` parameter (which may contain user-controlled input depending on where this function is called) is used as the format string itself. If an attacker can control the `message` string, they can inject format specifiers (e.g., `%x`, `%n`, `%s`) to leak sensitive information from the stack or potentially overwrite memory. While the resulting `message` is later passed to `cupsdLogMessage` as a `%s` argument (which is safe), the initial `vsnprintf` call is a classic format string vulnerability.
+
+6. Severity rating: High

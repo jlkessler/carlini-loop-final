@@ -1,0 +1,14 @@
+1. File: include\corosync\cmap.h
+2. Name of the function containing the vulnerability: `cmap_iter_next`
+3. Vulnerability type / CWE: CWE-120: Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')
+4. The relevant vulnerable code snippet:
+```c
+extern cs_error_t cmap_iter_next(
+		cmap_handle_t handle,
+		cmap_iter_handle_t iter_handle,
+		char key_name[],
+		size_t *value_len,
+		cmap_value_types_t *type);
+```
+5. A concise explanation of why it is vulnerable: The function `cmap_iter_next` takes a `char key_name[]` buffer to store the name of the key. While the documentation states "Maximum length is CMAP_KEYNAME_MAXLEN", the function signature itself does not accept a parameter to specify the actual size of the buffer provided by the caller. This relies entirely on the caller allocating exactly `CMAP_KEYNAME_MAXLEN` bytes. If the implementation of `cmap_iter_next` does not strictly enforce this limit or if a caller provides a smaller buffer, it will result in a stack or heap-based buffer overflow when writing the key name.
+6. Severity rating: High

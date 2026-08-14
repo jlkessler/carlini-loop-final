@@ -1,0 +1,18 @@
+1. File: backend\socket.c
+
+2. Name of the function containing the vulnerability: main()
+
+3. Vulnerability type / CWE: CWE-122 - Heap-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+httpSeparateURI(HTTP_URI_CODING_ALL, device_uri, scheme, sizeof(scheme),
+                username, sizeof(username), hostname, sizeof(hostname), &port,
+                resource, sizeof(resource));
+```
+
+5. The vulnerability exists because the `httpSeparateURI` function may write data beyond the bounds of the fixed-size buffers (`scheme`, `username`, `hostname`, `resource`) if the input URI contains excessively long components. The buffer sizes are fixed (255, 255, 1024, 1024 respectively) but the function does not validate that the parsed URI components will fit within these bounds.
+
+6. Severity rating: HIGH
+
+The vulnerability is a heap-based buffer overflow that could potentially be exploited to execute arbitrary code, particularly since this is part of a printer backend that handles network communications and could be triggered by maliciously crafted URIs passed to the CUPS backend system.

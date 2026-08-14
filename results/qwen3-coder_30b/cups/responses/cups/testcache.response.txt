@@ -1,0 +1,14 @@
+1. File: cups\testcache.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: Buffer Overflow / CWE-121
+4. The relevant vulnerable code snippet:
+```c
+int			num_finishings,	/* Number of finishing options */
+			finishings[20];	/* Finishing options */
+...
+num_finishings = _ppdCacheGetFinishingValues(ppd, pc, (int)sizeof(finishings) / sizeof(finishings[0]), finishings);
+```
+5. The vulnerability exists because the code does not validate that the number of finishing values returned by `_ppdCacheGetFinishingValues` is less than or equal to the size of the `finishings` array (20 elements). If more than 20 finishing values are returned, the function will write beyond the bounds of the `finishings` array, causing a buffer overflow.
+6. Severity rating: high
+
+This vulnerability could allow an attacker to overwrite adjacent memory and potentially execute arbitrary code, especially if the PPD file is crafted maliciously to trigger this condition. The buffer overflow occurs because there's no bounds checking on the number of finishing values returned by `_ppdCacheGetFinishingValues` against the fixed-size array `finishings[20]`.

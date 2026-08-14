@@ -1,0 +1,24 @@
+1. File: cups\hash.c
+2. Name of the function containing the vulnerability: `cupsHashData`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+CC_SHA512_CTX	ctx;		/* SHA-512 context */
+unsigned char	temp[CC_SHA512_DIGEST_LENGTH];
+                                        /* SHA-512 hash */
+
+...
+
+CC_SHA512_Init(&ctx);
+CC_SHA512_Update(&ctx, data, (CC_LONG)datalen);
+CC_SHA512_Final(temp, &ctx);
+
+memcpy(hash, temp, CC_SHA256_DIGEST_LENGTH);
+```
+5. The vulnerability occurs in the SHA2-512_256 algorithm implementation where `CC_SHA512_Final` writes 64 bytes (CC_SHA512_DIGEST_LENGTH) to the `temp` buffer, but then `memcpy` copies only `CC_SHA256_DIGEST_LENGTH` (32 bytes) bytes. While this might seem correct at first glance, there's a more subtle issue when combined with how the `datalen` parameter is cast to `CC_LONG`. If `datalen` is extremely large and exceeds the maximum value that can be represented by `CC_LONG`, it could cause integer overflow during the casting process, leading to incorrect buffer sizes being passed to `CC_SHA512_Update`, which may result in a buffer overflow.
+
+Additionally, there's an issue with the function signature where `datalen` is of type `size_t` and cast to `CC_LONG`. If `datalen` exceeds the maximum value representable by `CC_LONG`, this could lead to undefined behavior or potential buffer overflows in underlying cryptographic functions.
+
+6. Severity rating: HIGH
+
+The vulnerability involves potential integer overflow leading to buffer overflows in cryptographic functions, which can be exploited for memory corruption and potentially arbitrary code execution. The use of untrusted input in cryptographic operations makes this particularly dangerous.

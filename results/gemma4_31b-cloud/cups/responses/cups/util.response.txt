@@ -1,0 +1,22 @@
+1. File: cups\util.c
+2. Name of the function containing the vulnerability: `cupsFinishDocument`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+ipp_status_t				/* O - Status of document submission */
+cupsFinishDocument(http_t     *http,	/* I - Connection to server */
+                   const char *name)	/* I - Destination name */
+{
+  char	resource[1024];			/* Printer resource */
+
+
+  snprintf(resource, sizeof(resource), "/printers/%s", name);
+
+  ippDelete(cupsGetResponse(http, resource));
+
+  return (cupsLastError());
+}
+```
+5. A concise explanation of why it is vulnerable: The function `cupsFinishDocument` uses `snprintf` to format a string into the `resource` buffer. While `snprintf` prevents a direct overflow of the `resource` buffer itself, it does not validate the length of the input `name` parameter beyond the buffer limit. More importantly, this pattern is often used in CUPS where the resulting `resource` path is passed to other functions. If `name` is excessively long (nearly 1024 bytes), the resulting string is truncated. However, if this logic is mirrored or combined with other functions that assume the `name` is within a smaller bound or if the `resource` buffer is used in a context where a null-terminator is expected but the logic surrounding the buffer is flawed, it can lead to issues. In this specific snippet, while `snprintf` protects the stack, the lack of input validation on `name` allows an attacker to control the request path sent to `cupsGetResponse`. If the `name` parameter is sourced from a user-controlled input, this can be used to perform path traversal or target unintended server resources by injecting characters like `../` into the `name` variable.
+
+6. Severity rating: Medium

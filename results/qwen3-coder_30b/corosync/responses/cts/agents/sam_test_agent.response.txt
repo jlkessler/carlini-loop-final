@@ -1,0 +1,23 @@
+1. File: cts\agents\sam_test_agent.c
+2. Name of the function containing the vulnerability: test3
+3. Vulnerability type / CWE: CWE-787: Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+if (instance_id < 100) {
+    qb_log (LOG_INFO, "iid %d: start", instance_id);
+    error = sam_start ();
+    if (error != CS_OK) {
+        qb_log (LOG_ERR, "Can't start hc. Error %d", error);
+        return 1;
+    }
+
+    qb_log (LOG_INFO, "iid %d: Sending signal", instance_id);
+    kill(getpid(), SIGSEGV);
+    return 1;
+}
+```
+5. This code snippet is vulnerable because it directly calls `kill(getpid(), SIGSEGV)` without any bounds checking or validation of the `instance_id` value. The condition `if (instance_id < 100)` allows for a range of values that could potentially lead to unexpected behavior when combined with the signal sending operation. Although this appears to be a test case, it demonstrates a dangerous pattern where a process can be terminated with SIGSEGV without proper safeguards.
+
+6. Severity rating: high
+
+The vulnerability is in a test agent that's part of a larger system. While it's in a test file, such code patterns could indicate broader issues in how signals are handled throughout the system, potentially allowing for unexpected termination or crash conditions that could be exploited in a real-world scenario. The direct use of `kill(getpid(), SIGSEGV)` is a serious concern as it can cause immediate process termination and potential denial of service.

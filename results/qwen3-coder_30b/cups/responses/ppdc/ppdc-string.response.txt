@@ -1,0 +1,17 @@
+1. File: ppdc\ppdc-string.cxx
+2. Name of the function containing the vulnerability: `ppdcString::~ppdcString()`
+3. Vulnerability type / CWE: CWE-416: Use After Free
+4. The relevant vulnerable code snippet:
+```cpp
+ppdcString::~ppdcString()
+{
+  PPDC_DELETEVAL(value);
+
+  if (value)
+    delete[] value;
+}
+```
+5. The vulnerability exists because `PPDC_DELETEVAL(value)` is called first, which likely sets `value` to NULL or frees it in some way, but then the code still checks `if (value)` and attempts to `delete[] value`. This results in a use-after-free condition when `value` is already freed by `PPDC_DELETEVAL`.
+6. Severity rating: critical
+
+The destructor calls `PPDC_DELETEVAL(value)` which presumably frees the memory pointed to by `value`, but then immediately checks `if (value)` and attempts to `delete[] value` again, leading to a use-after-free vulnerability where the program tries to free already-freed memory.

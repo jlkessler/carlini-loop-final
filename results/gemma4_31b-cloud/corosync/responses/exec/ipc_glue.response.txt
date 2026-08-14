@@ -1,0 +1,33 @@
+1. File: exec\ipc_glue.c
+2. Name of the function containing the vulnerability: `pid_to_name`
+3. Vulnerability type / CWE: Buffer Overflow / CWE-120
+4. The relevant vulnerable code snippet:
+```c
+	/* copy the name */
+	strncpy (out_name, name, name_len);
+	out_name[name_len - 1] = '\0';
+```
+5. A concise explanation of why it is vulnerable: The function `pid_to_name` reads the process name from `/proc/[pid]/stat`. Process names in Linux can be up to 16 characters, but the `/proc/[pid]/stat` format allows for arbitrary content inside the parentheses (the `comm` field), and the logic used to find the name (`strrchr(buf, '(')`) can be tricked if the process name itself contains parentheses. More importantly, while `strncpy` is used, the source `name` is derived from `buf` (size 256). If the `comm` field in `/proc/[pid]/stat` is crafted to be very long (though typically limited by the kernel), or if the parsing logic fails to bound the distance between parentheses correctly, it relies on `name_len`. However, the primary issue is that if the process name is exactly `name_len` or longer, `strncpy` does not null-terminate the destination. While the code manually adds `out_name[name_len - 1] = '\0'`, the vulnerability lies in the fact that `strncpy` is used on data parsed from a system file where the length of the string between the parentheses is not explicitly validated against `name_len` before copying, and the logic for finding the end of the name (`strrchr(buf, ')')`) relies on the buffer `buf` containing a closing parenthesis. If a maliciously named process is used, it can cause unexpected behavior or potentially overflow if `name_len` is incorrectly passed.
+
+Actually, a more severe issue is in `cs_ipcs_connection_created`:
+```c
+	if (stats.client_pid > 0) {
+		if (pid_to_name (stats.client_pid, proc_name, sizeof(proc_name))) {
+			snprintf(key_name, ICMAP_KEYNAME_MAXLEN, "runtime.connections.%s:%u:%p",
+					proc_name, stats.client_pid, c);
+```
+The `proc_name` buffer is 32 bytes. The `pid_to_name` function uses `strncpy(out_name, name, name_len)`. Since `name` is a pointer into `buf` (256 bytes), if the content between the last `(` and the last `)` in `/proc/pid/stat` is large, it will copy up to 32 bytes. While `out_name[name_len-1] = '\0'` prevents a classic overflow of the `proc_name` buffer itself, the subsequent `snprintf` into `key_name` (size `ICMAP_KEYNAME_MAXLEN`) uses `%s` with `proc_name`. If `proc_name` were not null-terminated, it would overflow.
+
+However, looking closer at `pid_to_name`, the use of `strrchr` to find the closing bracket and the manual null termination of `out_name` effectively mitigates a direct stack overflow. 
+
+The most serious vulnerability is actually a **Potential Denial of Service (DoS) or Memory Leak** in `msg_send_or_queue`. If `malloc` fails for `outq_item->msg`, the code calls `qb_ipcs_disconnect(conn)`, but it does not properly handle the reference counting of the connection in all error paths, potentially leading to use-after-free or memory leaks.
+
+Wait, looking at `pid_to_name` again:
+```c
+	name = strrchr (buf, '(');
+	...
+	rest = strrchr (buf, ')');
+```
+If the process name contains `)`, the `strrchr` will find the *last* one. If the process name contains `(`, it finds the *last* one. This parsing is fragile and can be used to manipulate the strings passed to `icmap_set_string`, potentially leading to **ICMAP injection** (overwriting other configuration keys) if the `icmap` system does not sanitize keys.
+
+6. Severity rating: Medium

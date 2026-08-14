@@ -1,0 +1,14 @@
+1. File: include\corosync\cfg.h
+2. Name of the function containing the vulnerability: NONE (No vulnerable functions in header file)
+3. Vulnerability type / CWE: NONE
+4. The relevant vulnerable code snippet: NONE
+5. A concise explanation of why it is vulnerable: This is a header file defining data structures and function prototypes for the corosync configuration API. It does not contain any executable code or logic that could lead to vulnerabilities.
+6. Severity rating: NO_VULNERABILITY_FOUND
+
+The provided file is a header file that only contains:
+- Copyright and license information
+- Data structure definitions (enums, structs)
+- Function declarations
+- No actual implementation code
+
+Since this is purely a header file with no executable code, there are no exploitable vulnerabilities present in the code shown. The vulnerability would need to be in the corresponding implementation (.c) files, which are not provided in this view.

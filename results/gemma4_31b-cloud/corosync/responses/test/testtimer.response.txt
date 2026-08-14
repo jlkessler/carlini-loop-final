@@ -1,0 +1,15 @@
+1. File: test\testtimer.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-401: Missing Release of Resource After Effective Lifetime (Memory Leak)
+4. The relevant vulnerable code snippet:
+```c
+	for (i = 0; i < 1000; i++) {
+		timer = (struct timer *)malloc (sizeof (struct timer));
+		randomvalue = random()%5000;
+		timer->function = timer_function;
+		timer->data = (void *)randomvalue;
+		timer_add_msec_in_future (timer, randomvalue);
+	}
+```
+5. A concise explanation of why it is vulnerable: The program allocates memory for 1,000 `struct timer` objects using `malloc` in a loop. While these timers are processed and expired via `timer_expire()`, there is no corresponding `free()` call for the allocated memory either within the `main` loop or within the `timer_expire` logic (based on the provided test code). This results in a memory leak of 1,000 timer structures every time the initialization block runs.
+6. Severity rating: low

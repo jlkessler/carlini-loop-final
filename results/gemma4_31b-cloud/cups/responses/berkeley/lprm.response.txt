@@ -1,0 +1,24 @@
+1. File: berkeley\lprm.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-123: Index Out of Bounds (Write) / Buffer Overflow (Modification of read-only or unintended memory)
+4. The relevant vulnerable code snippet:
+```c
+	  case 'P' : /* Cancel jobs on a printer */
+	      if (opt[1] != '\0')
+	      {
+		name = opt + 1;
+		opt += strlen(opt) - 1;
+	      }
+	      else
+	      {
+		i ++;
+		name = argv[i];
+	      }
+
+	      if ((instance = strchr(name, '/')) != NULL)
+		*instance = '\0';
+```
+5. A concise explanation of why it is vulnerable:
+The program takes the `name` pointer (which points directly into the `argv` array) and attempts to truncate it by replacing the first occurrence of a forward slash ('/') with a null terminator (`*instance = '\0'`). In many operating systems, `argv` strings are stored in writable memory, but modifying them can lead to unexpected behavior. More importantly, if `argv[i]` is pointing to a memory location that is read-only or if the logic is used in a context where the original arguments must be preserved, this is a violation. Specifically, if a user provides a specially crafted argument, they are triggering a write operation on a pointer derived from command-line input without any bounds checking or verification that the memory is mutable.
+
+6. Severity rating: Medium

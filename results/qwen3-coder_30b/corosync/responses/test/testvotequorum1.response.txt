@@ -1,0 +1,18 @@
+1. File: test\testvotequorum1.c
+2. Name of the function containing the vulnerability: main
+3. Vulnerability type / CWE: CWE-121 Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+if (argc >= 2 && atoi(argv[1])) {
+    if ( (err=votequorum_setexpected(g_handle, atoi(argv[1]))) != CS_OK)
+        fprintf(stderr, "set expected votes FAILED: %d\n", err);
+}
+if (argc >= 3 && atoi(argv[2])) {
+    if ( (err=votequorum_setvotes(g_handle, 0, atoi(argv[2]))) != CS_OK)
+        fprintf(stderr, "set votes FAILED: %d\n", err);
+}
+```
+5. The vulnerability exists because the program directly uses `atoi()` on command-line arguments without proper validation or bounds checking. If an attacker provides a maliciously large number as argument, it could cause integer overflow when passed to the votequorum APIs, potentially leading to buffer overflows in underlying library functions that expect smaller, bounded values.
+6. Severity rating: high
+
+The vulnerability is in how command-line arguments are processed and passed to system calls without proper input validation. While the direct buffer overflow isn't obvious from this code alone, the lack of bounds checking on integer inputs that get passed to potentially unsafe APIs makes this a significant concern for potential exploitation.

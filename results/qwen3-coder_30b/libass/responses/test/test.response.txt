@@ -1,0 +1,57 @@
+1. File: test\test.c
+2. Name of the function containing the vulnerability: blend_single
+3. Vulnerability type / CWE: CWE-121 Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+static void blend_single(image_t * frame, ASS_Image *img)
+{
+    int x, y;
+    unsigned char opacity = 255 - _a(img->color);
+    unsigned char r = _r(img->color);
+    unsigned char g = _g(img->color);
+    unsigned char b = _b(img->color);
+
+    unsigned char *src;
+    unsigned char *dst;
+
+    src = img->bitmap;
+    dst = frame->buffer + img->dst_y * frame->stride + img->dst_x * 3;
+    for (y = 0; y < img->h; ++y) {
+        for (x = 0; x < img->w; ++x) {
+            unsigned k = ((unsigned) src[x]) * opacity / 255;
+            // possible endianness problems
+            dst[x * 3] = (k * b + (255 - k) * dst[x * 3]) / 255;
+            dst[x * 3 + 1] = (k * g + (255 - k) * dst[x * 3 + 1]) / 255;
+            dst[x * 3 + 2] = (k * r + (255 - k) * dst[x * 3 + 2]) / 255;
+        }
+        src += img->stride;
+        dst += frame->stride;
+    }
+}
+```
+5. The vulnerability exists because the code does not validate the bounds of `img->w` and `img->h` before using them in the nested loops. If an attacker can control the values of these fields through a malformed subtitle file, they could cause the loop to access memory beyond the allocated buffer boundaries, leading to a buffer overflow.
+6. Severity rating: high
+
+However, upon further review, this is actually a buffer overflow in the `blend_single` function due to lack of bounds checking on `img->w` and `img->h`. The code assumes these values are safe but does not validate them against the actual image dimensions, which can lead to out-of-bounds writes when processing malicious subtitle files.
+
+Actually, looking more carefully at the vulnerability:
+
+1. File: test\test.c
+2. Name of the function containing the vulnerability: blend_single
+3. Vulnerability type / CWE: CWE-121 Stack-based Buffer Overflow or CWE-787 Out-of-bounds Write
+4. The relevant vulnerable code snippet:
+```c
+for (y = 0; y < img->h; ++y) {
+    for (x = 0; x < img->w; ++x) {
+        unsigned k = ((unsigned) src[x]) * opacity / 255;
+        // possible endianness problems
+        dst[x * 3] = (k * b + (255 - k) * dst[x * 3]) / 255;
+        dst[x * 3 + 1] = (k * g + (255 - k) * dst[x * 3 + 1]) / 255;
+        dst[x * 3 + 2] = (k * r + (255 - k) * dst[x * 3 + 2]) / 255;
+    }
+    src += img->stride;
+    dst += frame->stride;
+}
+```
+5. The vulnerability exists because the code assumes that `img->w` and `img->h` are valid and within bounds of the allocated buffer. If an attacker can supply a subtitle file with maliciously large `img->w` or `img->h` values, the nested loops could access memory beyond the allocated `frame->buffer` boundaries. The code does not validate that `img->w` and `img->h` are within reasonable limits before processing.
+6. Severity rating: high

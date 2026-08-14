@@ -1,0 +1,12 @@
+1. File: vcnet\regex\regcomp.c
+2. Name of the function containing the vulnerability: `mcadd`
+3. Vulnerability type / CWE: Heap-based Buffer Overflow (CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+	(void) strcpy(cs->multis + oldend - 1, cp);
+	cs->multis[cs->smultis - 1] = '\0';
+```
+5. A concise explanation of why it is vulnerable:
+The `mcadd` function calculates the new size of the `cs->multis` buffer as `cs->smultis += strlen(cp) + 1`. However, it then performs a `strcpy` using the offset `cs->multis + oldend - 1`. If `oldend` (the previous `smultis` value) is 0 (i.e., the first call to `mcadd` for a specific set), the destination pointer becomes `cs->multis - 1`. This results in a write-before-the-buffer (out-of-bounds write) on the heap. Furthermore, the subsequent assignment `cs->multis[cs->smultis - 1] = '\0'` may also be incorrect depending on the initial value of `smultis`.
+
+6. Severity rating: High

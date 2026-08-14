@@ -1,0 +1,15 @@
+1. File: exec\coroparse.c
+2. Name of the function containing the vulnerability: `parse_section`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120 / CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+char new_keyname[ICMAP_KEYNAME_MAXLEN];
+// ... inside while loop ...
+strcpy(new_keyname, path);
+if (strcmp(path, "") != 0) {
+    strcat(new_keyname, ".");
+}
+strcat(new_keyname, section);
+```
+5. A concise explanation of why it is vulnerable: The function `parse_section` uses a fixed-size buffer `new_keyname` of size `ICMAP_KEYNAME_MAXLEN`. It performs `strcpy` and `strcat` operations using the `path` (the accumulated section path) and the `section` (the current section name read from the file) without checking if the resulting string exceeds the buffer's bounds. Since the function is recursive (calling itself when a new section `{` is encountered), a maliciously crafted configuration file with deeply nested sections or very long section names can easily overflow the `new_keyname` buffer on the stack, leading to a crash or arbitrary code execution.
+6. Severity rating: High

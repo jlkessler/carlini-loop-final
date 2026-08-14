@@ -1,0 +1,29 @@
+1. File: scheduler\listen.c
+2. Name of the function containing the vulnerability: `cupsdStartListening`
+3. Vulnerability type / CWE: Out-of-bounds Read (CWE-125) / Array Index Out of Bounds
+4. The relevant vulnerable code snippet:
+```c
+  static const char * const encryptions[] =
+		{			/* Encryption values */
+		  "IfRequested",
+		  "Never",
+		  "Required",
+		  "Always"
+		};
+
+// ... inside the loop ...
+    if ((!LocalPort || LocalEncryption == HTTP_ENCRYPT_ALWAYS) && p > 0 &&
+        (httpAddrLocalhost(&(lis->address)) ||
+         httpAddrAny(&(lis->address))))
+    {
+      LocalPort       = p;
+      LocalEncryption = lis->encryption;
+    }
+
+// ... later in the function ...
+  cupsdSetEnv("CUPS_ENCRYPTION", encryptions[LocalEncryption]);
+```
+5. A concise explanation of why it is vulnerable:
+The `encryptions` array has 4 elements (indices 0-3). The variable `LocalEncryption` is assigned the value of `lis->encryption` from the listener configuration. There is no validation to ensure that `lis->encryption` is within the range of 0 to 3 before it is used as an index to access the `encryptions` array. If a listener is configured with an encryption value outside this range, it will result in an out-of-bounds read, potentially leading to a crash (DoS) or information leakage from the binary's data segment.
+
+6. Severity rating: Medium

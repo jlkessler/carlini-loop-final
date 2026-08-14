@@ -1,0 +1,34 @@
+1. File: cups\testipp.c
+2. Name of the function containing the vulnerability: `read_cb`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+ssize_t					/* O - Number of bytes read */
+read_cb(_ippdata_t   *data,		/* I - Data */
+        ipp_uchar_t *buffer,		/* O - Buffer to read */
+	size_t      bytes)		/* I - Number of bytes to read */
+{
+  size_t	count;			/* Number of bytes */
+
+
+ /*
+  * Copy bytes from the data buffer to the read buffer...
+  */
+
+  if ((count = data->wsize - data->rpos) > bytes)
+    count = bytes;
+
+  memcpy(buffer, data->wbuffer + data->rpos, count);
+  data->rpos += count;
+
+ /*
+  * Return the number of bytes read...
+  */
+
+  return ((ssize_t)count);
+}
+```
+5. The vulnerability exists because `data->wsize` and `data->rpos` are not properly validated against each other before being used in arithmetic operations, and there's no check to ensure that `data->rpos + count` does not exceed the bounds of `data->wbuffer`. If `data->rpos` is close to `data->wsize`, the subtraction `data->wsize - data->rpos` could result in a value that when added to `data->rpos` overflows or underflows, potentially causing memory corruption.
+6. Severity rating: HIGH
+
+The vulnerability is in the `read_cb` function where improper bounds checking allows for potential buffer overflow conditions due to integer arithmetic that can lead to memory corruption and possibly arbitrary code execution.

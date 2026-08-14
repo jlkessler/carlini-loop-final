@@ -1,0 +1,13 @@
+1. File: systemv\cupstestppd.c
+2. Name of the function containing the vulnerability: `check_filters`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+    if (!attr->value ||
+        sscanf(attr->value, "%15[^/]/%255s%d%*[ \t]%1023[^\n]", super, type,
+               &cost, program) != 4)
+```
+5. A concise explanation of why it is vulnerable:
+The `sscanf` function is used to parse the `cupsFilter` attribute. While the first three fields have width limits, the `program` variable (a buffer of size 1024) is populated using `%1023[^\n]`. However, the field immediately preceding it, `type` (a buffer of size 256), is populated using `%255s`. In `sscanf`, the `%s` specifier reads characters until it encounters whitespace. If a maliciously crafted PPD file contains a `cupsFilter` value where the `type` string is longer than 255 characters and contains no whitespace, it will overflow the `type` buffer and overwrite adjacent stack memory (including the `dstsuper`, `dsttype`, and `program` buffers) before `sscanf` even attempts to process the `%1023[^\n]` part.
+
+6. Severity rating: High

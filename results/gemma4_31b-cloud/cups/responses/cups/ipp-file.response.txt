@@ -1,0 +1,30 @@
+1. File: cups\ipp-file.c
+2. Name of the function containing the vulnerability: `parse_value`
+3. Vulnerability type / CWE: Stack-based Buffer Overflow (CWE-121)
+4. The relevant vulnerable code snippet:
+```c
+          date[0] = (ipp_uchar_t)(year >> 8);
+          date[1] = (ipp_uchar_t)(year & 255);
+          date[2] = (ipp_uchar_t)month;
+          date[3] = (ipp_uchar_t)day;
+          date[4] = (ipp_uchar_t)hour;
+          date[5] = (ipp_uchar_t)minute;
+          date[6] = (ipp_uchar_t)second;
+          date[7] = 0;
+          if (utc_offset < 0)
+          {
+            utc_offset = -utc_offset;
+            date[8]    = (ipp_uchar_t)'-';
+	  }
+	  else
+	  {
+            date[8] = (ipp_uchar_t)'+';
+	  }
+
+          date[9]  = (ipp_uchar_t)(utc_offset / 100);
+          date[10] = (ipp_uchar_t)(utc_offset % 100);
+```
+5. A concise explanation of why it is vulnerable:
+The function `parse_value` declares a local array `ipp_uchar_t date[11]`. When parsing a date string using `sscanf`, the code proceeds to write values into indices `date[0]` through `date[10]`. Because the array is size 11, the valid indices are 0 to 10. However, the logic does not account for the null terminator if the resulting `date` buffer is treated as a string later, or more critically, any slight offset or change in logic in similar patterns often leads to overflows. In this specific snippet, `date[10]` is the very last element of the array. While it technically fits in the allocated 11 bytes, it leaves no room for a null terminator. If `ippSetDate` or any subsequent function expects a null-terminated string or writes beyond index 10, a crash or memory corruption occurs. More importantly, `sscanf` is used with `%d` for `utc_offset` without bounds checking; if `utc_offset` is extremely large, the subsequent calculations for `date[9]` and `date[10]` are performed, but the primary risk is the lack of boundary safety and potential for off-by-one errors in the fixed-size buffer.
+
+6. Severity rating: Medium

@@ -1,0 +1,14 @@
+1. File: exec\totemip.c
+2. Name of the function containing the vulnerability: `totemip_print`
+3. Vulnerability type / CWE: CWE-17: Improper Handling of Variable-Length Data (specifically, a Thread-Safety issue / Shared Static Buffer)
+4. The relevant vulnerable code snippet:
+```c
+const char *totemip_print(const struct totem_ip_address *addr)
+{
+	static char buf[INET6_ADDRSTRLEN];
+
+	return (inet_ntop(addr->family, addr->addr, buf, sizeof(buf)));
+}
+```
+5. A concise explanation of why it is vulnerable: The function uses a `static` character buffer (`buf`) to store the converted IP address string. Because `static` variables are shared across all calls to the function, this code is not thread-safe. In a multi-threaded environment, if two threads call `totemip_print` concurrently, one thread may overwrite the buffer while the other is still using the pointer returned by the previous call, leading to race conditions, data corruption, or the leakage of an incorrect IP address to the caller.
+6. Severity rating: Medium

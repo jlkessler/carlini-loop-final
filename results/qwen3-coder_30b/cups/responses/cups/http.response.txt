@@ -1,0 +1,160 @@
+1. File: cups\http.c
+2. Name of the function containing the vulnerability: `httpReadRequest`
+3. Vulnerability type / CWE: CWE-121: Stack-based Buffer Overflow
+4. The relevant vulnerable code snippet:
+```c
+http_state_t				/* O - New state of connection */
+httpReadRequest(http_t *http,		/* I - HTTP connection */
+                char   *uri,		/* I - URI buffer */
+		size_t urilen)		/* I - Size of URI buffer */
+{
+  char	line[4096],			/* HTTP request line */
+	*req_method,			/* HTTP request method */
+	*req_uri,			/* HTTP request URI */
+	*req_version;			/* HTTP request version number string */
+
+
+ /*
+  * Range check input...
+  */
+
+  DEBUG_printf(("httpReadRequest(http=%p, uri=%p, urilen=" CUPS_LLFMT ")", (void *)http, (void *)uri, CUPS_LLCAST urilen));
+
+  if (uri)
+    *uri = '\0';
+
+  if (!http || !uri || urilen < 1)
+  {
+    DEBUG_puts("1httpReadRequest: Bad arguments, returning HTTP_STATE_ERROR.");
+    return (HTTP_STATE_ERROR);
+  }
+  else if (http->state != HTTP_STATE_WAITING)
+  {
+    DEBUG_printf(("1httpReadRequest: Bad state %s, returning HTTP_STATE_ERROR.",
+                  httpStateString(http->state)));
+    return (HTTP_STATE_ERROR);
+  }
+
+ /*
+  * Reset state...
+  */
+
+  httpClearFields(http);
+
+  http->activity       = time(NULL);
+  http->data_encoding  = HTTP_ENCODING_FIELDS;
+  http->data_remaining = 0;
+  http->keep_alive     = HTTP_KEEPALIVE_OFF;
+  http->status         = HTTP_STATUS_OK;
+  http->version        = HTTP_VERSION_1_1;
+
+ /*
+  * Read a line from the socket...
+  */
+
+  if (!httpGets(line, sizeof(line), http))
+  {
+    DEBUG_puts("1httpReadRequest: Unable to read, returning HTTP_STATE_ERROR");
+    return (HTTP_STATE_ERROR);
+  }
+
+  if (!line[0])
+  {
+    DEBUG_puts("1httpReadRequest: Blank line, returning HTTP_STATE_WAITING");
+    return (HTTP_STATE_WAITING);
+  }
+
+  DEBUG_printf(("1httpReadRequest: %s", line));
+
+ /*
+  * Parse it...
+  */
+
+  req_method = line;
+  req_uri    = line;
+
+  while (*req_uri && !isspace(*req_uri & 255))
+    req_uri ++;
+
+  if (!*req_uri)
+  {
+    DEBUG_puts("1httpReadRequest: No request URI.");
+    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("No request URI."), 1);
+    return (HTTP_STATE_ERROR);
+  }
+
+  *req_uri++ = '\0';
+
+  while (*req_uri && isspace(*req_uri & 255))
+    req_uri ++;
+
+  req_version = req_uri;
+
+  while (*req_version && !isspace(*req_version & 255))
+    req_version ++;
+
+  if (!*req_version)
+  {
+    DEBUG_puts("1httpReadRequest: No request protocol version.");
+    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("No request protocol version."), 1);
+    return (HTTP_STATE_ERROR);
+  }
+
+  *req_version++ = '\0';
+
+  while (*req_version && isspace(*req_version & 255))
+    req_version ++;
+
+ /*
+  * Validate...
+  */
+
+  if (!strcmp(req_method, "OPTIONS"))
+    http->state = HTTP_STATE_OPTIONS;
+  else if (!strcmp(req_method, "GET"))
+    http->state = HTTP_STATE_GET;
+  // ... other methods ...
+  else
+  {
+    DEBUG_printf(("1httpReadRequest: Unknown method \"%s\".", req_method));
+    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Unknown request method."), 1);
+    return (HTTP_STATE_UNKNOWN_METHOD);
+  }
+
+  DEBUG_printf(("1httpReadRequest: Set state to %s.",
+                httpStateString(http->state)));
+
+  if (!strcmp(req_version, "HTTP/1.0"))
+  {
+    http->version    = HTTP_VERSION_1_0;
+    http->keep_alive = HTTP_KEEPALIVE_OFF;
+  }
+  else if (!strcmp(req_version, "HTTP/1.1"))
+  {
+    http->version    = HTTP_VERSION_1_1;
+    http->keep_alive = HTTP_KEEPALIVE_ON;
+  }
+  else
+  {
+    DEBUG_printf(("1httpReadRequest: Unknown version \"%s\".", req_version));
+    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Unknown request version."), 1);
+    return (HTTP_STATE_UNKNOWN_VERSION);
+  }
+
+  DEBUG_printf(("1httpReadRequest: URI is \"%s\".", req_uri));
+  strlcpy(uri, req_uri, urilen); // <-- Vulnerable line
+
+  return (http->state);
+}
+```
+
+5. A concise explanation of why it is vulnerable:
+The vulnerability exists in the `httpReadRequest` function where a maliciously crafted HTTP request line can cause a stack-based buffer overflow. The function reads an HTTP request line into a fixed-size buffer (`line[4096]`) and then parses it to extract the URI. However, the parsing logic does not properly validate or limit the length of the URI extracted from the request line before copying it to the user-provided `uri` buffer via `strlcpy(uri, req_uri, urilen)`. If an attacker can control the input to `httpReadRequest` and send a very long URI that exceeds the `urilen` parameter, or if there's a logic error in how `req_uri` is calculated from the parsed line, it could result in buffer overflow.
+
+6. Severity rating: high
+
+The vulnerability is considered high severity because:
+1. It's a stack-based buffer overflow which can lead to arbitrary code execution
+2. It occurs in an HTTP server that handles external input
+3. The function is part of the core HTTP parsing logic used by CUPS
+4. It involves a `strlcpy` call with user-controlled data, which is a common source of such vulnerabilities

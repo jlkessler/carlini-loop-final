@@ -1,0 +1,37 @@
+1. File: test\stress_cpgzc.c
+
+2. Name of the function containing the vulnerability: main
+
+3. Vulnerability type / CWE: CWE-401 - Memory Leak, CWE-789 - Memory Allocation with Excessive Size
+
+4. The relevant vulnerable code snippet:
+```c
+for (j = 0; j < ITERATIONS; j++) {
+    for (i = 0; i < ALLOCATIONS; i++) {
+        buffer_lens[i] = (random() % MAX_SIZE) + 1;
+        res = cpg_zcb_alloc (
+            handle,
+            buffer_lens[i],
+            &buffers[i]);
+        if (res != CS_OK) {
+            printf ("FAIL %d\n", res);
+            exit (-1);
+        }
+    }
+
+    for (i = 0; i < ALLOCATIONS; i++) {
+        res = cpg_zcb_free (
+            handle,
+            buffers[i]);
+        if (res != CS_OK) {
+            printf ("FAIL %d\n", res);
+            exit (-1);
+        }
+    }
+```
+
+5. The vulnerability exists because the code allocates memory in a loop but does not properly validate or limit the size of allocations, potentially leading to excessive memory consumption. While the code appears to free all allocated memory within each iteration, there's no check for buffer_len values that could be extremely large (up to MAX_SIZE=100000 bytes per allocation), which could cause resource exhaustion or denial of service.
+
+6. Severity rating: HIGH
+
+The vulnerability is high severity because it can lead to memory exhaustion and potential denial of service through excessive memory allocations, even though the code does attempt to free memory after each iteration. The combination of large potential allocation sizes (up to 100KB per allocation) multiplied by thousands of allocations could easily exhaust system resources.

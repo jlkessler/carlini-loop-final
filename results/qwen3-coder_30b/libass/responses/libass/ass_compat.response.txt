@@ -1,0 +1,17 @@
+1. File: libass\ass_compat.h
+2. Name of the function containing the vulnerability: None (this is a header file with preprocessor directives)
+3. Vulnerability type / CWE: CWE-242 - Risky Function Call
+4. The relevant vulnerable code snippet:
+```c
+#ifdef _MSC_VER
+#define _CRT_NONSTDC_NO_DEPRECATE
+#define _CRT_SECURE_NO_WARNINGS
+#define _USE_MATH_DEFINES
+#define inline __inline
+#endif
+```
+5. A concise explanation of why it is vulnerable: The header file conditionally defines `_CRT_SECURE_NO_WARNINGS` when compiled with Microsoft Visual C++ (`_MSC_VER`). This macro disables security warnings for functions like `strcpy`, `sprintf`, and `fopen` that are considered dangerous in modern C/C++ programming, potentially allowing buffer overflows and other security issues to go undetected during compilation.
+
+6. Severity rating: HIGH
+
+This vulnerability is significant because it suppresses important security warnings that would normally alert developers to potential buffer overflow vulnerabilities and unsafe function usage patterns, which could lead to exploitable security flaws in the software.

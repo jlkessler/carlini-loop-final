@@ -1,0 +1,40 @@
+1. File: exec\cmap.c
+
+2. Name of the function containing the vulnerability: `message_handler_req_exec_cmap_mcast`
+
+3. Vulnerability type / CWE: CWE-121 - Stack-based Buffer Overflow
+
+4. The relevant vulnerable code snippet:
+```c
+static void message_handler_req_exec_cmap_mcast(
+		const void *message,
+		unsigned int nodeid)
+{
+	const struct req_exec_cmap_mcast *req_exec_cmap_mcast = message;
+
+	ENTER();
+
+	switch (req_exec_cmap_mcast->reason) {
+	case CMAP_MCAST_REASON_SYNC:
+		message_handler_req_exec_cmap_mcast_reason_sync_nv(req_exec_cmap_mcast->reason,
+		    message, nodeid);
+
+		break;
+	case CMAP_MCAST_REASON_NEW_CONFIG_VERSION:
+		message_handler_req_exec_cmap_mcast_reason_sync_nv(req_exec_cmap_mcast->reason,
+		    message, nodeid);
+
+		break;
+	default:
+		qb_log(LOG_TRACE, "Received mcast with unknown reason %u", req_exec_cmap_mcast->reason);
+	};
+
+	LEAVE();
+}
+```
+
+5. The vulnerability exists because the function `message_handler_req_exec_cmap_mcast` receives a message from an untrusted source (network) and directly passes it to `message_handler_req_exec_cmap_mcast_reason_sync_nv` without validating the message structure or bounds. This allows for potential buffer overflows when processing the message items, especially since the message contains variable-length data that isn't properly validated before being processed.
+
+6. Severity rating: high
+
+The vulnerability is serious because it could allow a remote attacker to potentially cause a buffer overflow by crafting malicious messages, which could lead to arbitrary code execution or denial of service. The function doesn't validate the size or structure of incoming messages before processing them, creating a potential vector for exploitation.

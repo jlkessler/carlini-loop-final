@@ -1,0 +1,17 @@
+1. File: vcnet\regex\regfree.c
+2. Name of the function containing the vulnerability: regfree
+3. Vulnerability type / CWE: CWE-415: Double Free
+4. The relevant vulnerable code snippet:
+```c
+if (g->strip != NULL)
+    free((char *)g->strip);
+if (g->sets != NULL)
+    free((char *)g->sets);
+if (g->setbits != NULL)
+    free((char *)g->setbits);
+if (g->must != NULL)
+    free(g->must);
+free((char *)g);
+```
+5. The vulnerability exists because the function does not check if the same memory address is being freed multiple times. If any of the pointers (strip, sets, setbits, must) happen to point to the same memory location as g->strip, g->sets, g->setbits, or g->must respectively, then freeing them could result in a double free condition. Additionally, there's no validation that the memory pointed to by these fields was allocated with malloc/free.
+6. Severity rating: high

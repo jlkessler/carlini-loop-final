@@ -1,0 +1,9 @@
+1. File: libass\ass_library.h
+2. Name of the function containing the vulnerability: read_file
+3. Vulnerability type / CWE: CWE-22: Improper Limitation of a Pathname to a Restricted Directory ("Path Traversal")
+4. The relevant vulnerable code snippet:
+```c
+char *read_file(struct ass_library *library, char *fname, size_t *bufsize);
+```
+5. A concise explanation of why it is vulnerable: The `read_file` function takes a user-supplied filename (`char *fname`) as an argument. If this filename is not properly validated or sanitized before being used to open a file on the system, an attacker could use path traversal sequences (e.g., `../../etc/passwd`) to read arbitrary files from the filesystem outside of the intended directory.
+6. Severity rating: High

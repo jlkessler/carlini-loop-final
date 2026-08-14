@@ -1,0 +1,31 @@
+1. File: exec\icmap.c
+2. Name of the function containing the vulnerability: `icmap_set`
+3. Vulnerability type / CWE: Heap-based Buffer Overflow (CWE-122)
+4. The relevant vulnerable code snippet:
+```c
+	if (type == ICMAP_VALUETYPE_BINARY || type == ICMAP_VALUETYPE_STRING) {
+		if (type == ICMAP_VALUETYPE_STRING) {
+			new_value_len = strlen((const char *)value);
+			if (new_value_len > value_len) {
+				new_value_len = value_len;
+			}
+			new_value_len++;
+		} else {
+			new_value_len = value_len;
+		}
+	} else {
+		new_value_len = icmap_get_valuetype_len(type);
+	}
+
+	new_item_size = sizeof(struct icmap_item) + new_value_len;
+	new_item = malloc(new_item_size);
+    // ... (memset and key_name handling)
+	new_item->type = type;
+	new_item->value_len = new_value_len;
+
+	memcpy(new_item->value, value, new_value_len);
+```
+5. A concise explanation of why it is vulnerable:
+In the `icmap_set` function, if the `type` is `ICMAP_VALUETYPE_BINARY`, `new_value_len` is set directly to `value_len`. The code then allocates a buffer of size `sizeof(struct icmap_item) + new_value_len` and performs a `memcpy` of `new_value_len` bytes from `value` into `new_item->value`. However, the check `icmap_check_value_len` only ensures `value_len` is less than `ICMAP_MAX_VALUE_LEN` (16KB), but it does not validate that the actual buffer pointed to by `value` contains `value_len` bytes. More critically, if `type` is `ICMAP_VALUETYPE_STRING`, `new_value_len` is calculated using `strlen((const char *)value) + 1`. If the provided `value` buffer is not null-terminated or is shorter than the reported `value_len` (which is checked but not enforced), `strlen` can read out-of-bounds. The most serious issue is that `memcpy` uses `new_value_len` regardless of the actual size of the source `value` buffer, and the logic for `ICMAP_VALUETYPE_STRING` specifically increments `new_value_len` by 1 after the `strlen` calculation, which can lead to a 1-byte heap overflow if `new_value_len` was already equal to the allocated space or if the source buffer was exactly `value_len` without a null terminator.
+
+6. Severity rating: High

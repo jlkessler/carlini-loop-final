@@ -1,0 +1,34 @@
+1. File: exec\coroparse.c
+2. Name of the function containing the vulnerability: `main_config_parser_cb`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-121), Integer Overflow/Underflow (CWE-190)
+4. The relevant vulnerable code snippet:
+```c
+static int main_config_parser_cb(const char *path,
+            char *key,
+            char *value,
+            enum parser_cb_type type,
+            const char **error_string,
+            void *user_data)
+{
+    // ... code ...
+    case MAIN_CP_CB_DATA_STATE_NODELIST_NODE:
+        snprintf(key_name, ICMAP_KEYNAME_MAXLEN, "nodelist.node.%u.%s", data->node_number, key);
+        // ... more code ...
+        if ((strcmp(key, "nodeid") == 0) ||
+            (strcmp(key, "quorum_votes") == 0)) {
+            if (safe_atoi(value, &i) != 0) {
+                goto atoi_error;
+            }
+
+            icmap_set_uint32(key_name, i);
+            add_as_string = 0;
+        }
+        // ... more code ...
+}
+```
+
+5. A concise explanation of why it is vulnerable: The vulnerability occurs in the `main_config_parser_cb` function when processing node list entries. The `node_number` variable is incremented without any bounds checking (`data->node_number++`), and this value is used directly in `snprintf` to create a key name. If an attacker can control the number of nodes in the configuration file, they could cause integer overflow or exceed the maximum allowed node count, leading to buffer overflows when constructing key names with `snprintf`.
+
+6. Severity rating: High
+
+The vulnerability allows for potential buffer overflow and integer overflow conditions that could be exploited by a remote attacker who controls the configuration file content, potentially leading to arbitrary code execution or denial of service.

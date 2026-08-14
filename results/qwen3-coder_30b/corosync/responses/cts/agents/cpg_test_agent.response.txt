@@ -1,0 +1,32 @@
+1. File: cts\agents\cpg_test_agent.c
+2. Name of the function containing the vulnerability: `read_messages`
+3. Vulnerability type / CWE: Buffer overflow (CWE-121), Stack-based buffer overflow (CWE-120)
+4. The relevant vulnerable code snippet:
+```c
+static void read_messages (int sock, char* atmost_str)
+{
+    // ... code ...
+    big_and_buf[0] = '\0';
+
+    for (list = msg_log_head.next;
+        (!list_empty (&msg_log_head) && packed < atmost); ) {
+
+        entry = list_entry (list, log_entry_t, list);
+
+        strcat (big_and_buf, entry->log);  // <-- VULNERABLE LINE
+        packed++;
+
+        list = list->next;
+        list_del (&entry->list);
+        free (entry);
+
+        total_stored_msgs--;
+    }
+    // ... code ...
+}
+```
+5. The vulnerability occurs because `strcat()` is used to append data to `big_and_buf` without checking if the destination buffer will overflow. The `entry->log` string can be up to 80 characters (LOG_STR_SIZE), and there's no bound checking on how many such strings are appended. Since `big_and_buf` is declared as `static char big_and_buf[HOW_BIG_AND_BUF];`, if `HOW_BIG_AND_BUF` is smaller than the cumulative size of all log entries that could be read, a buffer overflow will occur.
+
+6. Severity rating: Critical
+
+The vulnerability is critical because it allows for arbitrary code execution via buffer overflow in the `read_messages` function. An attacker who can control the contents of messages being read and sent back over the socket could overflow the buffer and potentially execute arbitrary code, especially since this appears to be a network service that accepts commands from remote clients. The use of `strcat()` without bounds checking makes this a classic stack-based buffer overflow vulnerability.

@@ -1,0 +1,22 @@
+1. File: cups\pwg-media.c
+2. Name of the function containing the vulnerability: `pwgFormatSizeName`
+3. Vulnerability type / CWE: Buffer Overflow (CWE-120) / Out-of-bounds Write
+4. The relevant vulnerable code snippet:
+```c
+  uptr = usize;
+  (*format)(uptr, sizeof(usize) - (size_t)(uptr - usize), width);
+  uptr += strlen(uptr);
+  *uptr++ = 'x';
+  (*format)(uptr, sizeof(usize) - (size_t)(uptr - usize), length);
+  uptr += strlen(uptr);
+
+ /*
+  * Safe because usize can hold up to 12 + 1 + 12 + 4 bytes.
+  */
+
+  memcpy(uptr, units, 3);
+```
+5. A concise explanation of why it is vulnerable:
+The function uses a fixed-size buffer `usize` (calculated as `12 + 1 + 12 + 3 = 28` bytes). It calls the `format` function twice to write the width and length. While the format functions themselves respect `bufsize`, the code blindly increments `uptr` using `strlen` and then performs a `memcpy(uptr, units, 3)`. If the formatted width and length strings are long enough (e.g., very large `int` values for `width` and `length`), `uptr` will be advanced beyond the end of the `usize` buffer. The subsequent `memcpy` will then write 3 bytes past the end of the stack-allocated array, leading to a stack-based buffer overflow.
+
+6. Severity rating: High
