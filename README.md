@@ -74,3 +74,7 @@ Steps to reproduce this work:
 
 ```
 
+To view the results of my experiments, the results/ folder is subdivided by model, and each model folder contains the model-generated report and evaluation files for each snapshot analyzed.
+
+For any questions, please feel free to email me at jlkess@umich.edu
+
