@@ -33,15 +33,20 @@ Compare Model-reported functions with the ground truth
     │
     ▼
 Calculate Evaluation Statistics
-'''
+```
 
-__INSTRUCTIONS__:
+
+
+## Instructions:
 
 Packages to install:
+```text
 - Ollama
 - requests
+```
 
 Steps to reproduce this work:
+```text
 1) Download the DiverseVul dataset from https://drive.google.com/file/d/12IWKhmLhq7qn5B_iXgn5YerOQtkH-6RG/view?usp=sharing and save it to [PROJECT_REPO]/data/raw/diversevul.json
 2) You can run inspect_dataset.py to check out the dataset features and example entries.
 3) Download the DiverseVul metadata from https://drive.google.com/file/d/19cJ7avNtsziaYkrrYuW7FeFdvgrxoNLc/view?usp=sharing and save it to [PROJECT_REPO]/data/raw/diversevul_metadata.json (or just view it on Google Drive)
@@ -67,5 +72,5 @@ Steps to reproduce this work:
   - the historical repository snapshot with the flag --repo-name [REPO_NAME]
   - the total number of vulnerabilities reported (only printed in the terminal, value is not saved --- patch this) --reported-vulnerable-count [INTEGER]
 
-
+```
 
